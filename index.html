@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建築風力設計查詢整合系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Sans+TC:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/theme.css">
+</head>
+<body>
+<div class="top-bar">
+  <div class="top-icon">🏗</div>
+  <div>
+    <div class="top-title">建築風力設計查詢整合系統</div>
+    <div class="top-sub">Wind Design Integration Hub</div>
+  </div>
+  <div class="top-badge">依據建築技術規則<br>建築構造編 風力設計</div>
+</div>
+
+<div class="layout">
+
+  <div class="sections-rail">
+
+
+  <!-- SECTION A -->
+  <div class="section" id="sec-a">
+    <div class="sec-header" onclick="toggleSection('a')">
+      <div class="sec-badge a">A</div>
+      <div class="sec-text">
+        <div class="sec-title">基本設計風速查詢</div>
+        <div class="sec-desc">依縣市鄉鎮查詢 V10c 設計風速值</div>
+      </div>
+      <span class="status-pill a" id="pill-a"></span>
+      <div class="expand-ind"><span id="ind-a" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+    
+    
+  </div>
+
+  <!-- SECTION B -->
+  <div class="section" id="sec-b">
+    <div class="sec-header" onclick="toggleSection('b')">
+      <div class="sec-badge b">B</div>
+      <div class="sec-text">
+        <div class="sec-title">建築物用途係數查詢</div>
+        <div class="sec-desc">依建築物類別查詢重要性係數 I 值</div>
+      </div>
+      <span class="status-pill b" id="pill-b"></span>
+      <div class="expand-ind"><span id="ind-b" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+    
+    
+  </div>
+
+  <!-- SECTION C -->
+  <div class="section" id="sec-c">
+    <div class="sec-header" onclick="toggleSection('c')">
+      <div class="sec-badge c">C</div>
+      <div class="sec-text">
+        <div class="sec-title">地況種類查詢</div>
+        <div class="sec-desc">依地況類別查詢風速垂直分布等相關參數</div>
+      </div>
+      <span class="status-pill c" id="pill-c"></span>
+      <div class="expand-ind"><span id="ind-c" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+    
+    
+  </div>
+
+
+  <!-- SECTION D -->
+  <div class="section" id="sec-d">
+    <div class="sec-header" onclick="toggleSection('d')">
+      <div class="sec-badge d">D</div>
+      <div class="sec-text">
+        <div class="sec-title">地形係數 K<sub>zt</sub> 計算</div>
+        <div class="sec-desc">依地形類型與地況計算地形加速係數 Kzt</div>
+      </div>
+      <span class="status-pill d" id="pill-d"></span>
+      <div class="expand-ind"><span id="ind-d" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+    
+    
+  </div>
+
+
+  <!-- SECTION E -->
+  <div class="section" id="sec-e">
+    <div class="sec-header" onclick="toggleSection('e')">
+      <div class="sec-badge e">E</div>
+      <div class="sec-text">
+        <div class="sec-title">外風壓係數與內風壓係數查詢</div>
+        <div class="sec-desc">依建築物類型與構件種類查詢風壓係數（表2.4～2.17；圖3.1～3.3）</div>
+      </div>
+      <span class="status-pill e" id="pill-e"></span>
+      <div class="expand-ind"><span id="ind-e" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+    
+    
+  </div>
+
+
+  <!-- SECTION F -->
+  <div class="section" id="sec-f">
+    <div class="sec-header" onclick="toggleSection('f')">
+      <div class="sec-badge f">F</div>
+      <div class="sec-text">
+        <div class="sec-title">設計風壓計算式查詢</div>
+        <div class="sec-desc">依建築類型與設計系統查詢對應計算公式</div>
+      </div>
+      <span class="status-pill f" id="pill-f"></span>
+      <div class="expand-ind"><span id="ind-f" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+    
+    
+  </div>
+
+
+  <!-- SECTION G: 陣風反應因子計算 -->
+  <div class="section" id="sec-g">
+    <div class="sec-header" onclick="toggleSection('g')">
+      <div class="sec-badge g">G</div>
+      <div class="sec-text">
+        <div class="sec-title">陣風反應因子計算</div>
+        <div class="sec-desc">依 §2.7 公式計算 G 或 Gf 值</div>
+      </div>
+      <span class="status-pill g" id="pill-g"></span>
+      <div class="expand-ind"><span id="ind-g" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+  </div>
+
+  <!-- SECTION S: 設計風壓計算 -->
+  <div class="section" id="sec-s">
+    <div class="sec-header" onclick="toggleSection('s')">
+      <div class="sec-badge s">S</div>
+      <div class="sec-text">
+        <div class="sec-title">設計風壓計算</div>
+        <div class="sec-desc">整合暫存區參數，計算設計風壓 p</div>
+      </div>
+      <span class="status-pill s" id="pill-s"></span>
+      <div class="expand-ind"><span id="ind-s" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+    
+    
+  </div>
+
+  <!-- SECTION R: Results -->
+  <div class="section" id="sec-r">
+    <div class="sec-header" onclick="toggleSection('r')">
+      <div class="sec-badge r">📋</div>
+      <div class="sec-text">
+        <div class="sec-title">查詢結果暫存區</div>
+        <div class="sec-desc">歷次查詢結果自動收集於此</div>
+      </div>
+      <span class="counter-badge" id="result-count">0</span>
+      <div class="expand-ind" style="margin-left:12px"><span id="ind-r" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+    
+    
+  </div>
+
+
+  </div>
+
+  <div class="content-panel" id="content-panel">
+    <div class="cph" id="cph">
+      <div class="cph-badge" id="cph-badge"></div>
+      <div class="cph-title" id="cph-title"></div>
+      <button class="cph-close" onclick="closePanel()">✕ 收束</button>
+    </div>
+    <div class="content-panel-body" id="content-panel-body">
+<div class="sec-body" id="body-a" style="display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;">
+      <iframe id="frame-a" src="sections/sec-a.html" title="基本設計風速查詢"></iframe>
+    </div>
+<div class="sec-body" id="body-b" style="display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;">
+      <iframe id="frame-b" src="sections/sec-b.html" title="建築物用途係數查詢"></iframe>
+    </div>
+<div class="sec-body" id="body-c" style="display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;">
+      <iframe id="frame-c" src="sections/sec-c.html" title="地況種類查詢"></iframe>
+    </div>
+<div class="sec-body" id="body-d" style="display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;">
+      <iframe id="frame-d" src="sections/sec-d.html" title="地形係數Kzt計算"></iframe>
+    </div>
+<div class="sec-body" id="body-e" style="display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;">
+      <iframe id="frame-e" src="sections/sec-e.html" title="外風壓係數與內風壓係數查詢"></iframe>
+    </div>
+<div class="sec-body" id="body-f" style="display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;">
+      <iframe id="frame-f" src="sections/sec-f.html" title="設計風壓計算式查詢"></iframe>
+    </div>
+
+
+<div class="sec-body" id="body-g" style="display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;">
+  <iframe id="frame-g" src="sections/sec-g.html" style="width:100%;height:100%;border:none;background:#f5f0e8;display:block;"></iframe>
+</div>
+
+<div class="sec-body" id="body-r" style="display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;">
+      <div class="results-scroll" id="results-body">
+        <div class="empty-hint" id="empty-hint">
+          <span class="empty-dot"></span>
+          請展開 A、B 或 C 區進行查詢，結果將自動顯示於此
+        </div>
+      </div>
+    </div>
+<div class="sec-body" id="body-s" style="display:none;flex:1;min-height:0;overflow:hidden;overflow-y:auto;flex-direction:column;background:var(--paper);">
+  <iframe id="frame-s" src="sections/sec-s.html" style="width:100%;height:100%;border:none;background:var(--paper);display:block;"></iframe>
+</div>
+
+    </div>
+  </div>
+
+<script src="hub.js"></script>
+</body>
+</html>

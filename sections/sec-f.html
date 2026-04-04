@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建築物設計風壓計算式查詢系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+TC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-chtml.min.js" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --ink-mid: #2d3561;
+    --ink-light: #4a5480;
+    --accent: #c8a96e;
+    --accent-dark: #a8843e;
+    --accent-glow: rgba(200, 169, 110, 0.15);
+    --surface: #f4f1eb;
+    --surface-dark: #e8e3d8;
+    --surface-card: #faf8f4;
+    --border: rgba(45, 53, 97, 0.15);
+    --red: #c0392b;
+    --green: #27ae60;
+    --shadow: 0 2px 16px rgba(26, 26, 46, 0.10);
+    --shadow-lg: 0 8px 40px rgba(26, 26, 46, 0.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* Header */
+  .header {
+    background: var(--ink);
+    color: white;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 80px,
+      rgba(200,169,110,0.04) 80px,
+      rgba(200,169,110,0.04) 81px
+    );
+    pointer-events: none;
+  }
+  .header-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 36px 32px 28px;
+    position: relative;
+  }
+  .header-badge {
+    display: inline-block;
+    background: var(--accent-glow);
+    border: 1px solid rgba(200,169,110,0.4);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 2px;
+    margin-bottom: 14px;
+  }
+  .header h1 {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    line-height: 1.3;
+    margin-bottom: 8px;
+  }
+  .header p {
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    font-weight: 300;
+  }
+  .header-deco {
+    position: absolute;
+    right: 32px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 80px;
+    opacity: 0.07;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    pointer-events: none;
+    letter-spacing: -5px;
+  }
+
+  /* Main layout */
+  .main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 32px 64px;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+
+  /* Sidebar steps */
+  .sidebar { position: sticky; top: 24px; }
+
+  .step-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+    transition: all 0.25s ease;
+  }
+  .step-card.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow); }
+  .step-card.completed { opacity: 0.7; }
+  .step-card.locked { opacity: 0.4; pointer-events: none; }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+  }
+  .step-header:hover { background: var(--surface-dark); }
+
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--ink-mid);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .step-card.active .step-num { background: var(--accent); color: var(--ink); }
+  .step-card.completed .step-num { background: var(--green); }
+
+  .step-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    flex: 1;
+  }
+  .step-value {
+    font-size: 11px;
+    color: var(--accent-dark);
+    font-weight: 500;
+    text-align: right;
+    max-width: 100px;
+    line-height: 1.3;
+  }
+
+  .step-options {
+    padding: 0 16px 14px;
+    display: none;
+    gap: 8px;
+    flex-direction: column;
+  }
+  .step-card.active .step-options { display: flex; }
+
+  .option-btn {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.18s;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--ink);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .option-btn:hover { border-color: var(--accent); background: var(--accent-glow); }
+  .option-btn.selected { border-color: var(--accent); background: var(--accent-glow); color: var(--ink); }
+  .option-btn.selected .option-icon { color: var(--accent); }
+
+  .option-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--ink-light);
+  }
+  .option-text strong { display: block; font-weight: 600; margin-bottom: 2px; }
+  .option-text span { font-size: 11px; color: var(--ink-light); line-height: 1.4; display: block; }
+
+  /* Result panel */
+  .result-panel { min-height: 400px; }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink-light);
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .breadcrumb span { color: var(--accent-dark); font-weight: 500; }
+  .breadcrumb .sep { opacity: 0.4; }
+
+  .empty-state {
+    background: var(--surface-card);
+    border: 1.5px dashed var(--border);
+    border-radius: 12px;
+    padding: 60px 40px;
+    text-align: center;
+    color: var(--ink-light);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state h3 { font-size: 18px; margin-bottom: 8px; font-family: 'Noto Serif TC', serif; }
+  .empty-state p { font-size: 13px; }
+
+  /* Formula card */
+  .formula-result {
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .formula-list { display: flex; flex-direction: column; gap: 20px; }
+
+  .formula-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.2s;
+  }
+  .formula-card:hover { box-shadow: var(--shadow-lg); }
+
+  .formula-card-header {
+    background: var(--ink);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .formula-badge {
+    background: var(--accent);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .formula-card-title {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .formula-body { padding: 20px; }
+
+  .formula-display-box {
+    background: var(--ink);
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .formula-display-box::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(200,169,110,0.03) 10px, rgba(200,169,110,0.03) 11px);
+    pointer-events: none;
+  }
+  .formula-display-box .MathJax { color: white !important; font-size: 1.3em !important; }
+  .formula-plain {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  .condition-box {
+    background: rgba(200, 169, 110, 0.08);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--ink-mid);
+  }
+  .condition-box strong { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent-dark); margin-bottom: 6px; }
+  .condition-box pre { white-space: pre-wrap; font-family: inherit; line-height: 1.7; }
+
+  .params-title {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .params-title::before {
+    content: '';
+    width: 4px; height: 16px;
+    background: var(--accent);
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  .params-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .params-table th {
+    background: var(--surface-dark);
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--ink-light);
+    border-bottom: 1.5px solid var(--border);
+  }
+  .params-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .params-table tr:last-child td { border-bottom: none; }
+  .params-table tr:hover td { background: var(--accent-glow); }
+
+  .sym-cell {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-mid);
+    white-space: nowrap;
+  }
+  .unit-cell {
+    font-size: 11px;
+    color: var(--ink-light);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+  }
+  .ref-cell {
+    font-size: 11px;
+    color: var(--accent-dark);
+    white-space: nowrap;
+  }
+
+  .notes-box {
+    margin-top: 16px;
+    background: var(--surface);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--ink-light);
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  /* DB schema badge */
+  .schema-info {
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--ink-light);
+    margin-bottom: 14px;
+  }
+  .schema-info h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent-dark); margin-bottom: 8px; font-weight: 700; }
+  .schema-tag {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin: 2px;
+  }
+
+  @media (max-width: 768px) {
+    .main { grid-template-columns: 1fr; padding: 16px; }
+    .sidebar { position: static; }
+    .header-deco { display: none; }
+    .header-inner { padding: 24px 20px; }
+    .header h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-badge">建築物耐風設計規範</div>
+    <h1>設計風壓計算式查詢系統</h1>
+    <p>依 ASCE 7 規範精神，整合第二章主要風力抵抗系統與第三章局部構材外部被覆物設計風壓公式</p>
+    <div class="header-deco">p=qGC<sub>p</sub></div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <div class="schema-info">
+      <h4>資料庫正規化架構</h4>
+      <span class="schema-tag">building_type</span>
+      <span class="schema-tag">enclosure_type</span>
+      <span class="schema-tag">design_system</span>
+      <span class="schema-tag">subcategory</span>
+      <span class="schema-tag">formula</span>
+      <span class="schema-tag">parameter</span>
+      <span class="schema-tag">formula_parameter</span>
+    </div>
+
+    <!-- Step 1 -->
+    <div class="step-card active" id="step1-card">
+      <div class="step-header" onclick="toggleStep(1)">
+        <div class="step-num">1</div>
+        <div class="step-title">建築物類型</div>
+        <div class="step-value" id="step1-val">—</div>
+      </div>
+      <div class="step-options" id="step1-opts">
+        <!-- injected -->
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step-card locked" id="step2-card">
+      <div class="step-header" onclick="toggleStep(2)">
+        <div class="step-num">2</div>
+        <div class="step-title">封閉類型</div>
+        <div class="step-value" id="step2-val">—</div>
+      </div>
+      <div class="step-options" id="step2-opts"></div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step-card locked" id="step3-card">
+      <div class="step-header" onclick="toggleStep(3)">
+        <div class="step-num">3</div>
+        <div class="step-title">設計系統</div>
+        <div class="step-value" id="step3-val">—</div>
+      </div>
+      <div class="step-options" id="step3-opts"></div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step-card locked" id="step4-card">
+      <div class="step-header" onclick="toggleStep(4)">
+        <div class="step-num">4</div>
+        <div class="step-title">子分類</div>
+        <div class="step-value" id="step4-val">—</div>
+      </div>
+      <div class="step-options" id="step4-opts"></div>
+    </div>
+
+  </div>
+
+  <!-- Result -->
+  <div class="result-panel">
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <div id="result-area">
+      <div class="empty-state">
+        <div class="icon">🏗️</div>
+        <h3>請從左側依序選擇條件</h3>
+        <p>系統將依據您的選擇，從資料庫中查詢對應的設計風壓計算式及參數說明</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== EMBEDDED DATABASE (from SQLite export) =====
+const DB = {"building_types":[{"id":1,"code":"ordinary","name":"普通建築物","description":"基本自然頻率 > 1Hz，無顯著動態效應"},{"id":2,"code":"flexible","name":"柔性建築物","description":"基本自然頻率 ≤ 1Hz，需考慮動態效應"}],"enclosure_types":[{"id":1,"code":"closed","name":"封閉式建築物","description":"建築物外殼開口率極小，內風壓係數固定"},{"id":2,"code":"partial_open","name":"部分封閉式建築物","description":"建築物外殼有部分開口，需依開口情形計算內風壓"},{"id":3,"code":"open","name":"開放式建築物","description":"建築物外殼完全開放或幾乎開放，不考慮內外風壓差"}],"design_systems":[{"id":1,"code":"mwfrs","name":"主要風力抵抗系統 (MWFRS)","description":"建築物整體抵抗風力之結構系統，包含框架、剪力牆等主要承力構件"},{"id":2,"code":"c_and_c","name":"局部構材及外部被覆物 (C&C)","description":"建築物外殼之局部構材及覆面材料，因受風面積較小，設計風壓較高"}],"subcategories":[{"id":1,"design_system_id":1,"code":"wall_roof","name":"外牆與屋頂設計風壓","description":"計算建築物外牆面、屋頂面所受設計風壓 p","applicable_building_types":"[\"ordinary\",\"flexible\"]","applicable_enclosure_types":"[\"closed\",\"partial_open\"]"},{"id":2,"design_system_id":1,"code":"parapet_mwfrs","name":"屋頂女兒牆設計風壓 (MWFRS)","description":"計算主要風力抵抗系統屋頂女兒牆所受設計風壓 pp","applicable_building_types":"[\"ordinary\",\"flexible\"]","applicable_enclosure_types":"[\"closed\",\"partial_open\"]"},{"id":3,"design_system_id":1,"code":"open_building","name":"開放式建築物設計風力","description":"計算開放式建築物所承受之設計風力 F","applicable_building_types":"[\"ordinary\",\"flexible\"]","applicable_enclosure_types":"[\"open\"]"},{"id":7,"design_system_id":2,"code":"cc_ordinary_low","name":"局部構材設計風壓（高度 ≤ 18m）","description":"普通建築物封閉式或部分封閉式建築物，平均屋頂高度不超過18公尺，局部構材及外部被覆物之設計風壓","applicable_building_types":"[\"ordinary\"]","applicable_enclosure_types":"[\"closed\",\"partial_open\"]"},{"id":8,"design_system_id":2,"code":"cc_ordinary_high","name":"局部構材設計風壓（高度 > 18m）","description":"普通建築物封閉式或部分封閉式建築物，平均屋頂高度超過18公尺，局部構材及外部被覆物之設計風壓","applicable_building_types":"[\"ordinary\"]","applicable_enclosure_types":"[\"closed\",\"partial_open\"]"},{"id":9,"design_system_id":2,"code":"cc_parapet","name":"屋頂女兒牆設計風壓 (C&C)","description":"封閉/部分封閉式建築物屋頂女兒牆局部構材之設計風壓","applicable_building_types":"[\"ordinary\",\"flexible\"]","applicable_enclosure_types":"[\"closed\",\"partial_open\"]"},{"id":10,"design_system_id":2,"code":"cc_open_roof","name":"開放式建築物斜屋頂局部構材設計風壓","description":"開放式建築物斜屋頂局部構材及外部被覆物之設計風壓 p","applicable_building_types":"[\"ordinary\",\"flexible\"]","applicable_enclosure_types":"[\"open\"]"},{"id":12,"design_system_id":2,"code":"cc_flexible_closed","name":"局部構材設計風壓（封閉/部分封閉）","description":"柔性建築物封閉式或部分封閉式建築物局部構材及外部被覆物之設計風壓，僅一條公式，q依迎/背風面選用","applicable_building_types":"[\"flexible\"]","applicable_enclosure_types":"[\"closed\",\"partial_open\"]"}],"formulas":[{"id":1,"building_type_id":1,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":1,"formula_code":"2.1","formula_name":"封閉/部分封閉式普通建築物主要風力抵抗系統設計風壓","formula_latex":"p = qGC_p - q_i(GC_{pi})","formula_display":"p = qGCp − qi(GCpi)","applicable_condition":"適用於封閉式或部分封閉式普通建築物或地上獨立結構物主要風力抵抗系統\n迎風面牆：q = q(z)\n背風面牆、側牆與屋頂：q = q(h)\n封閉式或內風壓取負值之部分封閉式：qi = q(h)\n內風壓取正值之部分封閉式：qi = q(zh0) 或 q(h)","notes":"公式(2.1)","parameter_ids":[4,5,6,7,9,11,13]},{"id":2,"building_type_id":2,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":1,"formula_code":"2.2","formula_name":"封閉/部分封閉式柔性建築物主要風力抵抗系統設計風壓","formula_latex":"p = qG_fC_p - q_i(GC_{pi})","formula_display":"p = qGfCp − qi(GCpi)","applicable_condition":"適用於封閉/部分封閉式柔性建築物或地上獨立結構物主要風力抵抗系統\n以柔性建築物陣風反應因子 Gf 取代普通建築物之 G","notes":"公式(2.2)","parameter_ids":[4,5,6,7,10,11,13]},{"id":3,"building_type_id":1,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":2,"formula_code":"2.3","formula_name":"屋頂女兒牆設計風壓 (MWFRS)","formula_latex":"p_p = q_p(GC_{pn})","formula_display":"pp = qp(GCpn)","applicable_condition":"設計建築物主要風力抵抗系統時屋頂女兒牆之設計風壓\n迎風面女兒牆：(GCpn) = +1.8\n背風面女兒牆：(GCpn) = −1.1","notes":"公式(2.3)","parameter_ids":[2,8,14]},{"id":4,"building_type_id":1,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":3,"formula_code":"2.4","formula_name":"開放式建築物設計風力","formula_latex":"F = q(z_{Ac}) G C_f A_c","formula_display":"F = q(zAc) G Cf Ac","applicable_condition":"適用於開放式建築物或地上獨立結構物所應承受之設計風力\nq(zAc) 為面積 Ac 形心高度 zAc 處之風速壓","notes":"公式(2.4)","parameter_ids":[3,9,16,17,32]},{"id":5,"building_type_id":1,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":4,"formula_code":"2.6","formula_name":"風速壓計算","formula_latex":"q(z) = 0.06 K(z) K_{zt} [IV_{10}(C)]^2","formula_display":"q(z) = 0.06 K(z) Kzt [I V10(C)]²","applicable_condition":"各種用途係數建築物在不同地況下離地面z公尺高之風速壓，單位 kgf/m²\nK(z) = 2.774(z/zg)^(2α)；z > 5m\nK(z) = 2.774(5/zg)^(2α)；z ≦ 5m","notes":"公式(2.6)","parameter_ids":[5,18,19,20,21]},{"id":8,"building_type_id":1,"enclosure_type_id":null,"design_system_id":2,"subcategory_id":7,"formula_code":"3.1","formula_name":"局部構材設計風壓 (高度 ≤ 18m)","formula_latex":"p = q(h)[(GC_p) - (GC_{pi})]","formula_display":"p = q(h)[(GCp) − (GCpi)]","applicable_condition":"封閉式或部分封閉式建築物高度不超過18公尺\n局部構件及外部被覆物之設計風壓\nq(h) 為平均屋頂高度h處之風速壓","notes":"公式(3.1)","parameter_ids":[1,6,12,13]},{"id":9,"building_type_id":1,"enclosure_type_id":null,"design_system_id":2,"subcategory_id":8,"formula_code":"3.2","formula_name":"局部構材設計風壓 (高度 > 18m)","formula_latex":"p = q(GC_p) - q_i(GC_{pi})","formula_display":"p = q(GCp) − qi(GCpi)","applicable_condition":"封閉式或部分封閉式建築物高度超過18公尺\n局部構件及外部被覆物之設計風壓\n迎風面牆：q = q(z)\n背風面牆、側牆、屋頂：q = q(h)\n封閉式或負內風壓：qi = q(h)\n正內風壓部分封閉式：qi = q(zh0) 或 q(h)","notes":"公式(3.2)","parameter_ids":[1,4,5,6,7,12,13,26]},{"id":10,"building_type_id":null,"enclosure_type_id":null,"design_system_id":2,"subcategory_id":9,"formula_code":"3.3","formula_name":"屋頂女兒牆局部構材設計風壓 (C&C)","formula_latex":"p = q_p[(GC_p) - (GC_{pi})]","formula_display":"p = qp[(GCp) − (GCpi)]","applicable_condition":"封閉/部分封閉式建築物屋頂女兒牆局部構材及外部被覆物之設計風壓\n(GCp) 依3.3節計算；(GCpi) 依女兒牆開口率按2.9節計算\n迎風面女兒牆：正面加正值外牆風壓，背面加負值屋頂外風壓\n背風面女兒牆：背面加正值外牆風壓，正面加負值外牆風壓","notes":"公式(3.3)","parameter_ids":[1,8,12,13]},{"id":11,"building_type_id":null,"enclosure_type_id":null,"design_system_id":2,"subcategory_id":10,"formula_code":"3.4","formula_name":"開放式建築物斜屋頂局部構材設計風壓","formula_latex":"p = q(h) G C_{pn}","formula_display":"p = q(h) G Cpn","applicable_condition":"開放式建築物之斜屋頂局部構材及外部被覆物承受之設計風壓\nG 採普通建築物陣風反應因子；淨風壓係數 Cpn 見圖3.3","notes":"公式(3.4)","parameter_ids":[1,6,9,15]},{"id":14,"building_type_id":1,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":11,"formula_code":"2.7","formula_name":"風速壓地況係數 K(z)","formula_latex":"K(z) = \\begin{cases} 2.774\\left(\\dfrac{z}{z_g}\\right)^{2\\alpha} & z > 5\\,\\text{m} \\\\ 2.774\\left(\\dfrac{5}{z_g}\\right)^{2\\alpha} & z \\leq 5\\,\\text{m} \\end{cases}","formula_display":"K(z) = 2.774(z/zg)^(2α)  (z > 5m)\nK(z) = 2.774(5/zg)^(2α)  (z ≤ 5m)","applicable_condition":"離地面z處風速壓與標準風速壓（地況C，10m高）之比值\n地況A：α=0.32，zg=450m\n地況B：α=0.25，zg=350m\n地況C：α=0.15，zg=300m\n當高度小於5公尺時，採用5公尺處之K值（保守計）","notes":"公式(2.7)","parameter_ids":[18,22,23,28]},{"id":15,"building_type_id":2,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":11,"formula_code":"2.7","formula_name":"風速壓地況係數 K(z)","formula_latex":"K(z) = \\begin{cases} 2.774\\left(\\dfrac{z}{z_g}\\right)^{2\\alpha} & z > 5\\,\\text{m} \\\\ 2.774\\left(\\dfrac{5}{z_g}\\right)^{2\\alpha} & z \\leq 5\\,\\text{m} \\end{cases}","formula_display":"K(z) = 2.774(z/zg)^(2α)  (z > 5m)\nK(z) = 2.774(5/zg)^(2α)  (z ≤ 5m)","applicable_condition":"離地面z處風速壓與標準風速壓（地況C，10m高）之比值\n地況A：α=0.32，zg=450m\n地況B：α=0.25，zg=350m\n地況C：α=0.15，zg=300m\n當高度小於5公尺時，採用5公尺處之K值（保守計）","notes":"公式(2.7)","parameter_ids":[18,22,23,28]},{"id":16,"building_type_id":2,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":2,"formula_code":"2.3","formula_name":"屋頂女兒牆設計風壓 (MWFRS)","formula_latex":"p_p = q_p(GC_{pn})","formula_display":"pp = qp(GCpn)","applicable_condition":"設計建築物主要風力抵抗系統時屋頂女兒牆之設計風壓\n迎風面女兒牆：(GCpn) = +1.8\n背風面女兒牆：(GCpn) = −1.1","notes":"公式(2.3)","parameter_ids":[2,8,14]},{"id":17,"building_type_id":2,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":3,"formula_code":"2.4","formula_name":"開放式建築物設計風力","formula_latex":"F = q(z_{Ac}) G C_f A_c","formula_display":"F = q(zAc) G Cf Ac","applicable_condition":"適用於開放式建築物或地上獨立結構物所應承受之設計風力\nq(zAc) 為面積 Ac 形心高度 zAc 處之風速壓","notes":"公式(2.4)","parameter_ids":[3,9,16,17,32]},{"id":18,"building_type_id":2,"enclosure_type_id":null,"design_system_id":1,"subcategory_id":4,"formula_code":"2.6","formula_name":"風速壓計算","formula_latex":"q(z) = 0.06 K(z) K_{zt} [IV_{10}(C)]^2","formula_display":"q(z) = 0.06 K(z) Kzt [I V10(C)]²","applicable_condition":"各種用途係數建築物在不同地況下離地面z公尺高之風速壓，單位 kgf/m²\nK(z) = 2.774(z/zg)^(2α)；z > 5m\nK(z) = 2.774(5/zg)^(2α)；z ≦ 5m","notes":"公式(2.6)","parameter_ids":[5,18,19,20,21]},{"id":19,"building_type_id":2,"enclosure_type_id":null,"design_system_id":2,"subcategory_id":12,"formula_code":"3.2","formula_name":"柔性建築物局部構材及外部被覆物設計風壓","formula_latex":"p = q(GC_p) - q_i(GC_{pi})","formula_display":"p = q(GCp) − qi(GCpi)","applicable_condition":"柔性建築物封閉式或部分封閉式建築物局部構材及外部被覆物之設計風壓\n迎風面牆：q = q(z)；背風面牆、側牆與屋頂：q = q(h)\n封閉式或負內風壓之部分封閉式：qi = q(h)\n正內風壓之部分封閉式：qi = q(zh0) 或 q(h)\n（見表2.1(b)，無高度分類）","notes":"公式(3.2)，表2.1(b)","parameter_ids":[1,4,5,6,7,12,13,26]}],"parameters":[{"id":1,"symbol":"p","symbol_display":"p","name":"設計風壓","unit":"kgf/m²","description":"作用於建築物構件表面之設計風壓力，正值表示壓力（向內），負值表示吸力（向外）","reference":"2.2節"},{"id":2,"symbol":"pp","symbol_display":"p_p","name":"屋頂女兒牆設計風壓","unit":"kgf/m²","description":"設計主要風力抵抗系統時，屋頂女兒牆所承受之設計風壓","reference":"2.2節"},{"id":3,"symbol":"F","symbol_display":"F","name":"設計風力","unit":"kgf","description":"開放式建築物或地上獨立結構物所應承受之總設計風力","reference":"2.2節"},{"id":4,"symbol":"q","symbol_display":"q","name":"外風速壓","unit":"kgf/m²","description":"作用於建築物外表面之風速壓。迎風面牆取 q(z)；背風面牆、側牆、屋頂取 q(h)","reference":"2.6節"},{"id":5,"symbol":"q(z)","symbol_display":"q(z)","name":"高度z處之風速壓","unit":"kgf/m²","description":"離地面高度z公尺處之設計風速壓，由風速壓公式(2.6)計算","reference":"2.6節"},{"id":6,"symbol":"q(h)","symbol_display":"q(h)","name":"平均屋頂高度h處之風速壓","unit":"kgf/m²","description":"建築物平均屋頂高度h處之風速壓，由公式(2.6)計算","reference":"2.6節"},{"id":7,"symbol":"qi","symbol_display":"q_i","name":"內風速壓","unit":"kgf/m²","description":"作用於建築物內表面之風速壓。封閉式或負內風壓取 q(h)；正內風壓可取 q(zh0) 或 q(h)","reference":"2.6節"},{"id":8,"symbol":"qp","symbol_display":"q_p","name":"屋頂女兒牆頂端風速壓","unit":"kgf/m²","description":"屋頂女兒牆頂端高度處之風速壓，由公式(2.6)計算","reference":"2.6節"},{"id":9,"symbol":"G","symbol_display":"G","name":"陣風反應因子（普通建築物）","unit":"無因次","description":"普通建築物之陣風反應因子，考慮風速時間變動及動態效應。可取 1.88 或依公式(2.9)計算","reference":"2.7節"},{"id":10,"symbol":"Gf","symbol_display":"G_f","name":"陣風反應因子（柔性建築物）","unit":"無因次","description":"柔性建築物之陣風反應因子，考慮共振效應，必須依公式計算，不可取固定值","reference":"2.7節"},{"id":11,"symbol":"Cp","symbol_display":"C_p","name":"外風壓係數","unit":"無因次","description":"考慮建築物幾何形狀之外表面風壓係數，由風洞試驗資料建立，見表2.4至2.8","reference":"2.8節"},{"id":12,"symbol":"GCp","symbol_display":"(GC_p)","name":"外風壓係數（含陣風因子）","unit":"無因次","description":"局部構材設計時，陣風反應因子與外風壓係數之乘積，不可分離，見圖3.1或圖3.2","reference":"3.3節"},{"id":13,"symbol":"GCpi","symbol_display":"(GC_pi)","name":"內風壓係數（含陣風因子）","unit":"無因次","description":"陣風反應因子與內風壓係數之乘積。封閉式：±0.375；部分封閉式：±1.146（見表2.17）","reference":"2.9節"},{"id":14,"symbol":"GCpn","symbol_display":"(GC_{pn})","name":"屋頂女兒牆淨風壓係數","unit":"無因次","description":"迎風面女兒牆取 +1.8；背風面女兒牆取 −1.1","reference":"2.2節"},{"id":15,"symbol":"Cpn","symbol_display":"C_{pn}","name":"淨風壓係數","unit":"無因次","description":"開放式建築物斜屋頂之淨風壓係數，考慮上下兩面之合成風壓，見圖3.3","reference":"3.4節"},{"id":16,"symbol":"Cf","symbol_display":"C_f","name":"風力係數","unit":"無因次","description":"開放式建築物之風力係數，由建築物類型及幾何形狀決定，見表2.9至2.16","reference":"2.8節"},{"id":17,"symbol":"Ac","symbol_display":"A_c","name":"開放式建築物受風作用特徵面積","unit":"m²","description":"開放式建築物受風作用之特徵面積，依建築物類型分為實際表面面積或與風向垂直面上投影面積","reference":"2.2節"},{"id":18,"symbol":"K(z)","symbol_display":"K(z)","name":"風速壓地況係數","unit":"無因次","description":"離地面z處風速壓與標準風速壓（地況C，10m高）之比值。z>5m：K(z)=2.774(z/zg)^2α；z≦5m：K(z)=2.774(5/zg)^2α","reference":"2.6節"},{"id":19,"symbol":"Kzt","symbol_display":"K_{zt}","name":"地形係數","unit":"無因次","description":"代表在獨立山丘、山脊或懸崖近頂端處風速局部加速效應，一般地形 Kzt=1.0，由公式(2.8)計算","reference":"2.6節"},{"id":20,"symbol":"I","symbol_display":"I","name":"用途係數","unit":"無因次","description":"反映建築物重要性之係數。第一~三類：I=1.1；第四類：I=0.9；第五類（一般）：I=1.0","reference":"2.5節"},{"id":21,"symbol":"V10(C)","symbol_display":"V_{10}(C)","name":"基本設計風速","unit":"m/s","description":"地況C類，離地10公尺高，50年回歸期10分鐘平均風速。臺灣各區域數值見規範2.4節","reference":"2.4節"},{"id":22,"symbol":"alpha","symbol_display":"α","name":"風速垂直分布指數","unit":"無因次","description":"相對於10分鐘平均風速之垂直分布指數。地況A：α=0.32；地況B：α=0.25；地況C：α=0.15","reference":"2.3節"},{"id":23,"symbol":"zg","symbol_display":"z_g","name":"梯度高度","unit":"m","description":"風速達梯度風速之高度。地況A：zg=450m；地況B：zg=350m；地況C：zg=300m（見表2.2）","reference":"2.3節"},{"id":26,"symbol":"zh0","symbol_display":"zh0","name":"最高開口高度","unit":"m","description":"影響正值內風壓之最高開口高度，用於部分封閉式建築物正內風壓計算","reference":"2.2節"},{"id":28,"symbol":"z","symbol_display":"z","name":"計算高度","unit":"m","description":"離地面之計算高度","reference":"通用"},{"id":32,"symbol":"zAc","symbol_display":"z_{Ac}","name":"特徵面積形心高度","unit":"m","description":"開放式建築物受風作用特徵面積 Ac 之形心所在高度","reference":"2.2節"}]};
+
+// Build lookup maps
+const paramMap = {};
+DB.parameters.forEach(p => { paramMap[p.id] = p; });
+const subcatMap = {};
+DB.subcategories.forEach(s => { subcatMap[s.id] = s; });
+
+// State
+const sel = { building: null, enclosure: null, system: null, subcat: null };
+
+// Icons
+const btIcons = { ordinary: '🏢', flexible: '🏙️' };
+const etIcons = { closed: '🔒', partial_open: '🪟', open: '🌬️' };
+const dsIcons = { mwfrs: '🏗️', c_and_c: '🔩' };
+
+// Step 1: Building type
+function initStep1() {
+  const el = document.getElementById('step1-opts');
+  el.innerHTML = DB.building_types.map(bt => `
+    <button class="option-btn" onclick="selectBuilding(${bt.id})" data-id="${bt.id}">
+      <span class="option-icon">${btIcons[bt.code]||'🏢'}</span>
+      <span class="option-text">
+        <strong>${bt.name}</strong>
+        <span>${bt.description}</span>
+      </span>
+    </button>`).join('');
+}
+
+function selectBuilding(id) {
+  sel.building = id; sel.enclosure = null; sel.system = null; sel.subcat = null;
+  const bt = DB.building_types.find(x => x.id === id);
+  setStepValue(1, bt.name);
+  markSelected('step1-opts', id);
+  setStepState(1,'completed'); setStepState(2,'active');
+  initStep2();
+  updateBreadcrumb();
+  showEmpty();
+}
+
+// Step 2: Enclosure type
+function initStep2() {
+  const el = document.getElementById('step2-opts');
+  el.innerHTML = DB.enclosure_types.map(et => `
+    <button class="option-btn" onclick="selectEnclosure(${et.id})" data-id="${et.id}">
+      <span class="option-icon">${etIcons[et.code]||'🏠'}</span>
+      <span class="option-text">
+        <strong>${et.name}</strong>
+        <span>${et.description}</span>
+      </span>
+    </button>`).join('');
+}
+
+function selectEnclosure(id) {
+  sel.enclosure = id; sel.system = null; sel.subcat = null;
+  const et = DB.enclosure_types.find(x => x.id === id);
+  setStepValue(2, et.name);
+  markSelected('step2-opts', id);
+  setStepState(2,'completed'); setStepState(3,'active');
+  initStep3();
+  updateBreadcrumb();
+  showEmpty();
+}
+
+// Step 3: Design system
+function initStep3() {
+  const el = document.getElementById('step3-opts');
+  el.innerHTML = DB.design_systems.map(ds => `
+    <button class="option-btn" onclick="selectSystem(${ds.id})" data-id="${ds.id}">
+      <span class="option-icon">${dsIcons[ds.code]||'⚙️'}</span>
+      <span class="option-text">
+        <strong>${ds.name}</strong>
+        <span>${ds.description}</span>
+      </span>
+    </button>`).join('');
+}
+
+function selectSystem(id) {
+  sel.system = id; sel.subcat = null;
+  const ds = DB.design_systems.find(x => x.id === id);
+  setStepValue(3, ds.name.replace(' (MWFRS)','').replace(' (C&C)',''));
+  markSelected('step3-opts', id);
+  setStepState(3,'completed'); setStepState(4,'active');
+  initStep4();
+  updateBreadcrumb();
+  showEmpty();
+}
+
+// Step 4: Subcategory (filtered)
+function initStep4() {
+  const bt = DB.building_types.find(x => x.id === sel.building);
+  const et = DB.enclosure_types.find(x => x.id === sel.enclosure);
+
+  const filtered = DB.subcategories.filter(s => {
+    if (s.design_system_id !== sel.system) return false;
+    const abt = JSON.parse(s.applicable_building_types);
+    const aet = JSON.parse(s.applicable_enclosure_types);
+    return abt.includes(bt.code) && aet.includes(et.code);
+  });
+
+  const el = document.getElementById('step4-opts');
+  if (filtered.length === 0) {
+    el.innerHTML = '<div style="font-size:13px;color:#888;padding:8px 0">此組合無適用子分類</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(s => `
+    <button class="option-btn" onclick="selectSubcat(${s.id})" data-id="${s.id}">
+      <span class="option-icon">📐</span>
+      <span class="option-text">
+        <strong>${s.name}</strong>
+        <span>${s.description}</span>
+      </span>
+    </button>`).join('');
+}
+
+function selectSubcat(id) {
+  sel.subcat = id;
+  const s = DB.subcategories.find(x => x.id === id);
+  setStepValue(4, s.name);
+  markSelected('step4-opts', id);
+  setStepState(4,'active');
+  updateBreadcrumb();
+  showFormulas();
+}
+
+// Query formulas from DB
+function queryFormulas() {
+  // building_type_id & enclosure_type_id may be null (formula applies to all types)
+  return DB.formulas.filter(f => {
+    if (f.building_type_id !== null && f.building_type_id !== sel.building) return false;
+    if (f.design_system_id !== sel.system) return false;
+    if (f.subcategory_id !== sel.subcat) return false;
+    return true;
+  });
+}
+
+function showFormulas() {
+  const formulas = queryFormulas();
+  const area = document.getElementById('result-area');
+  if (formulas.length === 0) {
+    area.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><h3>查無符合的計算式</h3><p>此條件組合目前資料庫中無對應公式，請嘗試其他組合</p></div>`;
+    return;
+  }
+  area.innerHTML = `<div class="formula-result"><div class="formula-list">${formulas.map(f => renderFormula(f)).join('')}</div></div>`;
+  // Typeset MathJax
+  if (window.MathJax) {
+    MathJax.typesetPromise([area]).catch(err => {
+      console.log('MathJax error', err);
+      // Fallback: show plain text
+      document.querySelectorAll('.math-fallback').forEach(el => el.style.display = 'block');
+      document.querySelectorAll('.mjx-container').forEach(el => el.style.display = 'none');
+    });
+  }
+
+  // 回傳結果至整合式父頁面
+  if (window.parent !== window) {
+    const bt = DB.building_types.find(x => x.id === sel.building);
+    const et = DB.enclosure_types.find(x => x.id === sel.enclosure);
+    const ds = DB.design_systems.find(x => x.id === sel.system);
+    const sc = DB.subcategories.find(x => x.id === sel.subcat);
+
+
+    const allFormulas = [...formulas];
+
+    window.parent.postMessage({
+      source: 'wind_pressure_formula',
+      buildingType:  bt ? bt.name  : '',
+      enclosureType: et ? et.name  : '',
+      designSystem:  ds ? ds.name  : '',
+      subcategory:   sc ? sc.name  : '',
+      formulas: allFormulas.map(f => ({
+        code:    f.formula_code,
+        name:    f.formula_name,
+        display: f.formula_display,
+        condition: f.applicable_condition || '',
+        isExtra: false
+      })),
+      timestamp: new Date().toISOString()
+    }, '*');
+  }
+}
+
+function renderFormula(f) {
+  const params = f.parameter_ids.map(id => paramMap[id]).filter(Boolean);
+  const condLines = f.applicable_condition ? f.applicable_condition.split('\n') : [];
+
+  const paramsRows = params.map(p => `
+    <tr>
+      <td class="sym-cell">${p.symbol_display}</td>
+      <td>${p.name}</td>
+      <td class="unit-cell">${p.unit || '—'}</td>
+      <td>${p.description}</td>
+      <td class="ref-cell">${p.reference || '—'}</td>
+    </tr>`).join('');
+
+  return `
+  <div class="formula-card">
+    <div class="formula-card-header">
+      <span class="formula-badge">公式 ${f.formula_code}</span>
+      <span class="formula-card-title">${f.formula_name}</span>
+    </div>
+    <div class="formula-body">
+      <div class="formula-display-box">
+        <div>\\(${f.formula_latex}\\)</div>
+        <div class="formula-plain" style="margin-top:10px;font-size:13px;opacity:0.5">${f.formula_display}</div>
+      </div>
+      ${condLines.length ? `
+      <div class="condition-box">
+        <strong>適用條件</strong>
+        <pre>${f.applicable_condition}</pre>
+      </div>` : ''}
+      <div class="params-title">參數說明</div>
+      <table class="params-table">
+        <thead>
+          <tr>
+            <th>符號</th><th>名稱</th><th>單位</th><th>說明</th><th>參考節次</th>
+          </tr>
+        </thead>
+        <tbody>${paramsRows}</tbody>
+      </table>
+      <div class="notes-box">
+        <span>📌</span>
+        <span>${f.notes} · 資料來源：建築物耐風設計規範，參照 ASCE 7 規範</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+// UI helpers
+function setStepValue(n, v) {
+  document.getElementById(`step${n}-val`).textContent = v;
+}
+function markSelected(containerId, id) {
+  document.querySelectorAll(`#${containerId} .option-btn`).forEach(btn => {
+    btn.classList.toggle('selected', parseInt(btn.dataset.id) === id);
+  });
+}
+function setStepState(n, state) {
+  const card = document.getElementById(`step${n}-card`);
+  card.classList.remove('active','completed','locked');
+  card.classList.add(state);
+}
+function toggleStep(n) {
+  const card = document.getElementById(`step${n}-card`);
+  if (card.classList.contains('locked')) return;
+  // Allow going back
+  if (card.classList.contains('completed')) {
+    setStepState(n, 'active');
+    // Lock subsequent steps
+    for (let i = n+1; i <= 4; i++) { setStepState(i,'locked'); setStepValue(i,'—'); }
+    if (n<=1) { sel.building=null; }
+    if (n<=2) { sel.enclosure=null; }
+    if (n<=3) { sel.system=null; }
+    sel.subcat=null;
+    updateBreadcrumb();
+    showEmpty();
+  }
+}
+function showEmpty() {
+  document.getElementById('result-area').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">📋</div>
+      <h3>請繼續選擇條件</h3>
+      <p>完成所有四個步驟後，系統將顯示對應的設計風壓計算式</p>
+    </div>`;
+}
+function updateBreadcrumb() {
+  const parts = [];
+  if (sel.building) parts.push(DB.building_types.find(x=>x.id===sel.building)?.name);
+  if (sel.enclosure) parts.push(DB.enclosure_types.find(x=>x.id===sel.enclosure)?.name);
+  if (sel.system) parts.push(DB.design_systems.find(x=>x.id===sel.system)?.name);
+  if (sel.subcat) parts.push(DB.subcategories.find(x=>x.id===sel.subcat)?.name);
+  const bc = document.getElementById('breadcrumb');
+  if (parts.length === 0) { bc.innerHTML=''; return; }
+  bc.innerHTML = parts.map((p,i) => `${i>0?'<span class="sep">›</span>':''}<span>${p}</span>`).join('');
+}
+
+// Init
+initStep1();
+</script>
+</body>
+</html>

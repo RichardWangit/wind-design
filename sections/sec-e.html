@@ -1,0 +1,3553 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建築物風壓係數查詢計算系統（表2.4～表2.17）</title>
+<style>
+:root{
+  --bg:#f0f4f8;--card:#fff;--primary:#1a56db;--primary-d:#1340a8;
+  --accent:#e3edff;--border:#d1dde8;--text:#1a202c;--muted:#64748b;
+  --green:#16a34a;--red:#dc2626;--orange:#d97706;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:linear-gradient(135deg,#1340a8 0%,#1a56db 60%,#2563eb 100%);color:#fff;padding:20px 24px;box-shadow:0 4px 16px #0003}
+header h1{font-size:1.35rem;font-weight:700;letter-spacing:.5px}
+header p{font-size:.82rem;opacity:.82;margin-top:4px}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:0 2px 10px #0001;padding:20px;margin-bottom:18px;border:1px solid var(--border)}
+.card-title{font-size:1rem;font-weight:700;color:var(--primary);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title svg{width:18px;height:18px}
+label{font-size:.85rem;font-weight:600;color:var(--muted);display:block;margin-bottom:5px;margin-top:12px}
+label:first-child{margin-top:0}
+select,input[type=number]{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;outline:none;transition:.2s;background:#f8fafc}
+select:focus,input:focus{border-color:var(--primary);box-shadow:0 0 0 3px #1a56db22;background:#fff}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 24px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;transition:.2s}
+.btn:hover{background:var(--primary-d);transform:translateY(-1px)}
+.btn-reset{background:#64748b}
+.btn-reset:hover{background:#475569}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:640px){.grid-2,.grid-3{grid-template-columns:1fr}}
+/* Results */
+.result-section{display:none}
+.result-section.show{display:block}
+.result-table{width:100%;border-collapse:collapse;font-size:.88rem;margin:10px 0}
+.result-table th{background:var(--accent);color:var(--primary);padding:9px 12px;text-align:left;border:1px solid var(--border);font-weight:700}
+.result-table td{padding:8px 12px;border:1px solid var(--border);vertical-align:top}
+.result-table tr:nth-child(even)td{background:#f8fafc}
+.highlight{background:#fffbeb !important;font-weight:700}
+.cp-pos{color:var(--green);font-weight:700}
+.cp-neg{color:var(--red);font-weight:700}
+/* Formula box */
+.formula-box{background:#f0f4ff;border:1px solid #c7d7f5;border-radius:8px;padding:14px 16px;margin:12px 0;font-size:.88rem}
+.formula-box h4{color:var(--primary);font-size:.9rem;margin-bottom:8px;font-weight:700}
+.formula{font-family:'Courier New',monospace;font-size:.95rem;background:#e8eeff;padding:8px 12px;border-radius:6px;margin:6px 0;display:block}
+.note-box{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;margin:10px 0;font-size:.82rem;color:#78350f}
+.note-box b{color:#92400e}
+/* SVG diagrams */
+.diagram-wrap{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px;margin:12px 0;overflow-x:auto}
+.diagram-wrap svg{display:block;margin:0 auto}
+/* Tag pills */
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.75rem;font-weight:700;margin:2px}
+.pill-blue{background:#dbeafe;color:#1e40af}
+.pill-red{background:#fee2e2;color:#991b1b}
+.pill-green{background:#dcfce7;color:#166534}
+/* Steps */
+.steps{display:flex;gap:0;margin-bottom:18px}
+.step{flex:1;text-align:center;padding:10px 4px;font-size:.78rem;font-weight:700;color:var(--muted);border-bottom:3px solid var(--border);position:relative}
+.step.active{color:var(--primary);border-color:var(--primary)}
+.step.done{color:var(--green);border-color:var(--green)}
+.step-num{display:block;font-size:1.1rem;font-weight:900;margin-bottom:3px}
+/* Summary cards */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0}
+.summary-card{border-radius:10px;padding:14px;text-align:center;border:2px solid}
+.summary-card.windward{background:#dcfce7;border-color:#16a34a}
+.summary-card.leeward{background:#fee2e2;border-color:#dc2626}
+.summary-card.side{background:#fef9c3;border-color:#ca8a04}
+.summary-card.internal{background:#e0e7ff;border-color:#4f46e5}
+.summary-card .sc-label{font-size:.75rem;font-weight:700;color:#374151;margin-bottom:6px}
+.summary-card .sc-value{font-size:1.5rem;font-weight:900;margin:4px 0}
+.summary-card .sc-formula{font-size:.72rem;color:#6b7280;margin-top:4px}
+/* interpolation indicator */
+.interp-tag{background:#fef3c7;color:#92400e;font-size:.72rem;padding:2px 7px;border-radius:4px;font-weight:700}
+.btn-calc-a{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#0369a1;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;transition:.2s;margin-top:10px}
+.btn-calc-a:hover{background:#0284c7}
+.a-result-box{background:#ecfdf5;border:1.5px solid #16a34a;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.88rem;display:none}
+.a-result-box.show{display:block}
+.zone-sel-wrap{background:#f0f9ff;border:1.5px solid #0369a1;border-radius:8px;padding:12px 14px;margin-top:12px;display:none}
+.zone-sel-wrap.show{display:block}
+.zone-sel-wrap label{color:#0369a1;font-weight:700}
+select[id^="cc_zone"]{margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌬️ 建築物外風壓係數與內風壓係數查詢計算系統</h1>
+  <p>依據建築物耐風設計規範 表2.4 ～ 表2.17（主要風力抵抗系統）| 圖3.1 ～ 圖3.3（局部構件及外部被覆物）</p>
+</header>
+
+<div class="container">
+
+<!-- Step indicator -->
+<div class="steps" id="stepBar">
+  <div class="step active" id="s1"><span class="step-num">①</span>建築類型</div>
+  <div class="step" id="s2"><span class="step-num">②</span>構件種類</div>
+  <div class="step" id="s3"><span class="step-num">③</span>輸入參數</div>
+  <div class="step" id="s4"><span class="step-num">④</span>計算結果</div>
+</div>
+
+<!-- Step 1: Building type -->
+<div class="card" id="card1">
+  <div class="card-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    第一步：選擇建築物形式
+  </div>
+  <label>查詢系統類型</label>
+  <select id="systemType" onchange="onSystemTypeChange()">
+    <option value="">-- 請選擇 --</option>
+    <option value="mwfrs">主要風力抵抗系統</option>
+    <option value="cc">局部構件及外部被覆物</option>
+  </select>
+  <div id="buildingTypeWrap" style="display:none">
+    <label>建築物形式（依開口率分類）</label>
+    <select id="buildingType" onchange="onBuildingTypeChange()">
+      <option value="">-- 請選擇 --</option>
+      <option value="enclosed">封閉式建築物（開口率 &lt; 20%）</option>
+      <option value="partial">部分封閉式建築物（開口率 20%~80%）</option>
+      <option value="open">開放式建築物（開口率 ≧ 80%）</option>
+    </select>
+  </div>
+  <div class="note-box" id="buildingNote" style="display:none"></div>
+  <div class="diagram-wrap" id="buildingDiag" style="display:none"></div>
+</div>
+
+<!-- Step 2: Component type -->
+<div class="card" id="card2" style="display:none">
+  <div class="card-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="3" x2="8" y2="21"/></svg>
+    第二步：選擇構件種類
+  </div>
+  <label>構件類型</label>
+  <select id="componentType" onchange="onComponentChange()">
+    <option value="">-- 請選擇 --</option>
+  </select>
+  <div id="componentDesc" style="margin-top:10px;font-size:.83rem;color:var(--muted)"></div>
+</div>
+
+<!-- Step 3: Parameters -->
+<div class="card" id="card3" style="display:none">
+  <div class="card-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="4"/><polyline points="6 9 12 3 18 9"/></svg>
+    第三步：輸入計算參數
+  </div>
+  <div id="paramArea"></div>
+  <div id="paramDiagram" style="margin-top:10px"></div>
+  <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn" onclick="calculate()">⚡ 計算風壓係數</button>
+    <button class="btn btn-reset" onclick="resetAll()">↺ 重新開始</button>
+  </div>
+</div>
+
+<!-- Step 4: Results -->
+<div class="card result-section" id="resultCard">
+  <div class="card-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    第四步：計算結果
+  </div>
+  <div id="resultContent"></div>
+</div>
+
+</div><!-- container -->
+
+<script>
+// ========== EMBEDDED DATABASE DATA ==========
+const DB = {
+  table_2_4_wall: {
+    cols:['id','wall_face','lb_ratio','lb_min','lb_max','cp','wind_pressure_type'],
+    rows:[
+      [1,'迎風面','所有值',null,null,0.8,'q(z)'],
+      [2,'背風面','0~1',0.0,1.0,-0.5,'q(h)'],
+      [3,'背風面','2',2.0,2.0,-0.3,'q(h)'],
+      [4,'背風面','≧4',4.0,null,-0.2,'q(h)'],
+      [5,'側風面','所有值',null,null,-0.7,'q(h)'],
+    ]
+  },
+  table_2_5_roof: {
+    cols:['id','wind_direction','h_over_l','theta_0','theta_10_15_pos','theta_10_15_neg','theta_20','theta_30','theta_40','theta_50','theta_ge60','cp_leeward','note'],
+    rows:[
+      [1,'垂直於屋脊','≦0.3',-0.7,0.2,-0.9,0.2,0.3,0.4,0.5,'0.01θ',-0.7,'*'],
+      [2,'垂直於屋脊','0.5',-0.7,-0.9,null,-0.75,-0.2,0.3,0.5,'0.01θ',-0.7,null],
+      [3,'垂直於屋脊','1.0',-0.7,-0.9,null,-0.75,-0.9,0.35,0.5,'0.01θ',-0.7,null],
+      [4,'垂直於屋脊','≧1.5',-0.7,-0.9,null,-0.9,-0.9,-0.35,0.2,'0.01θ',-0.7,null],
+      [5,'平行於屋脊','h/L或h/B≦2.5',null,null,null,null,null,null,null,'-0.7',-0.7,null],
+      [6,'平行於屋脊','h/L或h/B＞2.5',null,null,null,null,null,null,null,'-0.8',-0.8,null],
+    ]
+  },
+  table_2_6_arch: {
+    rows:[
+      [1,'牆上(on wall)',0.0,0.2,'= -0.9','= -0.7-r',-0.5],
+      [2,'牆上(on wall)',0.2,0.3,'= 1.5r-0.3','= -0.7-r',-0.5],
+      [3,'牆上(on wall)',0.3,0.6,'= 2.75r-0.7','= -0.7-r',-0.5],
+      [4,'地面支撐(on ground)',0.0,0.6,'= 1.4r','= -0.7-r',-0.5],
+    ]
+  },
+  table_2_9: {
+    data:{
+      10:{5:0.2,3:0.25,2:0.3,1:0.45,0.5:0.55,0.333:0.7,0.2:0.75},
+      15:{5:0.35,3:0.45,2:0.5,1:0.7,0.5:0.85,0.333:0.9,0.2:0.85},
+      20:{5:0.5,3:0.6,2:0.75,1:0.9,0.5:1.0,0.333:0.95,0.2:0.9},
+      25:{5:0.7,3:0.8,2:0.95,1:1.15,0.5:1.1,0.333:1.05,0.2:0.95},
+      30:{5:0.9,3:1.0,2:1.2,1:1.3,0.5:1.2,0.333:1.1,0.2:1.0}
+    },
+    xLoc:{
+      '10-20_2-5':0.35,'10-20_1':0.30,'10-20_0.2-0.5':0.30,
+      '25_2-5':0.35,'25_1':0.35,'25_0.2-0.5':0.40,
+      '30_2-5':0.35,'30_1':0.40,'30_0.2-0.5':0.45
+    }
+  },
+  table_2_12: [
+    {shape:'方形(垂直於面)',surf:'所有',cf:[1.3,1.4,2.0]},
+    {shape:'方形(沿對角線)',surf:'所有',cf:[1.0,1.1,1.5]},
+    {shape:'六邊形或八邊形',surf:'所有',cf:[1.0,1.2,1.4]},
+    {shape:'圓形(D√q<1.70)',surf:'中度光滑',cf:[0.5,0.6,0.7]},
+    {shape:'圓形(D√q<1.70)',surf:'粗糙(D\'/D≧0.02)',cf:[0.7,0.8,0.9]},
+    {shape:'圓形(D√q<1.70)',surf:'極粗糙(D\'/D≧0.08)',cf:[0.8,1.0,1.2]},
+    {shape:'圓形(D√q≧1.70)',surf:'所有',cf:[0.7,0.8,1.2]},
+  ],
+  table_2_16: [
+    {theta:10,cd:0.05,cl:0.05},{theta:20,cd:0.10,cl:0.15},
+    {theta:30,cd:0.20,cl:0.30},{theta:40,cd:0.35,cl:0.35},
+    {theta:50,cd:0.60,cl:0.45},{theta:60,cd:0.80,cl:0.45},
+    {theta:70,cd:1.05,cl:0.35},{theta:80,cd:1.15,cl:0.20},
+    {theta:90,cd:1.20,cl:0.0}
+  ],
+  table_2_17: [
+    {type:'開放式建築',pos:0.0,neg:0.0},
+    {type:'部分封閉式建築',pos:1.146,neg:-1.146},
+    {type:'封閉式建築',pos:0.375,neg:-0.375},
+  ]
+};
+
+// ========== COMPONENT DEFINITIONS ==========
+const COMPONENTS = {
+  enclosed: [
+    {value:'wall',label:'牆（主要風力抵抗系統）',table:'2.4',desc:'封閉式/部分封閉式建築物之牆面外風壓係數 Cp，適用於主要風力抵抗系統設計'},
+    {value:'flat_roof',label:'平屋頂（主要風力抵抗系統）',table:'2.5',desc:'封閉式/部分封閉式建築物之平屋頂或斜屋頂外風壓係數 Cp，風向垂直或平行屋脊'},
+    {value:'arch_roof',label:'拱形屋頂（主要風力抵抗系統）',table:'2.6',desc:'拱形屋頂外風壓係數 Cp，依拱高與跨度比值 r 決定'},
+    {value:'dual_roof',label:'雙斜式屋頂（主要風力抵抗系統）',table:'2.7',desc:'雙斜式屋頂外風壓係數，參照表2.5之迎風面與背風面'},
+    {value:'sawtooth',label:'鋸齒狀屋頂（主要風力抵抗系統）',table:'2.8',desc:'鋸齒狀屋頂各斜面外風壓係數 Cp'},
+  ],
+  partial: [
+    {value:'wall',label:'牆（主要風力抵抗系統）',table:'2.4',desc:'部分封閉式建築物之牆面外風壓係數 Cp'},
+    {value:'flat_roof',label:'平屋頂（主要風力抵抗系統）',table:'2.5',desc:'部分封閉式建築物之屋頂外風壓係數 Cp'},
+    {value:'arch_roof',label:'拱形屋頂（主要風力抵抗系統）',table:'2.6',desc:'拱形屋頂外風壓係數 Cp'},
+    {value:'dual_roof',label:'雙斜式屋頂（主要風力抵抗系統）',table:'2.7',desc:'雙斜式屋頂，參照表2.5'},
+    {value:'sawtooth',label:'鋸齒狀屋頂（主要風力抵抗系統）',table:'2.8',desc:'鋸齒狀屋頂各斜面外風壓係數'},
+  ],
+  open: [
+    {value:'open_mono',label:'單斜式屋頂風力係數',table:'2.9',desc:'開放式建築物之單斜式屋頂風力係數 Cf，適用於主要風力抵抗系統'},
+    {value:'solid_sign',label:'實體標示物',table:'2.10',desc:'實體標示物之風力係數 Cf（開口面積 < 30%）'},
+    {value:'open_sign',label:'中空/格子式構架標示物',table:'2.11',desc:'中空式或格子式構架標示物之風力係數 Cf'},
+    {value:'chimney',label:'煙囪、水塔等圓/方形結構',table:'2.12',desc:'煙囪、水塔等各種截面形狀之風力係數 Cf'},
+    {value:'prism',label:'角柱體形狀結構物',table:'2.13',desc:'角柱體（長方柱、三角柱等）之風力係數 Cf 及高寬比修正係數 R'},
+    {value:'cable',label:'繩、竿、管（電纜鋼索）',table:'2.14',desc:'繩、竿、管、電纜之風力係數 Cf'},
+    {value:'truss',label:'桁架高塔',table:'2.15',desc:'桁架高塔（方形或三角形）之風力係數 Cf'},
+    {value:'guy_wire',label:'高塔拉固索',table:'2.16',desc:'高塔拉固索之順風向（CD）及橫風向（CL）風力係數'},
+  ]
+};
+
+// Add internal pressure for enclosed/partial
+COMPONENTS.enclosed.push({value:'internal',label:'內風壓係數',table:'2.17',desc:'封閉式建築物內風壓係數 GCpi'});
+COMPONENTS.partial.push({value:'internal',label:'內風壓係數',table:'2.17',desc:'部分封閉式建築物內風壓係數 GCpi'});
+
+let currentBuilding='', currentComponent='';
+
+// ========== STEP MANAGEMENT ==========
+function setStep(n){
+  for(let i=1;i<=4;i++){
+    const s=document.getElementById('s'+i);
+    s.className='step '+(i<n?'done':i===n?'active':'');
+  }
+}
+
+// ========== STEP 1: Building Type ==========
+const buildingNotes={
+  enclosed:'<b>封閉式建築物</b>：牆面開口總面積小於牆面總面積的20%，或不滿足部分封閉式之條件者。<br>內風壓係數：<span style="color:#16a34a">+0.375（正壓）</span> / <span style="color:#dc2626">-0.375（負壓）</span>',
+  partial:'<b>部分封閉式建築物</b>：迎風面開口面積大於其他各面開口面積總和，且迎風面開口比（開口面積/牆面面積）大於0.2者。<br>內風壓係數：<span style="color:#16a34a">+1.146（正壓）</span> / <span style="color:#dc2626">-1.146（負壓）</span>',
+  open:'<b>開放式建築物</b>：各面牆開口面積均大於該面牆面積80%以上。<br>內風壓係數：<span style="color:#1a56db">0.00（無內風壓）</span>'
+};
+
+let currentSystemType=''; // 'mwfrs' or 'cc'
+
+function onSystemTypeChange(){
+  currentSystemType=document.getElementById('systemType').value;
+  const wrap=document.getElementById('buildingTypeWrap');
+  if(!currentSystemType){wrap.style.display='none';document.getElementById('card2').style.display='none';document.getElementById('card3').style.display='none';document.getElementById('resultCard').classList.remove('show');return;}
+  wrap.style.display='block';
+  document.getElementById('buildingType').value='';
+  document.getElementById('buildingNote').style.display='none';
+  document.getElementById('buildingDiag').style.display='none';
+  document.getElementById('card2').style.display='none';
+  document.getElementById('card3').style.display='none';
+  document.getElementById('resultCard').classList.remove('show');
+  currentBuilding=''; currentComponent='';
+  setStep(1);
+}
+
+function onBuildingTypeChange(){
+  currentBuilding=document.getElementById('buildingType').value;
+  const note=document.getElementById('buildingNote');
+  const diag=document.getElementById('buildingDiag');
+  if(!currentBuilding){note.style.display='none';diag.style.display='none';document.getElementById('card2').style.display='none';return;}
+  note.innerHTML=buildingNotes[currentBuilding];
+  note.style.display='block';
+  diag.innerHTML=drawBuildingDiagram(currentBuilding);
+  diag.style.display='block';
+  // Populate component select
+  const sel=document.getElementById('componentType');
+  sel.innerHTML='<option value="">-- 請選擇構件 --</option>';
+  if(currentSystemType==='cc'){
+    getCC_Components(currentBuilding).forEach(c=>{
+      sel.innerHTML+=`<option value="${c.value}">${c.label}</option>`;
+    });
+  } else {
+    (COMPONENTS[currentBuilding]||[]).forEach(c=>{
+      sel.innerHTML+=`<option value="${c.value}">[表${c.table}] ${c.label}</option>`;
+    });
+  }
+  document.getElementById('card2').style.display='block';
+  document.getElementById('card3').style.display='none';
+  document.getElementById('resultCard').classList.remove('show');
+  setStep(2);
+}
+
+function getCC_Components(buildingType){
+  if(buildingType==='enclosed'||buildingType==='partial'){
+    return [
+      {value:'cc_fig31a',label:'圖3.1(a)：外牆（h ≦ 18 m）',desc:'封閉/部分封閉式建築物外牆外風壓係數 (GCp)，h ≦ 18 m'},
+      {value:'cc_fig31b',label:'圖3.1(b)：θ ≦ 7° 屋頂（h ≦ 18 m）',desc:'平屋頂或坡度≦7°之屋頂外風壓係數 (GCp)，h ≦ 18 m'},
+      {value:'cc_fig31c',label:'圖3.1(c)：7° < θ ≦ 27° 屋頂（h ≦ 18 m）',desc:'坡度7°~27°之屋頂外風壓係數 (GCp)，h ≦ 18 m'},
+      {value:'cc_fig31d',label:'圖3.1(d)：27° < θ ≦ 45° 屋頂（h ≦ 18 m）',desc:'坡度27°~45°之屋頂外風壓係數 (GCp)，h ≦ 18 m'},
+      {value:'cc_fig32', label:'圖3.2：外牆與屋頂（h > 18 m）',desc:'封閉/部分封閉式建築物外牆與屋頂外風壓係數 (GCp)，h > 18 m'},
+    ];
+  } else if(buildingType==='open'){
+    return [
+      {value:'cc_fig33a',label:'圖3.3(a)：單斜屋頂（開放式建築物）',desc:'開放式建築物之單斜屋頂局部構件淨風壓係數 Cpn'},
+      {value:'cc_fig33b',label:'圖3.3(b)：雙斜屋頂（開放式建築物）',desc:'開放式建築物之雙斜屋頂局部構件淨風壓係數 Cpn'},
+    ];
+  }
+  return [];
+}
+
+function drawBuildingDiagram(type){
+  if(type==='enclosed') return `<svg width="320" height="120" viewBox="0 0 320 120">
+    <rect x="20" y="20" width="280" height="80" fill="#dbeafe" stroke="#1a56db" stroke-width="2" rx="3"/>
+    <polygon points="20,20 160,5 300,20" fill="#93c5fd" stroke="#1a56db" stroke-width="2"/>
+    <rect x="100" y="60" width="30" height="40" fill="#bfdbfe" stroke="#1a56db" stroke-width="1.5"/>
+    <rect x="190" y="60" width="30" height="40" fill="#bfdbfe" stroke="#1a56db" stroke-width="1.5"/>
+    <text x="160" y="95" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">封閉式 (開口率&lt;20%)</text>
+    <text x="160" y="110" text-anchor="middle" font-size="9" fill="#374151">GCpi = ±0.375</text>
+    <defs><marker id="arr" markerWidth="5" markerHeight="5" refX="3" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5" fill="#ef4444"/></marker></defs>
+    <line x1="5" y1="60" x2="18" y2="60" stroke="#ef4444" stroke-width="2" marker-end="url(#arr)"/>
+    <text x="3" y="55" font-size="9" fill="#ef4444">風</text>
+  </svg>`;
+  if(type==='partial') return `<svg width="320" height="120" viewBox="0 0 320 120">
+    <rect x="20" y="20" width="280" height="80" fill="#fef9c3" stroke="#ca8a04" stroke-width="2" rx="3"/>
+    <polygon points="20,20 160,5 300,20" fill="#fde68a" stroke="#ca8a04" stroke-width="2"/>
+    <rect x="60" y="30" width="80" height="70" fill="none" stroke="#ca8a04" stroke-width="2" stroke-dasharray="5,2"/>
+    <text x="100" y="70" text-anchor="middle" font-size="9" fill="#78350f">大開口</text>
+    <text x="100" y="82" text-anchor="middle" font-size="8" fill="#78350f">(迎風面)</text>
+    <rect x="220" y="55" width="20" height="30" fill="#fde68a" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="160" y="110" text-anchor="middle" font-size="9" fill="#374151">GCpi = ±1.146</text>
+    <defs><marker id="arr2" markerWidth="5" markerHeight="5" refX="3" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5" fill="#ef4444"/></marker></defs>
+    <line x1="5" y1="60" x2="18" y2="60" stroke="#ef4444" stroke-width="2" marker-end="url(#arr2)"/>
+    <text x="3" y="55" font-size="9" fill="#ef4444">風</text>
+  </svg>`;
+  return `<svg width="320" height="120" viewBox="0 0 320 120">
+    <rect x="20" y="20" width="280" height="80" fill="#f0fdf4" stroke="#16a34a" stroke-width="2" rx="3"/>
+    <polygon points="20,20 160,5 300,20" fill="#bbf7d0" stroke="#16a34a" stroke-width="2"/>
+    <rect x="20" y="20" width="280" height="80" fill="none" stroke="#16a34a" stroke-width="2" rx="3" stroke-dasharray="8,3"/>
+    <text x="160" y="65" text-anchor="middle" font-size="11" fill="#166534" font-weight="bold">全開放 (各面≧80%)</text>
+    <text x="160" y="110" text-anchor="middle" font-size="9" fill="#374151">GCpi = 0.00</text>
+    <defs><marker id="arr3" markerWidth="5" markerHeight="5" refX="3" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5" fill="#ef4444"/></marker></defs>
+    <line x1="5" y1="60" x2="18" y2="60" stroke="#ef4444" stroke-width="2" marker-end="url(#arr3)"/>
+    <text x="3" y="55" font-size="9" fill="#ef4444">風</text>
+  </svg>`;
+}
+
+// ========== STEP 2: Component ==========
+function onComponentChange(){
+  currentComponent=document.getElementById('componentType').value;
+  if(!currentComponent){document.getElementById('card3').style.display='none';return;}
+  let comp;
+  if(currentSystemType==='cc'){
+    comp=getCC_Components(currentBuilding).find(c=>c.value===currentComponent);
+    document.getElementById('componentDesc').innerHTML=comp?`📋 <b>${comp.label}</b>：${comp.desc}`:'';
+  } else {
+    const comps=COMPONENTS[currentBuilding]||[];
+    comp=comps.find(c=>c.value===currentComponent);
+    document.getElementById('componentDesc').innerHTML=comp?`📋 <b>${comp.label}</b>（表${comp.table}）：${comp.desc}`:'';
+  }
+  renderParamForm();
+  document.getElementById('card3').style.display='block';
+  document.getElementById('resultCard').classList.remove('show');
+  setStep(3);
+}
+
+// ========== STEP 3: Parameter Forms ==========
+function renderParamForm(){
+  const pa=document.getElementById('paramArea');
+  const pd=document.getElementById('paramDiagram');
+  pa.innerHTML=''; pd.innerHTML='';
+  switch(currentComponent){
+    case 'wall': renderWallForm(pa,pd); break;
+    case 'flat_roof': renderFlatRoofForm(pa,pd); break;
+    case 'arch_roof': renderArchRoofForm(pa,pd); break;
+    case 'dual_roof': renderDualRoofForm(pa,pd); break;
+    case 'sawtooth': renderSawtoothForm(pa,pd); break;
+    case 'open_mono': renderOpenMonoForm(pa,pd); break;
+    case 'solid_sign': renderSolidSignForm(pa,pd); break;
+    case 'open_sign': renderOpenSignForm(pa,pd); break;
+    case 'chimney': renderChimneyForm(pa,pd); break;
+    case 'prism': renderPrismForm(pa,pd); break;
+    case 'cable': renderCableForm(pa,pd); break;
+    case 'truss': renderTrussForm(pa,pd); break;
+    case 'guy_wire': renderGuyWireForm(pa,pd); break;
+    case 'internal': renderInternalForm(pa,pd); break;
+    // CC figures
+    case 'cc_fig31a': renderCC_Fig31a(pa,pd); break;
+    case 'cc_fig31b': renderCC_Fig31b(pa,pd); break;
+    case 'cc_fig31c': renderCC_Fig31c(pa,pd); break;
+    case 'cc_fig31d': renderCC_Fig31d(pa,pd); break;
+    case 'cc_fig32':  renderCC_Fig32(pa,pd); break;
+    case 'cc_fig33a': renderCC_Fig33a(pa,pd); break;
+    case 'cc_fig33b': renderCC_Fig33b(pa,pd); break;
+  }
+}
+
+// ===== CC GCp lookup functions =====
+// 圖3.1(a) 外牆 h≦18m — 解析公式（依規範精確公式）
+// ④區負壓: A≤1→-2.2913; 1<A<50→0.3678*log10(A)-2.2913; A≥50→-1.6664
+// ⑤區負壓: A≤1→-2.9162; 1<A<50→0.7356*log10(A)-2.9162; A≥50→-1.6664
+// ④⑤正壓: A≤1→+2.0830; 1<A<50→-0.3678*log10(A)+2.0830; A≥50→+1.4581
+function gcp31a_zone4_neg(A){
+  if(A<=1)  return -2.2913;
+  if(A>=50) return -1.6664;
+  return 0.3678*Math.log10(A)-2.2913;
+}
+function gcp31a_zone5_neg(A){
+  if(A<=1)  return -2.9162;
+  if(A>=50) return -1.6664;
+  return 0.7356*Math.log10(A)-2.9162;
+}
+function gcp31a_pos(A){
+  if(A<=1)  return 2.0830;
+  if(A>=50) return 1.4581;
+  return -0.3678*Math.log10(A)+2.0830;
+}
+// 用於曲線繪製的點陣（由解析式生成，密集取點以確保平滑）
+function gen31aPoints(fn){
+  const As=[0.5,1,2,3,5,7,10,15,20,30,50,70,100];
+  return As.map(A=>[Math.log10(A),fn(A)]);
+}
+const CC_31a = {
+  zone4_neg: gen31aPoints(gcp31a_zone4_neg),
+  zone5_neg: gen31aPoints(gcp31a_zone5_neg),
+  zone45_pos:gen31aPoints(gcp31a_pos)
+};
+// 圖3.1(b) θ≦7° 屋頂 h≦18m (僅負壓)
+// 圖3.1(b) θ≦7° 屋頂 h≦18m — 解析公式
+// ① 負壓: A≦1→-2.083; 1<A<10→0.2083*log10(A)-2.083; A≧10→-1.8747
+// ② 負壓: A≦1→-3.7494; 1<A<10→1.4581*log10(A)-3.7494; A≧10→-2.2913
+// ③ 負壓: A≦1→-5.8324; 1<A<10→3.5411*log10(A)-5.8324; A≧10→-2.2913
+// ①②③正壓: A≦1→+0.6249; 1<A<10→-0.2083*log10(A)+0.6249; A≧10→+0.4166
+function gcp31b_z1_neg(A){
+  if(A<=1)  return -2.083;
+  if(A>=10) return -1.8747;
+  return 0.2083*Math.log10(A)-2.083;
+}
+function gcp31b_z2_neg(A){
+  if(A<=1)  return -3.7494;
+  if(A>=10) return -2.2913;
+  return 1.4581*Math.log10(A)-3.7494;
+}
+function gcp31b_z3_neg(A){
+  if(A<=1)  return -5.8324;
+  if(A>=10) return -2.2913;
+  return 3.5411*Math.log10(A)-5.8324;
+}
+function gcp31b_pos(A){
+  if(A<=1)  return 0.6249;
+  if(A>=10) return 0.4166;
+  return -0.2083*Math.log10(A)+0.6249;
+}
+function gen31bPoints(fn){
+  const As=[0.5,1,2,3,5,7,10,15,20,30,50,70,100];
+  return As.map(A=>[Math.log10(A),fn(A)]);
+}
+const CC_31b = {
+  zone1_neg:   gen31bPoints(gcp31b_z1_neg),
+  zone2_neg:   gen31bPoints(gcp31b_z2_neg),
+  zone3_neg:   gen31bPoints(gcp31b_z3_neg),
+  zone123_pos: gen31bPoints(gcp31b_pos)
+};
+// 圖3.1(c) 7°<θ≦27° 屋頂 h≦18m (僅負壓)
+// 圖3.1(c) 7°<θ≦27° 屋頂 h≦18m — 解析公式
+// ① 負壓: A≦1→-1.8747; 1<A<10→0.2083*log10(A)-1.8747; A≧10→-1.6664
+// ② 負壓: A≦1→-3.5411; 1<A<10→1.0415*log10(A)-3.5411; A≧10→-2.4996
+// ③ 負壓: A≦1→-5.4158; 1<A<10→1.2498*log10(A)-5.4158; A≧10→-4.166
+// ①②③正壓: A≦1→+1.0415; 1<A<10→-0.4166*log10(A)+1.0415; A≧10→+0.6249
+function gcp31c_z1_neg(A){
+  if(A<=1)  return -1.8747;
+  if(A>=10) return -1.6664;
+  return 0.2083*Math.log10(A)-1.8747;
+}
+function gcp31c_z2_neg(A){
+  if(A<=1)  return -3.5411;
+  if(A>=10) return -2.4996;
+  return 1.0415*Math.log10(A)-3.5411;
+}
+function gcp31c_z3_neg(A){
+  if(A<=1)  return -5.4158;
+  if(A>=10) return -4.166;
+  return 1.2498*Math.log10(A)-5.4158;
+}
+function gcp31c_pos(A){
+  if(A<=1)  return 1.0415;
+  if(A>=10) return 0.6249;
+  return -0.4166*Math.log10(A)+1.0415;
+}
+function gen31cPoints(fn){
+  const As=[0.5,1,2,3,5,7,10,15,20,30,50,70,100];
+  return As.map(A=>[Math.log10(A),fn(A)]);
+}
+const CC_31c = {
+  zone1_neg:   gen31cPoints(gcp31c_z1_neg),
+  zone2_neg:   gen31cPoints(gcp31c_z2_neg),
+  zone3_neg:   gen31cPoints(gcp31c_z3_neg),
+  zone123_pos: gen31cPoints(gcp31c_pos)
+};
+// 圖3.1(d) 27°<θ≦45° 屋頂 h≦18m
+// 圖3.1(d) 27°<θ≦45° 屋頂 h≦18m — 解析公式
+// ① 負壓:   A≦1→-2.083;  1<A<10→0.4166*log10(A)-2.083;  A≧10→-1.6664
+// ②③ 負壓: A≦1→-2.4996; 1<A<10→0.4166*log10(A)-2.4996; A≧10→-2.083
+// ①②③正壓: A≦1→+1.8747; 1<A<10→-0.2083*log10(A)+1.8747; A≧10→+1.6664
+function gcp31d_z1_neg(A){
+  if(A<=1)  return -2.083;
+  if(A>=10) return -1.6664;
+  return 0.4166*Math.log10(A)-2.083;
+}
+function gcp31d_z23_neg(A){
+  if(A<=1)  return -2.4996;
+  if(A>=10) return -2.083;
+  return 0.4166*Math.log10(A)-2.4996;
+}
+function gcp31d_pos(A){
+  if(A<=1)  return 1.8747;
+  if(A>=10) return 1.6664;
+  return -0.2083*Math.log10(A)+1.8747;
+}
+function gen31dPoints(fn){
+  const As=[0.5,1,2,3,5,7,10,15,20,30,50,70,100];
+  return As.map(A=>[Math.log10(A),fn(A)]);
+}
+const CC_31d = {
+  zone1_neg:  gen31dPoints(gcp31d_z1_neg),
+  zone23_neg: gen31dPoints(gcp31d_z23_neg),
+  zone1_pos:  gen31dPoints(gcp31d_pos),
+  zone23_pos: gen31dPoints(gcp31d_pos)
+};
+// 圖3.2 h>18m
+// 圖3.2 外牆與屋頂 h>18m — 解析公式
+// ── 屋頂（分段 A=1 與 A=50）──
+// ① 負壓: A≦1→-2.9162; 1<A<50→0.6130*log10(A)-2.9162; A≧50→-1.8747
+// ② 負壓: A≦1→-4.7909; 1<A<50→0.8582*log10(A)-4.7909; A≧50→-3.3328
+// ③ 負壓: A≦1→-6.6656; 1<A<50→1.1034*log10(A)-6.6656; A≧50→-4.7909
+// ── 外牆（分段 A=2 與 A=50）──
+// ④ 負壓: A≦2→-1.8747; 2<A<50→0.2980*log10(A)-1.9644; A≧50→-1.4581
+// ⑤ 負壓: A≦2→-3.7494; 2<A<50→1.1920*log10(A)-4.1082; A≧50→-2.083
+// ④⑤正壓: A≦2→+1.8747; 2<A<50→-0.4470*log10(A)+2.0093; A≧50→+1.2498
+function gcp32_z1_neg(A){
+  if(A<=1)  return -2.9162;
+  if(A>=50) return -1.8747;
+  return 0.6130*Math.log10(A)-2.9162;
+}
+function gcp32_z2_neg(A){
+  if(A<=1)  return -4.7909;
+  if(A>=50) return -3.3328;
+  return 0.8582*Math.log10(A)-4.7909;
+}
+function gcp32_z3_neg(A){
+  if(A<=1)  return -6.6656;
+  if(A>=50) return -4.7909;
+  return 1.1034*Math.log10(A)-6.6656;
+}
+function gcp32_z4_neg(A){
+  if(A<=2)  return -1.8747;
+  if(A>=50) return -1.4581;
+  return 0.2980*Math.log10(A)-1.9644;
+}
+function gcp32_z5_neg(A){
+  if(A<=2)  return -3.7494;
+  if(A>=50) return -2.083;
+  return 1.1920*Math.log10(A)-4.1082;
+}
+function gcp32_z45_pos(A){
+  if(A<=2)  return 1.8747;
+  if(A>=50) return 1.2498;
+  return -0.4470*Math.log10(A)+2.0093;
+}
+function gen32Points(fn){
+  const As=[0.5,1,2,3,5,7,10,15,20,30,50,70,100];
+  return As.map(A=>[Math.log10(A),fn(A)]);
+}
+const CC_32 = {
+  zone1_neg:  gen32Points(gcp32_z1_neg),
+  zone2_neg:  gen32Points(gcp32_z2_neg),
+  zone3_neg:  gen32Points(gcp32_z3_neg),
+  zone4_neg:  gen32Points(gcp32_z4_neg),
+  zone5_neg:  gen32Points(gcp32_z5_neg),
+  zone45_pos: gen32Points(gcp32_z45_pos)
+};
+
+function logInterp(curve, A){
+  const logA=Math.log10(Math.max(A,0.5));
+  if(logA<=curve[0][0]) return curve[0][1];
+  if(logA>=curve[curve.length-1][0]) return curve[curve.length-1][1];
+  for(let i=0;i<curve.length-1;i++){
+    if(logA>=curve[i][0]&&logA<=curve[i+1][0]){
+      const t=(logA-curve[i][0])/(curve[i+1][0]-curve[i][0]);
+      return curve[i][1]+t*(curve[i+1][1]-curve[i][1]);
+    }
+  }
+  return curve[curve.length-1][1];
+}
+
+// ===== CC FORM HELPERS =====
+function ccBaseForm(minWidthHint){
+  const minWHint = minWidthHint || '建築物平面之最小邊長（公尺）';
+  return `<div class="grid-2">
+    ${numInput('cc_h','平均屋頂高度 h','m',1,9999,0.1,'','建築物平均屋頂高度（公尺）')}
+    ${numInput('cc_minW','建築物最小寬度','m',1,9999,0.1,'',minWHint)}
+  </div>
+  ${numInput('cc_A','有效受風面積 A','m²',0.5,100,0.1,'','局部構件或被覆物之有效受風面積（m²），範圍 0.5 ~ 100 m²')}
+  <button class="btn-calc-a" onclick="calcAandShowZones()">📐 計算 a 值並選擇區域</button>
+  <div class="a-result-box" id="aResultBox"></div>
+  <div class="zone-sel-wrap" id="zoneSelWrap">
+    <label for="cc_zone">選擇查詢區域</label>
+    <select id="cc_zone" style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:.9rem;margin-top:6px">
+      <option value="">-- 請選擇區域 --</option>
+    </select>
+  </div>`;
+}
+
+// ccBaseForm for 圖3.2 (外牆+屋頂，各自不同分段)
+function ccBaseForm32(){
+  return `${numInput('cc_h','平均屋頂高度 h','m',18.1,9999,0.1,'','建築物平均屋頂高度，應大於 18 m')}
+    ${numInput('cc_minW','建築物最小寬度','m',1,9999,0.1,'','建築物平面之最小邊長（公尺）')}
+    ${numInput('cc_A','有效受風面積 A','m²',0.5,100,0.1,'','局部構件或被覆物之有效受風面積（m²）')}
+    <button class="btn-calc-a" onclick="calcAandShowZones32()">📐 計算 a 值並選擇區域</button>
+    <div class="a-result-box" id="aResultBox"></div>
+    <div class="zone-sel-wrap" id="zoneSelWrap">
+      <label for="cc_zone">選擇查詢區域</label>
+      <select id="cc_zone" style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:.9rem;margin-top:6px">
+        <option value="">-- 請選擇區域 --</option>
+      </select>
+    </div>`;
+}
+
+// ccBaseForm for 圖3.3 (開放式，無 a 計算，直接選區域)
+function ccBaseForm33(){
+  return `<div class="grid-2">
+    ${numInput('cc33_h','平均屋頂高度 h','m',0.1,9999,0.1,'','平均屋頂高度（若θ≦10°採屋簷高）')}
+    ${numInput('cc33_L','順風向水平深度 L','m',0.1,9999,0.1,'','建築物順風向之水平深度')}
+  </div>
+  <div class="grid-2">
+    ${numInput('cc33_minW','建築物最小寬度','m',0.1,9999,0.1,'','用於計算 a = 0.1×最小寬度（≧0.9 m）')}
+    ${numInput('cc33_A','有效受風面積 A','m²',0.5,9999,0.1,'','構件有效受風面積（m²）')}
+  </div>
+  ${numInput('cc33_theta','屋頂坡角 θ','°',0,45,0.1,'','屋頂斜面與水平面所夾角度，0° ~ 45°')}
+  <div>
+    <label for="cc33_block">屋頂下阻擋狀況</label>
+    <select id="cc33_block">
+      <option value="unblock">屋頂下無阻擋（阻塞比 < 50%）</option>
+      <option value="block">屋頂下有阻擋（阻塞比 ≧ 50%）</option>
+    </select>
+  </div>
+  <button class="btn-calc-a" onclick="calcAandShowZones33()">📐 計算 a 值並選擇區域</button>
+  <div class="a-result-box" id="aResultBox"></div>
+  <div class="zone-sel-wrap" id="zoneSelWrap">
+    <label for="cc_zone">選擇查詢區域</label>
+    <select id="cc_zone" style="width:100%;padding:8px 10px;border:1px solid #bae6fd;border-radius:7px;font-size:.9rem;margin-top:6px">
+      <option value="">-- 請選擇區域 --</option>
+    </select>
+  </div>`;
+}
+
+function computeA_value(){
+  const h=parseFloat(document.getElementById('cc_h').value)||0;
+  const minW=parseFloat(document.getElementById('cc_minW').value)||0;
+  if(h<=0||minW<=0) return null;
+  let a=Math.min(0.4*h, 0.1*minW);
+  const aMin=Math.max(0.9, 0.04*minW);
+  if(a<aMin) a=aMin;
+  return a;
+}
+
+// 共用：顯示 a 值計算結果並填充區域選單
+function showAResult(a, zoneOptions){
+  const box=document.getElementById('aResultBox');
+  const wrap=document.getElementById('zoneSelWrap');
+  const sel=document.getElementById('cc_zone');
+  if(a===null){
+    box.innerHTML='⚠️ 請先填入 h 與最小寬度';
+    box.classList.add('show'); wrap.classList.remove('show'); return;
+  }
+  box.innerHTML=`✅ <b>a 值 = ${a.toFixed(3)} m</b>（a = min(0.4h, 0.1B)，且 a ≧ max(0.9 m, 0.04B)）`;
+  box.classList.add('show');
+  sel.innerHTML='<option value="">-- 請選擇區域 --</option>'+
+    zoneOptions.map(z=>`<option value="${z.v}">${z.t}</option>`).join('');
+  wrap.classList.add('show');
+}
+
+// 各圖的區域選單 + a 值計算
+function calcAandShowZones(){
+  const a=computeA_value();
+  const comp=currentComponent;
+  let opts=[];
+  if(comp==='cc_fig31a'){
+    opts=[
+      {v:'z5',t:'⑤ 角隅區（端部寬 a，負壓較大）'},
+      {v:'z4',t:'④ 中央區（其餘牆面，負壓較小）'},
+      {v:'all',t:'全部區域（⑤ 角隅 + ④ 中央）'},
+    ];
+  } else if(comp==='cc_fig31b'){
+    opts=[
+      {v:'z3',t:'③ 角隅區（a×a，負壓最大）'},
+      {v:'z2',t:'② 邊緣帶（寬度 a，負壓居中）'},
+      {v:'z1',t:'① 中央區（其餘屋頂，負壓最小）'},
+      {v:'all',t:'全部區域（①②③）'},
+    ];
+  } else if(comp==='cc_fig31c'){
+    opts=[
+      {v:'z3',t:'③ 角隅區（a×a，負壓最大）'},
+      {v:'z2',t:'② 邊緣帶（寬度 a，負壓居中）'},
+      {v:'z1',t:'① 中央區（其餘屋頂，負壓最小）'},
+      {v:'all',t:'全部區域（①②③）'},
+    ];
+  } else if(comp==='cc_fig31d'){
+    opts=[
+      {v:'z23',t:'②③ 邊緣帶及角隅區'},
+      {v:'z1',t:'① 中央區'},
+      {v:'all',t:'全部區域（①②③）'},
+    ];
+  }
+  showAResult(a, opts);
+}
+
+function calcAandShowZones32(){
+  const minW=parseFloat(document.getElementById('cc_minW').value)||0;
+  const a=Math.max(0.9, 0.1*minW);
+  const aBox=document.getElementById('aResultBox');
+  const wrap=document.getElementById('zoneSelWrap');
+  const sel=document.getElementById('cc_zone');
+  if(minW<=0){
+    aBox.innerHTML='⚠️ 請先填入最小寬度';
+    aBox.classList.add('show'); wrap.classList.remove('show'); return;
+  }
+  aBox.innerHTML=`✅ <b>a 值 = ${a.toFixed(3)} m</b>（a = 0.1×最小寬度，且 a ≧ 0.9 m）<br>` +
+    `屋頂邊緣帶寬度 2a = ${(2*a).toFixed(3)} m；角隅 2a×2a = ${(2*a).toFixed(3)} m × ${(2*a).toFixed(3)} m`;
+  aBox.classList.add('show');
+  const opts=[
+    {v:'r1',t:'屋頂 ① 中央區'},
+    {v:'r2',t:'屋頂 ② 邊緣帶（2a = '+(2*a).toFixed(2)+' m）'},
+    {v:'r3',t:'屋頂 ③ 角隅（2a×2a）'},
+    {v:'w4',t:'外牆 ④ 中央牆面'},
+    {v:'w5',t:'外牆 ⑤ 角隅牆（a = '+a.toFixed(2)+' m）'},
+    {v:'all',t:'全部區域（屋頂①②③ + 外牆④⑤）'},
+  ];
+  sel.innerHTML='<option value="">-- 請選擇區域 --</option>'+
+    opts.map(z=>`<option value="${z.v}">${z.t}</option>`).join('');
+  wrap.classList.add('show');
+}
+
+function calcAandShowZones33(){
+  const minW=parseFloat(document.getElementById('cc33_minW').value)||0;
+  const a=Math.max(0.9, 0.1*minW);
+  const aBox=document.getElementById('aResultBox');
+  const wrap=document.getElementById('zoneSelWrap');
+  const sel=document.getElementById('cc_zone');
+  if(minW<=0){
+    aBox.innerHTML='⚠️ 請先填入最小寬度';
+    aBox.classList.add('show'); wrap.classList.remove('show'); return;
+  }
+  aBox.innerHTML=`✅ <b>a 值 = ${a.toFixed(3)} m</b>（a = 0.1×最小寬度，且 a ≧ 0.9 m）`;
+  aBox.classList.add('show');
+  const opts=[
+    {v:'z3',t:'區域 3（角隅區）'},
+    {v:'z2',t:'區域 2（邊緣區）'},
+    {v:'z1',t:'區域 1（中央區）'},
+    {v:'all',t:'全部區域（區域1、2、3）'},
+  ];
+  sel.innerHTML='<option value="">-- 請選擇區域 --</option>'+
+    opts.map(z=>`<option value="${z.v}">${z.t}</option>`).join('');
+  wrap.classList.add('show');
+}
+
+// GCpi for current building
+function getGCpi(){
+  if(currentBuilding==='enclosed') return {pos:0.375,neg:-0.375};
+  if(currentBuilding==='partial') return {pos:1.146,neg:-1.146};
+  return {pos:0,neg:0};
+}
+
+// ===== CC CALCULATION FUNCTIONS =====
+function f3(v){return parseFloat(v.toFixed(3));}
+
+function getSelectedZone(){
+  const el=document.getElementById('cc_zone');
+  return el ? el.value : 'all';
+}
+function zoneValidate(){
+  const z=getSelectedZone();
+  if(!z) throw new Error('請先點擊「計算 a 值並選擇區域」，再選擇查詢區域後計算');
+  return z;
+}
+
+function calcCC_GCp_output(zones, gcpi, figLabel, aVal, A, chartFn, selectedZone){
+  const gcpiNote=currentBuilding==='enclosed'?'GCpi = ±0.375（封閉式）':currentBuilding==='partial'?'GCpi = ±1.146（部分封閉式）':'';
+  const filteredZones = (!selectedZone||selectedZone==='all') ? zones :
+    zones.filter(z=>z.key===selectedZone);
+  let rows='';
+  filteredZones.forEach(z=>{
+    rows+=`<tr>
+      <td><b>${z.name}</b></td>
+      <td class="cp-neg">${f3(z.neg)}</td>
+      <td class="cp-pos">${z.pos===0?'—':'+'+f3(z.pos)}</td>
+    </tr>`;
+  });
+  const chartHtml = chartFn ? chartFn(A) : '';
+  return `<div class="formula-box">
+    <h4>📐 ${figLabel} 外風壓係數 (GCp) 查詢結果</h4>
+    <span class="formula">有效受風面積 A = ${A} m²　│　a 值 = ${aVal?aVal.toFixed(3)+' m':'—'}</span>
+    <small>${gcpiNote}　│　查詢區域：<b>${selectedZone==='all'||!selectedZone?'全部':'已選擇'}</b></small>
+  </div>
+  <table class="result-table">
+    <thead><tr><th>區域</th><th>(GCp) 負壓（吸力）</th><th>(GCp) 正壓（壓力）</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  ${chartHtml}
+  <div class="note-box">
+    ✅ <b>正值</b>：壓力指向表面；<b>負值</b>：壓力遠離表面<br>
+    每個部分應依<b>最大正負壓力</b>分別設計
+  </div>`;
+}
+
+// ===== 圖3.1(a) 外牆 h≦18m =====
+// ===== SVG CHART HELPER =====
+// Maps GCp value (-7 to +3) to SVG Y, and log10(A) in [log(0.5)..log(100)] to SVG X
+function makeCCChart(curves, title, yMin, yMax, yTicks, showDot, dotA, dotVal, dotColor){
+  // Chart area: left=60, right=500, top=30, bottom=220, width=560, height=280
+  const CL=60, CR=500, CT=30, CB=220, CW=560, CH=280;
+  const xVals=[0.5,1,2,5,10,20,50,100];
+  const xLabels=['0.5','1','2','5','10','20','50','100'];
+  const logMin=Math.log10(0.5), logMax=Math.log10(100);
+  function xp(A){ return CL+(Math.log10(A)-logMin)/(logMax-logMin)*(CR-CL); }
+  function yp(v){ return CT+(yMax-v)/(yMax-yMin)*(CB-CT); }
+  // Grid lines & x-axis
+  let grid='', xAxis='', yAxis='';
+  xVals.forEach((A,i)=>{
+    const x=xp(A);
+    grid+=`<line x1="${x}" y1="${CT}" x2="${x}" y2="${CB}" stroke="#e2e8f0" stroke-width="1"/>`;
+    xAxis+=`<text x="${x}" y="${CB+14}" text-anchor="middle" font-size="10" fill="#475569">${xLabels[i]}</text>`;
+  });
+  yTicks.forEach(v=>{
+    const y=yp(v);
+    grid+=`<line x1="${CL}" y1="${y}" x2="${CR}" y2="${y}" stroke="${v===0?'#94a3b8':'#e2e8f0'}" stroke-width="${v===0?1.5:1}"/>`;
+    yAxis+=`<text x="${CL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="#475569">${v}</text>`;
+  });
+  // Curves
+  let paths='', labels='';
+  curves.forEach(c=>{
+    const pts=c.data.map(([A,v])=>`${xp(A).toFixed(1)},${yp(v).toFixed(1)}`).join(' ');
+    paths+=`<polyline points="${pts}" fill="none" stroke="${c.color}" stroke-width="2.2" stroke-dasharray="${c.dash||''}"/>`;
+    // Label at right end
+    const last=c.data[c.data.length-1];
+    const ly=yp(last[1]);
+    labels+=`<text x="${CR+4}" y="${ly+4}" font-size="10" fill="${c.color}" font-weight="700">${c.label}</text>`;
+  });
+  // Dot marker for computed value
+  let dot='';
+  if(showDot&&dotA&&dotVal!==undefined){
+    const dx=xp(dotA), dy=yp(dotVal);
+    dot=`<circle cx="${dx}" cy="${dy}" r="6" fill="${dotColor||'#f59e0b'}" stroke="#fff" stroke-width="2"/>
+    <line x1="${dx}" y1="${CT}" x2="${dx}" y2="${CB}" stroke="${dotColor||'#f59e0b'}" stroke-width="1" stroke-dasharray="4,3"/>
+    <line x1="${CL}" y1="${dy}" x2="${CR}" y2="${dy}" stroke="${dotColor||'#f59e0b'}" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="${dx}" y="${dy-10}" text-anchor="middle" font-size="10" fill="${dotColor||'#f59e0b'}" font-weight="700">A=${dotA}m²</text>`;
+  }
+  return `<div class="diagram-wrap" style="margin-top:14px">
+  <div style="font-size:.82rem;font-weight:700;color:#1a56db;margin-bottom:6px">📈 ${title}</div>
+  <div style="overflow-x:auto">
+  <svg width="${CW+80}" height="${CH+50}" viewBox="0 0 ${CW+80} ${CH+50}" xmlns="http://www.w3.org/2000/svg" style="display:block;min-width:400px">
+    <!-- border -->
+    <rect x="${CL}" y="${CT}" width="${CR-CL}" height="${CB-CT}" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.2"/>
+    ${grid}${paths}${dot}
+    <!-- axes labels -->
+    ${xAxis}
+    ${yAxis}
+    <text x="${(CL+CR)/2}" y="${CB+30}" text-anchor="middle" font-size="11" fill="#374151" font-weight="600">受風面積 A (m²)</text>
+    <text x="${CL-40}" y="${(CT+CB)/2}" text-anchor="middle" font-size="11" fill="#374151" font-weight="600" transform="rotate(-90,${CL-40},${(CT+CB)/2})">(GCp)</text>
+    ${labels}
+  </svg></div>
+  <div style="font-size:.75rem;color:#64748b;margin-top:4px">● 橘點為本次計算值；曲線為規範圖之對數內插重建</div>
+  </div>`;
+}
+
+// ===== SVG ZONE DIAGRAMS =====
+function svgZone31a(){
+  // wall plan view + elevation: zones 4(corner,a wide) and 5(middle)
+  return `<div class="diagram-wrap" style="margin-top:12px">
+  <div style="font-size:.82rem;font-weight:700;color:#1a56db;margin-bottom:6px">🏢 圖3.1(a) 區域示意圖 — 外牆（h ≦ 18 m）</div>
+  <svg width="520" height="220" viewBox="0 0 520 220" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%">
+    <defs>
+      <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ef4444"/></marker>
+    </defs>
+    <!-- 立面圖 -->
+    <text x="10" y="15" font-size="11" fill="#374151" font-weight="700">牆面立面圖（正視）</text>
+    <!-- 建築輪廓 -->
+    <rect x="20" y="25" width="220" height="140" fill="#f1f5f9" stroke="#334155" stroke-width="2"/>
+    <!-- 屋頂三角 -->
+    <polygon points="20,25 130,5 240,25" fill="#cbd5e1" stroke="#334155" stroke-width="1.5"/>
+    <!-- 角隅區 ⑤ left -->
+    <rect x="20" y="25" width="38" height="140" fill="#fca5a5" fill-opacity="0.6" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,2"/>
+    <!-- 角隅區 ⑤ right -->
+    <rect x="202" y="25" width="38" height="140" fill="#fca5a5" fill-opacity="0.6" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,2"/>
+    <!-- 中央區 ④ -->
+    <rect x="58" y="25" width="144" height="140" fill="#bfdbfe" fill-opacity="0.5" stroke="#1a56db" stroke-width="1" stroke-dasharray="4,2"/>
+    <!-- 標籤 -->
+    <text x="39" y="100" text-anchor="middle" font-size="13" fill="#dc2626" font-weight="900">⑤</text>
+    <text x="221" y="100" text-anchor="middle" font-size="13" fill="#dc2626" font-weight="900">⑤</text>
+    <text x="130" y="100" text-anchor="middle" font-size="13" fill="#1a56db" font-weight="900">④</text>
+    <!-- a dimension -->
+    <line x1="20" y1="175" x2="58" y2="175" stroke="#374151" stroke-width="1.2"/>
+    <text x="39" y="188" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">a</text>
+    <!-- h dimension -->
+    <line x1="250" y1="25" x2="250" y2="165" stroke="#374151" stroke-width="1"/>
+    <text x="260" y="100" font-size="11" fill="#374151" font-weight="700">h</text>
+    <!-- 風向箭頭 -->
+    <line x1="0" y1="95" x2="16" y2="95" stroke="#ef4444" stroke-width="2" marker-end="url(#arr)"/>
+    <text x="0" y="87" font-size="9" fill="#ef4444" font-weight="700">風</text>
+    <!-- 說明 -->
+    <rect x="290" y="25" width="220" height="160" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" rx="6"/>
+    <text x="300" y="45" font-size="11" fill="#1e293b" font-weight="700">區域定義</text>
+    <rect x="300" y="55" width="14" height="10" fill="#fca5a5" stroke="#dc2626" stroke-width="1"/>
+    <text x="320" y="64" font-size="10" fill="#dc2626">⑤ 角隅區（端部 a 寬）</text>
+    <text x="320" y="76" font-size="10" fill="#64748b">GCp 負值較大（吸力強）</text>
+    <rect x="300" y="88" width="14" height="10" fill="#bfdbfe" stroke="#1a56db" stroke-width="1"/>
+    <text x="320" y="97" font-size="10" fill="#1a56db">④ 中央區（其餘牆面）</text>
+    <text x="320" y="109" font-size="10" fill="#64748b">GCp 負值較小（吸力弱）</text>
+    <text x="300" y="128" font-size="10" fill="#374151">a = min(0.4h, 0.1B)</text>
+    <text x="300" y="141" font-size="10" fill="#374151">a ≧ max(0.9 m, 0.04B)</text>
+    <text x="300" y="158" font-size="10" fill="#92400e">θ ≦ 10°：GCp 可降低 10%</text>
+    <text x="300" y="171" font-size="10" fill="#374151">B = 建築物最小寬度</text>
+  </svg></div>`;
+}
+
+function svgZone31b(){
+  return `<div class="diagram-wrap" style="margin-top:12px">
+  <div style="font-size:.82rem;font-weight:700;color:#1a56db;margin-bottom:6px">🏠 圖3.1(b) 區域示意圖 — θ ≦ 7° 屋頂俯視圖</div>
+  <svg width="520" height="210" viewBox="0 0 520 210" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%">
+    <!-- 屋頂俯視 -->
+    <text x="10" y="14" font-size="11" fill="#374151" font-weight="700">屋頂俯視圖</text>
+    <!-- 整塊屋頂 = ① -->
+    <rect x="20" y="25" width="220" height="140" fill="#bbf7d0" stroke="#16a34a" stroke-width="2"/>
+    <!-- ② 邊緣帶 -->
+    <rect x="20" y="25" width="220" height="33" fill="#fde68a" fill-opacity=".8" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5,2"/>
+    <rect x="20" y="132" width="220" height="33" fill="#fde68a" fill-opacity=".8" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5,2"/>
+    <rect x="20" y="25" width="33" height="140" fill="#fde68a" fill-opacity=".8" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5,2"/>
+    <rect x="207" y="25" width="33" height="140" fill="#fde68a" fill-opacity=".8" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5,2"/>
+    <!-- ③ 角隅 a×a -->
+    <rect x="20" y="25" width="33" height="33" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <rect x="207" y="25" width="33" height="33" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <rect x="20" y="132" width="33" height="33" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <rect x="207" y="132" width="33" height="33" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <!-- 標籤 -->
+    <text x="130" y="100" text-anchor="middle" font-size="14" fill="#16a34a" font-weight="900">①</text>
+    <text x="130" y="47" text-anchor="middle" font-size="13" fill="#ca8a04" font-weight="900">②</text>
+    <text x="37" y="47" text-anchor="middle" font-size="13" fill="#dc2626" font-weight="900">③</text>
+    <!-- 正中央垂線 -->
+    <line x1="130" y1="25" x2="130" y2="165" stroke="#334155" stroke-width="1.8" stroke-dasharray="6,3"/>
+    <!-- a 尺寸（上方：水平，位於角隅區右側） -->
+    <line x1="20" y1="58" x2="53" y2="58" stroke="#374151" stroke-width="1"/>
+    <text x="36" y="70" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">a</text>
+    <!-- a 尺寸（下方：移到左下紅色正方形左側，垂直標示） -->
+    <line x1="12" y1="132" x2="12" y2="165" stroke="#374151" stroke-width="1"/>
+    <line x1="8" y1="132" x2="16" y2="132" stroke="#374151" stroke-width="1"/>
+    <line x1="8" y1="165" x2="16" y2="165" stroke="#374151" stroke-width="1"/>
+    <text x="4" y="152" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">a</text>
+    <!-- 說明框 -->
+    <rect x="278" y="20" width="230" height="170" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" rx="6"/>
+    <text x="290" y="40" font-size="11" fill="#1e293b" font-weight="700">區域定義（θ ≦ 7°）</text>
+    <rect x="290" y="50" width="14" height="10" fill="#fca5a5" stroke="#dc2626" stroke-width="1"/>
+    <text x="310" y="59" font-size="10" fill="#dc2626">③ 角隅區（a × a）</text>
+    <text x="310" y="71" font-size="10" fill="#64748b">GCp 負值最大</text>
+    <rect x="290" y="82" width="14" height="10" fill="#fde68a" stroke="#ca8a04" stroke-width="1"/>
+    <text x="310" y="91" font-size="10" fill="#ca8a04">② 邊緣帶（寬度 a）</text>
+    <text x="310" y="103" font-size="10" fill="#64748b">GCp 負值居中</text>
+    <rect x="290" y="114" width="14" height="10" fill="#bbf7d0" stroke="#16a34a" stroke-width="1"/>
+    <text x="310" y="123" font-size="10" fill="#16a34a">① 中央區（其餘屋頂）</text>
+    <text x="310" y="135" font-size="10" fill="#64748b">GCp 負值最小</text>
+    <text x="290" y="152" font-size="10" fill="#374151">a = min(0.4h, 0.1B)</text>
+    <text x="290" y="165" font-size="10" fill="#374151">a ≧ max(0.9 m, 0.04B)</text>
+    <text x="290" y="178" font-size="10" fill="#64748b">正壓所有區域同一值</text>
+  </svg></div>`;
+}
+
+function svgZone31cd(title, thetaRange){
+  // 左坡: x=20~120, 右坡: x=120~220, 屋脊在x=120
+  // a=30px（示意）
+  return `<div class="diagram-wrap" style="margin-top:12px">
+  <div style="font-size:.82rem;font-weight:700;color:#1a56db;margin-bottom:6px">🏠 ${title} 區域示意圖 — 斜屋頂俯視圖</div>
+  <svg width="520" height="215" viewBox="0 0 520 215" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%">
+    <text x="10" y="14" font-size="11" fill="#374151" font-weight="700">屋頂俯視圖（${thetaRange}）</text>
+    <!-- 左坡 ① 底色 -->
+    <rect x="20" y="25" width="100" height="140" fill="#bbf7d0" stroke="#16a34a" stroke-width="1.5"/>
+    <!-- 右坡 ① 底色（與左坡相接，x=120） -->
+    <rect x="120" y="25" width="100" height="140" fill="#bbf7d0" stroke="#16a34a" stroke-width="1.5"/>
+    <!-- 左坡 ② 邊緣帶：上/下/左側各寬a=30 -->
+    <rect x="20" y="25" width="100" height="30" fill="#fde68a" fill-opacity=".85" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <rect x="20" y="135" width="100" height="30" fill="#fde68a" fill-opacity=".85" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <rect x="20" y="25" width="30" height="140" fill="#fde68a" fill-opacity=".85" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <!-- 左坡 ② 右側（屋脊側，a寬） -->
+    <rect x="90" y="25" width="30" height="140" fill="#fde68a" fill-opacity=".85" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <!-- 右坡 ② 邊緣帶：上/下/右側各寬a=30 -->
+    <rect x="120" y="25" width="100" height="30" fill="#fde68a" fill-opacity=".85" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <rect x="120" y="135" width="100" height="30" fill="#fde68a" fill-opacity=".85" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <rect x="190" y="25" width="30" height="140" fill="#fde68a" fill-opacity=".85" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <!-- 右坡 ② 左側（屋脊側，a寬） -->
+    <rect x="120" y="25" width="30" height="140" fill="#fde68a" fill-opacity=".85" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <!-- 左坡 ③ 角隅（左上、右上、左下、右下） -->
+    <rect x="20" y="25" width="30" height="30" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <rect x="90" y="25" width="30" height="30" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <rect x="20" y="135" width="30" height="30" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <rect x="90" y="135" width="30" height="30" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <!-- 右坡 ③ 角隅（左上、右上、左下、右下） -->
+    <rect x="120" y="25" width="30" height="30" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <rect x="190" y="25" width="30" height="30" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <rect x="120" y="135" width="30" height="30" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <rect x="190" y="135" width="30" height="30" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5"/>
+    <!-- 屋脊線（兩坡交界） -->
+    <line x1="120" y1="25" x2="120" y2="165" stroke="#334155" stroke-width="2.5" stroke-dasharray="6,2"/>
+    <!-- 標籤 -->
+    <text x="70" y="98" text-anchor="middle" font-size="14" fill="#16a34a" font-weight="900">①</text>
+    <text x="170" y="98" text-anchor="middle" font-size="14" fill="#16a34a" font-weight="900">①</text>
+    <text x="70" y="43" text-anchor="middle" font-size="13" fill="#ca8a04" font-weight="900">②</text>
+    <text x="170" y="43" text-anchor="middle" font-size="13" fill="#ca8a04" font-weight="900">②</text>
+    <text x="35" y="47" text-anchor="middle" font-size="13" fill="#dc2626" font-weight="900">③</text>
+    <text x="205" y="47" text-anchor="middle" font-size="13" fill="#dc2626" font-weight="900">③</text>
+    <!-- a 尺寸（左坡左下角） -->
+    <line x1="20" y1="175" x2="50" y2="175" stroke="#374151" stroke-width="1"/>
+    <text x="35" y="187" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">a</text>
+    <!-- 說明框 -->
+    <rect x="252" y="20" width="260" height="180" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" rx="6"/>
+    <text x="264" y="40" font-size="11" fill="#1e293b" font-weight="700">區域定義</text>
+    <rect x="264" y="50" width="14" height="10" fill="#fca5a5" stroke="#dc2626" stroke-width="1"/>
+    <text x="284" y="59" font-size="10" fill="#dc2626">③ 角隅區（a × a）</text>
+    <rect x="264" y="72" width="14" height="10" fill="#fde68a" stroke="#ca8a04" stroke-width="1"/>
+    <text x="284" y="81" font-size="10" fill="#ca8a04">② 邊緣帶（寬度 a，含屋脊側）</text>
+    <rect x="264" y="94" width="14" height="10" fill="#bbf7d0" stroke="#16a34a" stroke-width="1"/>
+    <text x="284" y="103" font-size="10" fill="#16a34a">① 中央區（其餘屋面）</text>
+    <text x="264" y="124" font-size="10" fill="#374151">a = min(0.4h, 0.1B)</text>
+    <text x="264" y="137" font-size="10" fill="#374151">a ≧ max(0.9 m, 0.04B)</text>
+    <text x="264" y="152" font-size="10" fill="#64748b">— — 屋脊線（兩坡交界）</text>
+    <text x="264" y="166" font-size="10" fill="#64748b">B = 建築物最小寬度</text>
+    <text x="264" y="180" font-size="10" fill="#374151">兩坡各自獨立分區</text>
+  </svg></div>`;
+}
+
+function svgZone32(){
+  // Layout constants (all pixel values represent the diagram, not real dimensions)
+  // Roof plan: origin at (rx, ry), total size RW × RH
+  // a_px = pixel size of one 'a'; 2a_px = 2*a_px
+  // Roof: left edge = rx, top edge = ry
+  // Edge strip width = a_px; Corner zone = 2a_px × 2a_px (L-shaped, minus a_px×a_px inner square)
+  // The L-shape for each corner = 2a×2a rectangle minus the inner a×a square (closest to centre)
+  return `<div class="diagram-wrap" style="margin-top:12px">
+  <div style="font-size:.82rem;font-weight:700;color:#1a56db;margin-bottom:6px">🏢 圖3.2 區域示意圖 — 外牆與屋頂（h > 18 m）</div>
+  <svg width="560" height="270" viewBox="0 0 560 270" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%">
+    <!--
+      Coordinate scheme for roof plan:
+        rx=55, ry=30 : top-left corner of roof rectangle
+        RW=160, RH=160 : total roof width & height
+        a=24px (represents dimension 'a')
+        2a=48px (represents dimension '2a')
+        Edge strip ② width = a = 24px
+        Corner zone ③ = 2a×2a L-shape (2a wide×2a tall minus inner a×a square)
+    -->
+
+    <!-- ═══ ROOF PLAN ═══ -->
+    <text x="55" y="18" font-size="10" fill="#374151" font-weight="700">屋頂俯視</text>
+
+    <!-- ① Central zone (green) — entire roof base -->
+    <rect x="55" y="30" width="160" height="160" fill="#bbf7d0" stroke="#16a34a" stroke-width="1.5"/>
+
+    <!-- ② Edge strips (yellow), width = a = 24px, drawn over ① -->
+    <!-- top strip -->
+    <rect x="55" y="30" width="160" height="24" fill="#fde68a" fill-opacity=".9" stroke="none"/>
+    <!-- bottom strip -->
+    <rect x="55" y="166" width="160" height="24" fill="#fde68a" fill-opacity=".9" stroke="none"/>
+    <!-- left strip -->
+    <rect x="55" y="30" width="24" height="160" fill="#fde68a" fill-opacity=".9" stroke="none"/>
+    <!-- right strip -->
+    <rect x="191" y="30" width="24" height="160" fill="#fde68a" fill-opacity=".9" stroke="none"/>
+    <!-- dashed border for edge strips (draw after fills) -->
+    <rect x="55" y="30" width="160" height="24" fill="none" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <rect x="55" y="166" width="160" height="24" fill="none" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <rect x="55" y="30" width="24" height="160" fill="none" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+    <rect x="191" y="30" width="24" height="160" fill="none" stroke="#ca8a04" stroke-width="1" stroke-dasharray="4,2"/>
+
+    <!--
+      ③ Corner zones (red L-shapes), each = 2a×2a (48×48) minus inner a×a (24×24)
+      Drawn as polygons (L-shape) for each of the 4 corners.
+      Top-left corner: outer rect x=55,y=30 w=48,h=48; cut-out at x=79,y=54 w=24,h=24
+        polygon points: (55,30)→(103,30)→(103,54)→(79,54)→(79,78)→(55,78)→close
+      Top-right corner: outer rect x=167,y=30 w=48,h=48; cut-out at x=167,y=54 w=24,h=24
+        polygon: (167,30)→(215,30)→(215,78)→(191,78)→(191,54)→(167,54)→close
+      Bottom-left corner: outer rect x=55,y=142 w=48,h=48; cut-out at x=79,y=142 w=24,h=24
+        polygon: (55,142)→(79,142)→(79,166)→(103,166)→(103,190)→(55,190)→close
+      Bottom-right corner: outer rect x=167,y=142 w=48,h=48; cut-out at x=167,y=166 w=24,h=24
+        polygon: (167,166)→(167,142)→(215,142)→(215,190)→(191,190)→(191,166)→close
+    -->
+    <!-- ③ top-left L -->
+    <polygon points="55,30 103,30 103,54 79,54 79,78 55,78" fill="#fca5a5" fill-opacity=".9" stroke="#dc2626" stroke-width="1.5"/>
+    <!-- ③ top-right L -->
+    <polygon points="167,30 215,30 215,78 191,78 191,54 167,54" fill="#fca5a5" fill-opacity=".9" stroke="#dc2626" stroke-width="1.5"/>
+    <!-- ③ bottom-left L -->
+    <polygon points="55,142 79,142 79,166 103,166 103,190 55,190" fill="#fca5a5" fill-opacity=".9" stroke="#dc2626" stroke-width="1.5"/>
+    <!-- ③ bottom-right L -->
+    <polygon points="191,142 215,142 215,190 167,190 167,166 191,166" fill="#fca5a5" fill-opacity=".9" stroke="#dc2626" stroke-width="1.5"/>
+
+    <!-- Roof outer border (drawn last to be on top) -->
+    <rect x="55" y="30" width="160" height="160" fill="none" stroke="#374151" stroke-width="2"/>
+
+    <!-- Zone labels -->
+    <!-- ① centre -->
+    <text x="135" y="116" text-anchor="middle" font-size="14" fill="#16a34a" font-weight="900">①</text>
+    <!-- ② top centre -->
+    <text x="135" y="46" text-anchor="middle" font-size="13" fill="#ca8a04" font-weight="900">②</text>
+    <!-- ② bottom centre -->
+    <text x="135" y="182" text-anchor="middle" font-size="13" fill="#ca8a04" font-weight="900">②</text>
+    <!-- ② left centre -->
+    <text x="67" y="116" text-anchor="middle" font-size="13" fill="#ca8a04" font-weight="900">②</text>
+    <!-- ② right centre -->
+    <text x="203" y="116" text-anchor="middle" font-size="13" fill="#ca8a04" font-weight="900">②</text>
+    <!-- ③ top-left -->
+    <text x="68" y="58" text-anchor="middle" font-size="13" fill="#dc2626" font-weight="900">③</text>
+    <!-- ③ top-right -->
+    <text x="202" y="58" text-anchor="middle" font-size="13" fill="#dc2626" font-weight="900">③</text>
+    <!-- ③ bottom-left -->
+    <text x="68" y="175" text-anchor="middle" font-size="13" fill="#dc2626" font-weight="900">③</text>
+    <!-- ③ bottom-right -->
+    <text x="202" y="175" text-anchor="middle" font-size="13" fill="#dc2626" font-weight="900">③</text>
+
+    <!-- Dimension lines -->
+    <!-- Top: 2a from left edge (x=55) to x=103, above roof -->
+    <line x1="55" y1="22" x2="103" y2="22" stroke="#374151" stroke-width="1" marker-start="url(#arr-l)" marker-end="url(#arr-r)"/>
+    <text x="79" y="20" text-anchor="middle" font-size="9" fill="#374151" font-weight="700" dy="-2">2a</text>
+    <!-- Top: 2a from x=167 to x=215, above roof -->
+    <line x1="167" y1="22" x2="215" y2="22" stroke="#374151" stroke-width="1" marker-start="url(#arr-l)" marker-end="url(#arr-r)"/>
+    <text x="191" y="20" text-anchor="middle" font-size="9" fill="#374151" font-weight="700" dy="-2">2a</text>
+    <!-- 'a' horizontal: below roof bottom-left corner, x=55 to x=79 (one 'a' width) -->
+    <line x1="55" y1="200" x2="79" y2="200" stroke="#374151" stroke-width="1" marker-start="url(#arr-l)" marker-end="url(#arr-r)"/>
+    <text x="67" y="212" text-anchor="middle" font-size="9" fill="#374151" font-weight="700">a</text>
+    <!-- Left: 2a from top (y=30) to y=78, left of roof -->
+    <line x1="46" y1="30" x2="46" y2="78" stroke="#374151" stroke-width="1" marker-start="url(#arr-u)" marker-end="url(#arr-d)"/>
+    <text x="38" y="56" text-anchor="middle" font-size="9" fill="#374151" font-weight="700">2a</text>
+    <!-- Left: 2a from y=142 to y=190, left of roof -->
+    <line x1="46" y1="142" x2="46" y2="190" stroke="#374151" stroke-width="1" marker-start="url(#arr-u)" marker-end="url(#arr-d)"/>
+    <text x="38" y="169" text-anchor="middle" font-size="9" fill="#374151" font-weight="700">2a</text>
+    <!-- 'a' vertical: right of roof top-right corner, y=30 to y=54 (one 'a' height) -->
+    <line x1="224" y1="30" x2="224" y2="54" stroke="#374151" stroke-width="1" marker-start="url(#arr-u)" marker-end="url(#arr-d)"/>
+    <text x="232" y="44" text-anchor="middle" font-size="9" fill="#374151" font-weight="700">a</text>
+
+    <!-- Arrow markers -->
+    <defs>
+      <marker id="arr-r" markerWidth="4" markerHeight="4" refX="4" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="arr-l" markerWidth="4" markerHeight="4" refX="0" refY="2" orient="auto"><path d="M4,0 L0,2 L4,4" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="arr-d" markerWidth="4" markerHeight="4" refX="2" refY="4" orient="auto"><path d="M0,0 L2,4 L4,0" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="arr-u" markerWidth="4" markerHeight="4" refX="2" refY="0" orient="auto"><path d="M0,4 L2,0 L4,4" fill="none" stroke="#374151" stroke-width="1"/></marker>
+    </defs>
+
+    <!-- ═══ WALL ELEVATION ═══ -->
+    <text x="248" y="18" font-size="10" fill="#374151" font-weight="700">外牆立面</text>
+    <!-- ④ Central wall (blue) -->
+    <rect x="248" y="30" width="150" height="160" fill="#bfdbfe" stroke="#1a56db" stroke-width="1.5"/>
+    <!-- ⑤ Corner strips (red), width = a = 24px -->
+    <rect x="248" y="30" width="24" height="160" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,2"/>
+    <rect x="374" y="30" width="24" height="160" fill="#fca5a5" fill-opacity=".85" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,2"/>
+    <!-- Zone labels wall -->
+    <text x="323" y="113" text-anchor="middle" font-size="14" fill="#1a56db" font-weight="900">④</text>
+    <text x="260" y="113" text-anchor="middle" font-size="14" fill="#dc2626" font-weight="900">⑤</text>
+    <text x="386" y="113" text-anchor="middle" font-size="14" fill="#dc2626" font-weight="900">⑤</text>
+    <!-- a dimension on wall -->
+    <line x1="248" y1="200" x2="272" y2="200" stroke="#374151" stroke-width="1" marker-start="url(#arr-l)" marker-end="url(#arr-r)"/>
+    <text x="260" y="212" text-anchor="middle" font-size="9" fill="#374151" font-weight="700">a</text>
+    <text x="323" y="212" text-anchor="middle" font-size="9" fill="#374151">外牆（a寬角隅）</text>
+
+    <!-- ═══ LEGEND BOX ═══ -->
+    <rect x="420" y="18" width="135" height="215" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" rx="6"/>
+    <text x="428" y="34" font-size="10" fill="#1e293b" font-weight="700">區域定義（h > 18 m）</text>
+    <text x="428" y="50" font-size="9" fill="#16a34a" font-weight="700">屋頂：</text>
+    <polygon points="428,55 440,55 440,64 436,64 436,60 428,60" fill="#fca5a5" stroke="#dc2626" stroke-width="1"/>
+    <text x="444" y="63" font-size="9" fill="#dc2626">③ 角隅（L形，2a×2a）</text>
+    <rect x="428" y="70" width="12" height="8" fill="#fde68a" stroke="#ca8a04" stroke-width="1"/>
+    <text x="444" y="78" font-size="9" fill="#ca8a04">② 邊緣帶（a 寬）</text>
+    <rect x="428" y="85" width="12" height="8" fill="#bbf7d0" stroke="#16a34a" stroke-width="1"/>
+    <text x="444" y="93" font-size="9" fill="#16a34a">① 中央區</text>
+    <text x="428" y="108" font-size="9" fill="#1a56db" font-weight="700">外牆：</text>
+    <rect x="428" y="114" width="12" height="8" fill="#fca5a5" stroke="#dc2626" stroke-width="1"/>
+    <text x="444" y="122" font-size="9" fill="#dc2626">⑤ 角隅牆（a 寬）</text>
+    <rect x="428" y="129" width="12" height="8" fill="#bfdbfe" stroke="#1a56db" stroke-width="1"/>
+    <text x="444" y="137" font-size="9" fill="#1a56db">④ 中央牆面</text>
+    <line x1="428" y1="148" x2="550" y2="148" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="428" y="160" font-size="9" fill="#374151">a = 0.1 × 最小寬度</text>
+    <text x="428" y="172" font-size="9" fill="#374151">a ≧ 0.9 m</text>
+    <text x="428" y="185" font-size="9" fill="#92400e">θ > 10°：屋頂改用</text>
+    <text x="428" y="196" font-size="9" fill="#92400e">圖3.1(c) / 3.1(d)</text>
+    <text x="428" y="212" font-size="9" fill="#64748b">B = 建築物最小寬度</text>
+  </svg></div>`;
+}
+
+function svgZone33a(){
+  // Roof plan: 3 concentric rectangles
+  // Outer (③): x=20,y=20, w=180,h=160  (entire roof boundary)
+  // Middle (②): inset by a=24px → x=44,y=44, w=132,h=112
+  // Inner (①): inset by another a=24px → x=68,y=68, w=84,h=64
+  // Right-side dim: two 'a' arrows (top-a from y=20→44, bottom-a from y=132→156)
+  // Bottom dim: two 'a' arrows symmetric + L total width
+  return `<div class="diagram-wrap" style="margin-top:12px">
+  <div style="font-size:.82rem;font-weight:700;color:#1a56db;margin-bottom:6px">🏚 圖3.3(a) 區域示意圖 — 單斜屋頂（開放式建築物）</div>
+  <svg width="520" height="250" viewBox="0 0 520 250" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%">
+    <defs>
+      <marker id="arw33a-r" markerWidth="5" markerHeight="5" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="arw33a-l" markerWidth="5" markerHeight="5" refX="0" refY="2.5" orient="auto"><path d="M5,0 L0,2.5 L5,5" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="arw33a-d" markerWidth="5" markerHeight="5" refX="2.5" refY="5" orient="auto"><path d="M0,0 L2.5,5 L5,0" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="arw33a-u" markerWidth="5" markerHeight="5" refX="2.5" refY="0" orient="auto"><path d="M0,5 L2.5,0 L5,5" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="arw33a-wind" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ef4444"/></marker>
+    </defs>
+
+    <!-- ═══ ROOF PLAN (俯視) ═══ -->
+    <text x="20" y="13" font-size="10" fill="#374151" font-weight="700">屋面俯視（Cpn 分區）</text>
+
+    <!-- ③ Outermost zone (red) — entire roof -->
+    <rect x="20" y="20" width="180" height="160" fill="#fca5a5" fill-opacity=".6" stroke="#374151" stroke-width="2"/>
+
+    <!-- ② Middle zone (yellow) — inset a=24px from outer -->
+    <rect x="44" y="44" width="132" height="112" fill="#fde68a" fill-opacity=".85" stroke="#374151" stroke-width="1.5"/>
+
+    <!-- ① Inner zone (green) — inset another a=24px -->
+    <rect x="68" y="68" width="84" height="64" fill="#bbf7d0" fill-opacity=".9" stroke="#374151" stroke-width="1.5"/>
+
+    <!-- Zone labels -->
+    <text x="110" y="103" text-anchor="middle" font-size="15" fill="#374151" font-weight="700">1</text>
+    <text x="52" y="62" text-anchor="middle" font-size="14" fill="#374151" font-weight="700">2</text>
+    <text x="168" y="145" text-anchor="middle" font-size="14" fill="#374151" font-weight="700">2</text>
+    <text x="30" y="36" text-anchor="middle" font-size="14" fill="#374151" font-weight="700">3</text>
+    <text x="190" y="172" text-anchor="middle" font-size="14" fill="#374151" font-weight="700">3</text>
+
+    <!-- Right-side dimension: top 'a' (y=20 → y=44) -->
+    <line x1="210" y1="20" x2="210" y2="44" stroke="#374151" stroke-width="1" marker-start="url(#arw33a-u)" marker-end="url(#arw33a-d)"/>
+    <text x="220" y="35" font-size="10" fill="#374151" font-weight="700">a</text>
+    <!-- Right-side dimension: bottom 'a' — 長度減半，上端接上方a線下端(y=44)，下端y=66 -->
+    <line x1="210" y1="44" x2="210" y2="66" stroke="#374151" stroke-width="1" marker-start="url(#arw33a-u)" marker-end="url(#arw33a-d)"/>
+    <text x="220" y="58" font-size="10" fill="#374151" font-weight="700">a</text>
+
+    <!-- Bottom dimension: 右移，右端對齊屋頂右邊緣x=200，兩段各24px: x=152→176, x=176→200 -->
+    <line x1="152" y1="196" x2="176" y2="196" stroke="#374151" stroke-width="1" marker-start="url(#arw33a-r)" marker-end="url(#arw33a-l)"/>
+    <text x="164" y="208" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">a</text>
+    <line x1="176" y1="196" x2="200" y2="196" stroke="#374151" stroke-width="1" marker-start="url(#arw33a-r)" marker-end="url(#arw33a-l)"/>
+    <text x="188" y="208" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">a</text>
+    <!-- vertical divider line between the two a's -->
+    <line x1="176" y1="191" x2="176" y2="201" stroke="#374151" stroke-width="1"/>
+    <!-- L total width (x=20→200) -->
+    <line x1="20" y1="218" x2="200" y2="218" stroke="#374151" stroke-width="1" marker-start="url(#arw33a-l)" marker-end="url(#arw33a-r)"/>
+    <text x="110" y="228" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">L（順風向）</text>
+
+    <!-- ═══ SIDE VIEW (側視) ═══ -->
+    <text x="255" y="13" font-size="10" fill="#374151" font-weight="700">側視圖</text>
+    <line x1="255" y1="165" x2="420" y2="165" stroke="#334155" stroke-width="2"/>
+    <line x1="265" y1="165" x2="265" y2="80" stroke="#334155" stroke-width="1.5"/>
+    <line x1="408" y1="165" x2="408" y2="122" stroke="#334155" stroke-width="1.5"/>
+    <line x1="265" y1="80" x2="408" y2="122" stroke="#1a56db" stroke-width="2.5"/>
+    <!-- horizontal line at right wall/roof junction, extended left 10 → x1=373 -->
+    <line x1="373" y1="122" x2="408" y2="122" stroke="#334155" stroke-width="1.5"/>
+    <!-- θ arc shifted left 10: centre (398,122), r=15, from horizontal (383,122) to roof slope (385,115) -->
+    <path d="M 383,122 A 15,15 0 0,1 385,115" fill="none" stroke="#ca8a04" stroke-width="1.5"/>
+    <!-- θ label shifted left 10 -->
+    <text x="366" y="119" font-size="11" fill="#ca8a04" font-weight="700">θ</text>
+    <!-- h dimension — at roof centre x≈336, y_roof≈101, y_ground=165 -->
+    <line x1="336" y1="101" x2="336" y2="165" stroke="#374151" stroke-width="1" marker-start="url(#arw33a-u)" marker-end="url(#arw33a-d)"/>
+    <text x="346" y="137" font-size="10" fill="#374151" font-weight="700">h</text>
+    <!-- L dimension line below ground, aligned with two walls x=265 and x=408 -->
+    <line x1="265" y1="180" x2="408" y2="180" stroke="#374151" stroke-width="1" marker-start="url(#arw33a-l)" marker-end="url(#arw33a-r)"/>
+    <text x="336" y="192" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">L</text>
+    <!-- Wind arrow -->
+    <line x1="240" y1="122" x2="258" y2="122" stroke="#ef4444" stroke-width="2" marker-end="url(#arw33a-wind)"/>
+    <text x="232" y="115" font-size="9" fill="#ef4444" font-weight="700">風</text>
+
+    <!-- ═══ LEGEND ═══ -->
+    <rect x="445" y="20" width="70" height="130" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" rx="5"/>
+    <text x="452" y="36" font-size="10" fill="#1e293b" font-weight="700">區域</text>
+    <rect x="452" y="44" width="11" height="9" fill="#fca5a5" stroke="#374151" stroke-width="1"/>
+    <text x="467" y="52" font-size="10" fill="#374151">③角隅</text>
+    <rect x="452" y="60" width="11" height="9" fill="#fde68a" stroke="#374151" stroke-width="1"/>
+    <text x="467" y="68" font-size="10" fill="#374151">②邊緣</text>
+    <rect x="452" y="76" width="11" height="9" fill="#bbf7d0" stroke="#374151" stroke-width="1"/>
+    <text x="467" y="84" font-size="10" fill="#374151">①中央</text>
+    <text x="452" y="102" font-size="9" fill="#374151">a=0.1B</text>
+    <text x="452" y="115" font-size="9" fill="#374151">≧0.9m</text>
+    <text x="452" y="132" font-size="9" fill="#64748b">θ≦45°</text>
+  </svg></div>`;
+}
+
+function svgZone33b(){
+  /*
+    Layout: two roof plan diagrams side by side
+    Left  (θ<10°):  single roof, 3 concentric rects + centre ridge line
+    Right (θ≥10°):  two separate half-roofs each with 3 concentric rects + centre ridge line
+
+    Common params:
+      a = 18px  (represents dimension 'a')
+      Left diagram origin: lx=20, ly=30, lw=150, lh=160
+      Right diagram origin: rx=290, ry=30, rw=150, rh=160
+      SVG total: 560 × 260
+  */
+  return `<div class="diagram-wrap" style="margin-top:12px">
+  <div style="font-size:.82rem;font-weight:700;color:#1a56db;margin-bottom:6px">🏠 圖3.3(b) 區域示意圖 — 雙斜屋頂（開放式建築物）</div>
+  <svg width="560" height="390" viewBox="0 0 560 390" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%">
+    <defs>
+      <marker id="b-r" markerWidth="5" markerHeight="5" refX="5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="b-l" markerWidth="5" markerHeight="5" refX="0" refY="2.5" orient="auto"><path d="M5,0 L0,2.5 L5,5" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="b-d" markerWidth="5" markerHeight="5" refX="2.5" refY="5" orient="auto"><path d="M0,0 L2.5,5 L5,0" fill="none" stroke="#374151" stroke-width="1"/></marker>
+      <marker id="b-u" markerWidth="5" markerHeight="5" refX="2.5" refY="0" orient="auto"><path d="M0,5 L2.5,0 L5,5" fill="none" stroke="#374151" stroke-width="1"/></marker>
+    </defs>
+
+    <!-- ══════════════════════════════════════════════
+         LEFT DIAGRAM: θ < 10°
+         Roof: x=20,y=30, w=150,h=160  (origin bottom-left)
+         a=18px
+         ③ outer ring: full roof 150×160
+         ② middle rect: inset 18px → x=38,y=48, w=114,h=124
+         ① inner rect: inset 18px more → x=56,y=66, w=78,h=88
+         Centre ridge line at x=95 (midpoint of 20→170)
+    ══════════════════════════════════════════════ -->
+
+    <!-- ③ outer (entire roof) -->
+    <rect x="20" y="30" width="150" height="160" fill="#fca5a5" fill-opacity=".5" stroke="#374151" stroke-width="2"/>
+    <!-- ② middle -->
+    <rect x="38" y="48" width="114" height="124" fill="#fde68a" fill-opacity=".8" stroke="#374151" stroke-width="1.5"/>
+    <!-- ① inner -->
+    <rect x="56" y="66" width="78" height="88" fill="#fff" fill-opacity=".95" stroke="#374151" stroke-width="1.5"/>
+    <!-- centre ridge (vertical dashed line at x=95) -->
+    <line x1="95" y1="30" x2="95" y2="190" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3"/>
+
+    <!-- Zone labels left -->
+    <text x="29" y="115" text-anchor="middle" font-size="12" fill="#374151" font-weight="700">3</text>
+    <text x="47" y="115" text-anchor="middle" font-size="12" fill="#374151" font-weight="700">2</text>
+    <text x="72" y="115" text-anchor="middle" font-size="12" fill="#374151" font-weight="700">1</text>
+    <text x="118" y="115" text-anchor="middle" font-size="12" fill="#374151" font-weight="700">1</text>
+    <text x="143" y="115" text-anchor="middle" font-size="12" fill="#374151" font-weight="700">2</text>
+    <text x="161" y="115" text-anchor="middle" font-size="12" fill="#374151" font-weight="700">3</text>
+
+    <!-- 上方俯視圖 label -->
+    <text x="230" y="8" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">上方俯視圖</text>
+
+    <!-- L dimension above left diagram -->
+    <line x1="20" y1="20" x2="170" y2="20" stroke="#374151" stroke-width="1" marker-start="url(#b-l)" marker-end="url(#b-r)"/>
+    <text x="95" y="14" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">L</text>
+
+    <!-- Right-side a dimensions for left diagram: top a (y=30→48), bottom a moved up to y=48→66 -->
+    <line x1="178" y1="30" x2="178" y2="48" stroke="#374151" stroke-width="1" marker-start="url(#b-u)" marker-end="url(#b-d)"/>
+    <text x="186" y="42" font-size="9" fill="#374151" font-weight="700">a</text>
+    <line x1="178" y1="48" x2="178" y2="66" stroke="#374151" stroke-width="1" marker-start="url(#b-u)" marker-end="url(#b-d)"/>
+    <text x="186" y="60" font-size="9" fill="#374151" font-weight="700">a</text>
+    <!-- horizontal divider between the two a's -->
+    <line x1="174" y1="48" x2="182" y2="48" stroke="#374151" stroke-width="1"/>
+
+    <!-- Caption left -->
+    <text x="95" y="215" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">Θ < 10°</text>
+
+    <!-- ══════════════════════════════════════════════
+         RIGHT DIAGRAM: θ ≥ 10°
+         Full roof bounding box: x=295,y=30, w=150,h=160
+         Centre ridge at x=370 (midpoint)
+         Left half:  x=295,y=30, w=75,h=160
+         Right half: x=370,y=30, w=75,h=160
+         a=18px for each half's concentric rects
+         Left half:
+           ③ x=295,y=30, w=75,h=160
+           ② x=313,y=48, w=39,h=124
+           ① x=331,y=66, w=3,h=88  (too small — use a=14 for ≥10° half)
+         Use a=14px for the ≥10° case to fit nicely:
+           ③ x=295,y=30, w=75,h=160
+           ② x=309,y=44, w=47,h=132
+           ① x=323,y=58, w=19,h=104
+         Right half mirrors: x=370 baseline
+           ③ x=370,y=30, w=75,h=160
+           ② x=370,y=44, w=47,h=132
+           ① x=370,y=58, w=19,h=104  → adjust x:
+             ② x=384,y=44  (right half ②: 370+14=384, w=47... symmetric)
+         Let me use symmetric approach from centre x=370:
+           half_w=75, half_h=160, a=14
+           Left half ③: x=295,y=30,w=75,h=160
+           Left half ②: x=295+14=309,y=30+14=44,w=75-28=47,h=160-28=132
+           Left half ①: x=309+14=323,y=44+14=58,w=47-28=19,h=132-28=104
+           Right half mirrors: x offset = 370
+           Right ③: x=370,y=30,w=75,h=160
+           Right ②: x=370,y=44,w=47+14=... no — right half ② left edge at x=370 (ridge), right edge at 370+75-14=431
+             → x=370,y=44,w=61,h=132  (no inset on left since ridge is boundary)
+         Actually keep it symmetric within each half independently:
+           each half treated as its own rectangle with 3 concentric zones
+    ══════════════════════════════════════════════ -->
+
+    <!-- LEFT HALF of right diagram (x=295→370), 3 concentric rects each inset a=14 -->
+    <!-- ③ left half outer -->
+    <rect x="295" y="30" width="75" height="160" fill="#fca5a5" fill-opacity=".5" stroke="#374151" stroke-width="1.5"/>
+    <!-- ② left half middle: inset 14 all sides -->
+    <rect x="309" y="44" width="47" height="132" fill="#fde68a" fill-opacity=".8" stroke="#374151" stroke-width="1.5"/>
+    <!-- ① left half inner: inset 14 again -->
+    <rect x="323" y="58" width="19" height="104" fill="#fff" fill-opacity=".95" stroke="#374151" stroke-width="1.5"/>
+
+    <!-- RIGHT HALF of right diagram (x=370→445), 3 concentric rects each inset a=14 -->
+    <!-- ③ right half outer -->
+    <rect x="370" y="30" width="75" height="160" fill="#fca5a5" fill-opacity=".5" stroke="#374151" stroke-width="1.5"/>
+    <!-- ② right half middle: inset 14 all sides -->
+    <rect x="384" y="44" width="47" height="132" fill="#fde68a" fill-opacity=".8" stroke="#374151" stroke-width="1.5"/>
+    <!-- ① right half inner: inset 14 again -->
+    <rect x="398" y="58" width="19" height="104" fill="#fff" fill-opacity=".95" stroke="#374151" stroke-width="1.5"/>
+
+    <!-- Centre ridge line (drawn last to appear on top) -->
+    <line x1="370" y1="30" x2="370" y2="190" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+    <!-- Zone labels right diagram -->
+    <text x="302" y="115" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">3</text>
+    <text x="316" y="115" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">2</text>
+    <text x="333" y="113" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">1</text>
+    <text x="408" y="113" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">1</text>
+    <text x="422" y="115" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">2</text>
+    <text x="436" y="115" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">3</text>
+
+    <!-- L dimension above right diagram -->
+    <line x1="295" y1="20" x2="445" y2="20" stroke="#374151" stroke-width="1" marker-start="url(#b-l)" marker-end="url(#b-r)"/>
+    <text x="370" y="14" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">L</text>
+
+    <!-- Right-side a dimensions for right diagram: top a (y=30→44), bottom a moved up to y=44→58 -->
+    <line x1="453" y1="30" x2="453" y2="44" stroke="#374151" stroke-width="1" marker-start="url(#b-u)" marker-end="url(#b-d)"/>
+    <text x="461" y="40" font-size="9" fill="#374151" font-weight="700">a</text>
+    <line x1="453" y1="44" x2="453" y2="58" stroke="#374151" stroke-width="1" marker-start="url(#b-u)" marker-end="url(#b-d)"/>
+    <text x="461" y="54" font-size="9" fill="#374151" font-weight="700">a</text>
+    <line x1="449" y1="44" x2="457" y2="44" stroke="#374151" stroke-width="1"/>
+
+    <!-- Caption right -->
+    <text x="370" y="232" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">Θ ≥ 10°</text>
+
+    <!-- ═══ SIDE VIEW (側視圖，雙坡) ═══ -->
+    <text x="10" y="258" font-size="10" fill="#374151" font-weight="700">側視圖（雙坡）</text>
+    <line x1="10" y1="360" x2="200" y2="360" stroke="#334155" stroke-width="2"/>
+    <line x1="20" y1="360" x2="20" y2="320" stroke="#334155" stroke-width="1.5"/>
+    <line x1="190" y1="360" x2="190" y2="320" stroke="#334155" stroke-width="1.5"/>
+    <line x1="20" y1="320" x2="105" y2="275" stroke="#1a56db" stroke-width="2.5"/>
+    <line x1="190" y1="320" x2="105" y2="275" stroke="#1a56db" stroke-width="2.5"/>
+    <!-- θ: horizontal line at left wall/roof junction (20,320), length 30 into interior -->
+    <line x1="20" y1="320" x2="50" y2="320" stroke="#334155" stroke-width="1.5"/>
+    <!-- θ arc: centre (30,320), r=20, from horizontal (50,320) to roof slope (45,307) -->
+    <path d="M 50,320 A 20,20 0 0,0 45,307" fill="none" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="52" y="314" font-size="11" fill="#ca8a04" font-weight="700">θ</text>
+    <!-- h dimension: 3/4 of original (275→360=85px → 64px), bottom y=360, top y=296 -->
+    <line x1="208" y1="296" x2="208" y2="360" stroke="#374151" stroke-width="1" marker-start="url(#b-u)" marker-end="url(#b-d)"/>
+    <text x="216" y="332" font-size="10" fill="#374151" font-weight="700">h</text>
+    <!-- Wind arrow -->
+    <line x1="0" y1="320" x2="14" y2="320" stroke="#ef4444" stroke-width="2" marker-end="url(#b-wind)"/>
+    <text x="0" y="313" font-size="9" fill="#ef4444" font-weight="700">風</text>
+    <defs><marker id="b-wind" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#ef4444"/></marker></defs>
+
+    <!-- ═══ LEGEND ═══ -->
+    <rect x="240" y="258" width="100" height="120" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" rx="5"/>
+    <text x="248" y="274" font-size="10" fill="#1e293b" font-weight="700">區域</text>
+    <rect x="248" y="280" width="10" height="8" fill="#fca5a5" stroke="#374151" stroke-width="1"/>
+    <text x="262" y="287" font-size="9" fill="#374151">③角隅</text>
+    <rect x="248" y="295" width="10" height="8" fill="#fde68a" stroke="#374151" stroke-width="1"/>
+    <text x="262" y="302" font-size="9" fill="#374151">②邊緣</text>
+    <rect x="248" y="310" width="10" height="8" fill="#fff" stroke="#374151" stroke-width="1"/>
+    <text x="262" y="317" font-size="9" fill="#374151">①中央</text>
+    <text x="248" y="334" font-size="9" fill="#374151">a=0.1B</text>
+    <text x="248" y="346" font-size="9" fill="#374151">≧0.9m</text>
+    <text x="248" y="362" font-size="9" fill="#64748b">θ≦45°</text>
+
+  </svg></div>`;
+}
+
+// ===== UPDATED RENDER FUNCTIONS WITH DIAGRAMS & CHARTS =====
+function renderCC_Fig31a(pa,pd){
+  pa.innerHTML=`${ccBaseForm('建築物平面之最小邊長（公尺）')}
+    <div class="note-box" style="margin-top:10px">
+      <b>a 值計算：</b> a = min(0.4h, 0.1×最小寬度)，且 a ≧ max(0.9 m, 0.04×最小寬度)<br>
+      <b>⑤ 角隅區</b>：位於牆面兩端，寬度 = a；<b>④ 中央區</b>：其餘牆面
+    </div>`;
+  pd.innerHTML=svgZone31a();
+}
+
+function renderCC_Fig31b(pa,pd){
+  pa.innerHTML=`${ccBaseForm()}
+    <div class="note-box" style="margin-top:10px">
+      <b>a 值計算：</b> a = min(0.4h, 0.1×最小寬度)，且 a ≧ max(0.9 m, 0.04×最小寬度)<br>
+      <b>③ 角隅區</b>：a×a 方形；<b>② 邊緣帶</b>：距屋頂邊緣寬度 a 之帶狀；<b>① 中央區</b>：其餘屋頂面<br>
+      θ ≦ 7° 且屋頂四周有高度 ≧ 0.9 m 之女兒牆時，③區可當②區處理
+    </div>`;
+  pd.innerHTML=svgZone31b();
+}
+
+function renderCC_Fig31c(pa,pd){
+  pa.innerHTML=`${ccBaseForm()}
+    <div class="note-box" style="margin-top:10px">
+      <b>a 值計算：</b> a = min(0.4h, 0.1×最小寬度)，且 a ≧ max(0.9 m, 0.04×最小寬度)<br>
+      <b>③ 角隅區</b>：a×a 方形；<b>② 邊緣帶</b>：寬度 a；<b>① 中央區</b>：其餘屋頂面<br>
+      適用：7° < θ ≦ 27°，h ≦ 18 m
+    </div>`;
+  pd.innerHTML=svgZone31cd('圖3.1(c)','7°<θ≦27°');
+}
+
+function renderCC_Fig31d(pa,pd){
+  pa.innerHTML=`${ccBaseForm()}
+    <div class="note-box" style="margin-top:10px">
+      <b>a 值計算：</b> a = min(0.4h, 0.1×最小寬度)，且 a ≧ max(0.9 m, 0.04×最小寬度)<br>
+      <b>②③ 邊緣及角隅</b>：同一曲線；<b>① 中央區</b>：另一曲線；兩區均有正負壓<br>
+      適用：27° < θ ≦ 45°，h ≦ 18 m
+    </div>`;
+  pd.innerHTML=svgZone31cd('圖3.1(d)','27°<θ≦45°');
+}
+
+function renderCC_Fig32(pa,pd){
+  pa.innerHTML=`${ccBaseForm32()}
+    <div class="note-box" style="margin-top:10px">
+      <b>a 值計算：</b> a = 0.1×最小寬度，且 a ≧ 0.9 m（屋頂邊緣帶為 2a，角隅為 2a×2a）<br>
+      若 θ > 10°，屋頂(GCp)改由圖3.1(c)或圖3.1(d)決定，不使用本圖屋頂數值
+    </div>`;
+  pd.innerHTML=svgZone32();
+}
+
+function renderCC_Fig33a(pa,pd){
+  pa.innerHTML=`${ccBaseForm33()}
+  <div class="note-box" style="margin-top:10px">
+    <b>使用條件：</b> 0.25 ≦ h/L ≦ 1 且 θ ≦ 45°<br>
+    a = 0.1×最小寬度，但 a ≧ 0.9 m；介於表列 θ 間之值以線性內插求得
+  </div>`;
+  pd.innerHTML=svgZone33a();
+}
+
+function renderCC_Fig33b(pa,pd){
+  pa.innerHTML=`${ccBaseForm33()}
+  <div class="note-box" style="margin-top:10px">
+    <b>使用條件：</b> 0.25 ≦ h/L ≦ 1 且 θ ≦ 45°<br>
+    a = 0.1×最小寬度，但 a ≧ 0.9 m；介於表列 θ 間之值以線性內插求得
+  </div>`;
+  pd.innerHTML=svgZone33b();
+}
+
+function calcCC_Fig31a(){
+  const h=parseFloat(document.getElementById('cc_h').value);
+  const minW=parseFloat(document.getElementById('cc_minW').value);
+  const A=parseFloat(document.getElementById('cc_A').value);
+  if(isNaN(h)||isNaN(minW)||isNaN(A)) throw new Error('請填入所有必要參數');
+  if(h>18) throw new Error('圖3.1(a) 僅適用於 h ≦ 18 m，h > 18 m 請使用圖3.2');
+  if(A<0.5||A>100) throw new Error('有效受風面積 A 應在 0.5 ~ 100 m² 範圍內');
+  let a=Math.min(0.4*h,0.1*minW);
+  const aMin=Math.max(0.9,0.04*minW);
+  if(a<aMin) a=aMin;
+  const gcpi=getGCpi();
+
+  // 依解析公式計算
+  const z4_neg=gcp31a_zone4_neg(A);
+  const z5_neg=gcp31a_zone5_neg(A);
+  const z45_pos=gcp31a_pos(A);
+
+  // 判斷落在哪個區段
+  const logA=Math.log10(A);
+  let z4_formula, z5_formula, pos_formula, segLabel;
+  if(A<=1){
+    segLabel='A ≦ 1 m²（常數段）';
+    z4_formula=`(GCp) = -2.2913`;
+    z5_formula=`(GCp) = -2.9162`;
+    pos_formula=`(GCp) = +2.0830`;
+  } else if(A<50){
+    segLabel=`1 < A < 50 m²（對數線性段，log₁₀(${A}) = ${logA.toFixed(4)}）`;
+    z4_formula=`(GCp) = 0.3678 × ${logA.toFixed(4)} - 2.2913 = ${f3(z4_neg)}`;
+    z5_formula=`(GCp) = 0.7356 × ${logA.toFixed(4)} - 2.9162 = ${f3(z5_neg)}`;
+    pos_formula=`(GCp) = -0.3678 × ${logA.toFixed(4)} + 2.0830 = ${f3(z45_pos)}`;
+  } else {
+    segLabel='A ≧ 50 m²（常數段）';
+    z4_formula=`(GCp) = -1.6664`;
+    z5_formula=`(GCp) = -1.6664`;
+    pos_formula=`(GCp) = +1.4581`;
+  }
+
+  const sel=zoneValidate();
+  const zones=[
+    {key:'z5',name:'⑤ 角隅區（端部 a = '+a.toFixed(2)+' m）',neg:z5_neg,pos:z45_pos},
+    {key:'z4',name:'④ 中央區',neg:z4_neg,pos:z45_pos},
+  ];
+
+  // 公式區段表
+  const formulaTable=`<div class="formula-box" style="margin-top:10px">
+    <b>📐 圖3.1(a) 解析公式計算過程（A = ${A} m²，${segLabel}）</b>
+    <table class="result-table" style="margin-top:8px;font-size:.82rem">
+      <thead><tr><th>曲線</th><th>本次適用公式（${segLabel}）</th><th>計算結果</th></tr></thead>
+      <tbody>
+        <tr><td>⑤ 角隅區 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -2.9162':A<50?'(GCp) = 0.7356×log₁₀(A) - 2.9162':'(GCp) = -1.6664'}</td>
+          <td class="cp-neg"><b>${z5_formula}</b></td></tr>
+        <tr><td>④ 中央區 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -2.2913':A<50?'(GCp) = 0.3678×log₁₀(A) - 2.2913':'(GCp) = -1.6664'}</td>
+          <td class="cp-neg"><b>${z4_formula}</b></td></tr>
+        <tr><td>④&⑤ 正壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = +2.0830':A<50?'(GCp) = -0.3678×log₁₀(A) + 2.0830':'(GCp) = +1.4581'}</td>
+          <td class="cp-pos"><b>${pos_formula}</b></td></tr>
+      </tbody>
+    </table>
+    <small style="color:#64748b">公式來源：建築物耐風設計規範 圖3.1(a) 曲線方程式</small>
+  </div>`;
+
+  return calcCC_GCp_output(zones,gcpi,'圖3.1(a) 外牆（h ≦ 18 m）',a,A,null,sel)+
+    formulaTable+
+    `<div class="note-box"><b>附註：</b>當 θ ≦ 10° 時，牆之外風壓係數可降低 10%</div>`;
+}
+
+function calcCC_Fig31b(){
+  const h=parseFloat(document.getElementById('cc_h').value);
+  const minW=parseFloat(document.getElementById('cc_minW').value);
+  const A=parseFloat(document.getElementById('cc_A').value);
+  if(isNaN(h)||isNaN(minW)||isNaN(A)) throw new Error('請填入所有必要參數');
+  if(h>18) throw new Error('圖3.1(b) 僅適用於 h ≦ 18 m');
+  if(A<0.5||A>100) throw new Error('有效受風面積 A 應在 0.5 ~ 100 m² 範圍內');
+  let a=Math.min(0.4*h,0.1*minW);
+  const aMin=Math.max(0.9,0.04*minW);
+  if(a<aMin) a=aMin;
+  const gcpi=getGCpi();
+
+  const z1=gcp31b_z1_neg(A);
+  const z2=gcp31b_z2_neg(A);
+  const z3=gcp31b_z3_neg(A);
+  const zpos=gcp31b_pos(A);
+
+  const logA=Math.log10(A);
+  let segLabel, f1, f2, f3n, fpos;
+  if(A<=1){
+    segLabel='A ≦ 1 m²（常數段）';
+    f1=`(GCp) = -2.083`;
+    f2=`(GCp) = -3.7494`;
+    f3n=`(GCp) = -5.8324`;
+    fpos=`(GCp) = +0.6249`;
+  } else if(A<10){
+    segLabel=`1 < A < 10 m²（對數線性段，log₁₀(${A}) = ${logA.toFixed(4)}）`;
+    f1=`(GCp) = 0.2083 × ${logA.toFixed(4)} - 2.083 = ${f3(z1)}`;
+    f2=`(GCp) = 1.4581 × ${logA.toFixed(4)} - 3.7494 = ${f3(z2)}`;
+    f3n=`(GCp) = 3.5411 × ${logA.toFixed(4)} - 5.8324 = ${f3(z3)}`;
+    fpos=`(GCp) = -0.2083 × ${logA.toFixed(4)} + 0.6249 = ${f3(zpos)}`;
+  } else {
+    segLabel='A ≧ 10 m²（常數段）';
+    f1=`(GCp) = -1.8747`;
+    f2=`(GCp) = -2.2913`;
+    f3n=`(GCp) = -2.2913`;
+    fpos=`(GCp) = +0.4166`;
+  }
+
+  const sel=zoneValidate();
+  const zones=[
+    {key:'z1',name:'① 中央區',neg:z1,pos:zpos},
+    {key:'z2',name:'② 邊緣帶（距邊緣 a = '+a.toFixed(2)+' m）',neg:z2,pos:zpos},
+    {key:'z3',name:'③ 角隅區（a×a）',neg:z3,pos:zpos},
+  ];
+
+  const formulaTable=`<div class="formula-box" style="margin-top:10px">
+    <b>📐 圖3.1(b) 解析公式計算過程（A = ${A} m²，${segLabel}）</b>
+    <table class="result-table" style="margin-top:8px;font-size:.82rem">
+      <thead><tr><th>曲線</th><th>本次適用公式（${segLabel}）</th><th>計算結果</th></tr></thead>
+      <tbody>
+        <tr><td>① 中央區 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -2.083':A<10?'(GCp) = 0.2083×log₁₀(A) - 2.083':'(GCp) = -1.8747'}</td>
+          <td class="cp-neg"><b>${f1}</b></td></tr>
+        <tr><td>② 邊緣帶 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -3.7494':A<10?'(GCp) = 1.4581×log₁₀(A) - 3.7494':'(GCp) = -2.2913'}</td>
+          <td class="cp-neg"><b>${f2}</b></td></tr>
+        <tr><td>③ 角隅區 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -5.8324':A<10?'(GCp) = 3.5411×log₁₀(A) - 5.8324':'(GCp) = -2.2913'}</td>
+          <td class="cp-neg"><b>${f3n}</b></td></tr>
+        <tr><td>①②③ 正壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = +0.6249':A<10?'(GCp) = -0.2083×log₁₀(A) + 0.6249':'(GCp) = +0.4166'}</td>
+          <td class="cp-pos"><b>${fpos}</b></td></tr>
+      </tbody>
+    </table>
+    <small style="color:#64748b">公式來源：建築物耐風設計規範 圖3.1(b) 曲線方程式</small>
+  </div>`;
+
+  return calcCC_GCp_output(zones,gcpi,'圖3.1(b) θ ≦ 7° 屋頂（h ≦ 18 m）',a,A,null,sel)+
+    formulaTable+
+    `<div class="note-box"><b>附註：</b>若屋頂四周有高度 ≧ 0.9 m 之女兒牆且 θ ≦ 7°，③區可當②區處理</div>`;
+}
+
+function calcCC_Fig31c(){
+  const h=parseFloat(document.getElementById('cc_h').value);
+  const minW=parseFloat(document.getElementById('cc_minW').value);
+  const A=parseFloat(document.getElementById('cc_A').value);
+  if(isNaN(h)||isNaN(minW)||isNaN(A)) throw new Error('請填入所有必要參數');
+  if(h>18) throw new Error('圖3.1(c) 僅適用於 h ≦ 18 m');
+  if(A<0.5||A>100) throw new Error('有效受風面積 A 應在 0.5 ~ 100 m² 範圍內');
+  let a=Math.min(0.4*h,0.1*minW);
+  const aMin=Math.max(0.9,0.04*minW);
+  if(a<aMin) a=aMin;
+  const gcpi=getGCpi();
+
+  const z1=gcp31c_z1_neg(A);
+  const z2=gcp31c_z2_neg(A);
+  const z3=gcp31c_z3_neg(A);
+  const zpos=gcp31c_pos(A);
+
+  const logA=Math.log10(A);
+  let segLabel, f1, f2, f3n, fpos;
+  if(A<=1){
+    segLabel='A ≦ 1 m²（常數段）';
+    f1=`(GCp) = -1.8747`;
+    f2=`(GCp) = -3.5411`;
+    f3n=`(GCp) = -5.4158`;
+    fpos=`(GCp) = +1.0415`;
+  } else if(A<10){
+    segLabel=`1 < A < 10 m²（對數線性段，log₁₀(${A}) = ${logA.toFixed(4)}）`;
+    f1=`(GCp) = 0.2083 × ${logA.toFixed(4)} - 1.8747 = ${f3(z1)}`;
+    f2=`(GCp) = 1.0415 × ${logA.toFixed(4)} - 3.5411 = ${f3(z2)}`;
+    f3n=`(GCp) = 1.2498 × ${logA.toFixed(4)} - 5.4158 = ${f3(z3)}`;
+    fpos=`(GCp) = -0.4166 × ${logA.toFixed(4)} + 1.0415 = ${f3(zpos)}`;
+  } else {
+    segLabel='A ≧ 10 m²（常數段）';
+    f1=`(GCp) = -1.6664`;
+    f2=`(GCp) = -2.4996`;
+    f3n=`(GCp) = -4.166`;
+    fpos=`(GCp) = +0.6249`;
+  }
+
+  const sel=zoneValidate();
+  const zones=[
+    {key:'z1',name:'① 中央區',neg:z1,pos:zpos},
+    {key:'z2',name:'② 邊緣帶（距邊緣 a = '+a.toFixed(2)+' m）',neg:z2,pos:zpos},
+    {key:'z3',name:'③ 角隅區（a×a）',neg:z3,pos:zpos},
+  ];
+
+  const formulaTable=`<div class="formula-box" style="margin-top:10px">
+    <b>📐 圖3.1(c) 解析公式計算過程（A = ${A} m²，${segLabel}）</b>
+    <table class="result-table" style="margin-top:8px;font-size:.82rem">
+      <thead><tr><th>曲線</th><th>本次適用公式（${segLabel}）</th><th>計算結果</th></tr></thead>
+      <tbody>
+        <tr><td>① 中央區 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -1.8747':A<10?'(GCp) = 0.2083×log₁₀(A) - 1.8747':'(GCp) = -1.6664'}</td>
+          <td class="cp-neg"><b>${f1}</b></td></tr>
+        <tr><td>② 邊緣帶 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -3.5411':A<10?'(GCp) = 1.0415×log₁₀(A) - 3.5411':'(GCp) = -2.4996'}</td>
+          <td class="cp-neg"><b>${f2}</b></td></tr>
+        <tr><td>③ 角隅區 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -5.4158':A<10?'(GCp) = 1.2498×log₁₀(A) - 5.4158':'(GCp) = -4.166'}</td>
+          <td class="cp-neg"><b>${f3n}</b></td></tr>
+        <tr><td>①②③ 正壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = +1.0415':A<10?'(GCp) = -0.4166×log₁₀(A) + 1.0415':'(GCp) = +0.6249'}</td>
+          <td class="cp-pos"><b>${fpos}</b></td></tr>
+      </tbody>
+    </table>
+    <small style="color:#64748b">公式來源：建築物耐風設計規範 圖3.1(c) 曲線方程式</small>
+  </div>`;
+
+  return calcCC_GCp_output(zones,gcpi,'圖3.1(c) 7° < θ ≦ 27° 屋頂（h ≦ 18 m）',a,A,null,sel)+formulaTable;
+}
+
+function calcCC_Fig31d(){
+  const h=parseFloat(document.getElementById('cc_h').value);
+  const minW=parseFloat(document.getElementById('cc_minW').value);
+  const A=parseFloat(document.getElementById('cc_A').value);
+  if(isNaN(h)||isNaN(minW)||isNaN(A)) throw new Error('請填入所有必要參數');
+  if(h>18) throw new Error('圖3.1(d) 僅適用於 h ≦ 18 m');
+  if(A<0.5||A>100) throw new Error('有效受風面積 A 應在 0.5 ~ 100 m² 範圍內');
+  let a=Math.min(0.4*h,0.1*minW);
+  const aMin=Math.max(0.9,0.04*minW);
+  if(a<aMin) a=aMin;
+  const gcpi=getGCpi();
+
+  const z1_neg =gcp31d_z1_neg(A);
+  const z23_neg=gcp31d_z23_neg(A);
+  const zpos   =gcp31d_pos(A);
+
+  const logA=Math.log10(A);
+  let segLabel, f1n, f23n, fpos;
+  if(A<=1){
+    segLabel='A ≦ 1 m²（常數段）';
+    f1n  =`(GCp) = -2.083`;
+    f23n =`(GCp) = -2.4996`;
+    fpos =`(GCp) = +1.8747`;
+  } else if(A<10){
+    segLabel=`1 < A < 10 m²（對數線性段，log₁₀(${A}) = ${logA.toFixed(4)}）`;
+    f1n  =`(GCp) = 0.4166 × ${logA.toFixed(4)} - 2.083 = ${f3(z1_neg)}`;
+    f23n =`(GCp) = 0.4166 × ${logA.toFixed(4)} - 2.4996 = ${f3(z23_neg)}`;
+    fpos =`(GCp) = -0.2083 × ${logA.toFixed(4)} + 1.8747 = ${f3(zpos)}`;
+  } else {
+    segLabel='A ≧ 10 m²（常數段）';
+    f1n  =`(GCp) = -1.6664`;
+    f23n =`(GCp) = -2.083`;
+    fpos =`(GCp) = +1.6664`;
+  }
+
+  const sel=zoneValidate();
+  const zones=[
+    {key:'z1',name:'① 中央區',neg:z1_neg,pos:zpos},
+    {key:'z23',name:'②③ 邊緣帶及角隅（a = '+a.toFixed(2)+' m）',neg:z23_neg,pos:zpos},
+  ];
+
+  const formulaTable=`<div class="formula-box" style="margin-top:10px">
+    <b>📐 圖3.1(d) 解析公式計算過程（A = ${A} m²，${segLabel}）</b>
+    <table class="result-table" style="margin-top:8px;font-size:.82rem">
+      <thead><tr><th>曲線</th><th>本次適用公式（${segLabel}）</th><th>計算結果</th></tr></thead>
+      <tbody>
+        <tr><td>① 中央區 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -2.083':A<10?'(GCp) = 0.4166×log₁₀(A) - 2.083':'(GCp) = -1.6664'}</td>
+          <td class="cp-neg"><b>${f1n}</b></td></tr>
+        <tr><td>②③ 邊緣及角隅 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -2.4996':A<10?'(GCp) = 0.4166×log₁₀(A) - 2.4996':'(GCp) = -2.083'}</td>
+          <td class="cp-neg"><b>${f23n}</b></td></tr>
+        <tr><td>①②③ 共用 正壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = +1.8747':A<10?'(GCp) = -0.2083×log₁₀(A) + 1.8747':'(GCp) = +1.6664'}</td>
+          <td class="cp-pos"><b>${fpos}</b></td></tr>
+      </tbody>
+    </table>
+    <small style="color:#64748b">公式來源：建築物耐風設計規範 圖3.1(d) 曲線方程式</small>
+  </div>`;
+
+  return calcCC_GCp_output(zones,gcpi,'圖3.1(d) 27° < θ ≦ 45° 屋頂（h ≦ 18 m）',a,A,null,sel)+formulaTable;
+}
+
+function calcCC_Fig32(){
+  const h=parseFloat(document.getElementById('cc_h').value);
+  const minW=parseFloat(document.getElementById('cc_minW').value);
+  const A=parseFloat(document.getElementById('cc_A').value);
+  if(isNaN(h)||isNaN(minW)||isNaN(A)) throw new Error('請填入所有必要參數');
+  if(h<=18) throw new Error('圖3.2 適用於 h > 18 m，h ≦ 18 m 請使用圖3.1');
+  if(A<0.5||A>100) throw new Error('有效受風面積 A 應在 0.5 ~ 100 m² 範圍內');
+  const a=Math.max(0.9,0.1*minW);
+  const gcpi=getGCpi();
+
+  const r1n =gcp32_z1_neg(A);
+  const r2n =gcp32_z2_neg(A);
+  const r3n =gcp32_z3_neg(A);
+  const r4n =gcp32_z4_neg(A);
+  const r5n =gcp32_z5_neg(A);
+  const r45p=gcp32_z45_pos(A);
+
+  const logA=Math.log10(A);
+
+  // 屋頂分段說明（A=1/50）
+  let roofSeg, f1n, f2n, f3n;
+  if(A<=1){
+    roofSeg='A ≦ 1 m²';
+    f1n=`(GCp) = -2.9162`;
+    f2n=`(GCp) = -4.7909`;
+    f3n=`(GCp) = -6.6656`;
+  } else if(A<50){
+    roofSeg=`1 < A < 50 m²（log₁₀(${A}) = ${logA.toFixed(4)}）`;
+    f1n=`0.6130 × ${logA.toFixed(4)} - 2.9162 = ${f3(r1n)}`;
+    f2n=`0.8582 × ${logA.toFixed(4)} - 4.7909 = ${f3(r2n)}`;
+    f3n=`1.1034 × ${logA.toFixed(4)} - 6.6656 = ${f3(r3n)}`;
+  } else {
+    roofSeg='A ≧ 50 m²';
+    f1n=`(GCp) = -1.8747`;
+    f2n=`(GCp) = -3.3328`;
+    f3n=`(GCp) = -4.7909`;
+  }
+
+  // 外牆分段說明（A=2/50）
+  let wallSeg, f4n, f5n, f45p;
+  if(A<=2){
+    wallSeg='A ≦ 2 m²';
+    f4n =`(GCp) = -1.8747`;
+    f5n =`(GCp) = -3.7494`;
+    f45p=`(GCp) = +1.8747`;
+  } else if(A<50){
+    wallSeg=`2 < A < 50 m²（log₁₀(${A}) = ${logA.toFixed(4)}）`;
+    f4n =`0.2980 × ${logA.toFixed(4)} - 1.9644 = ${f3(r4n)}`;
+    f5n =`1.1920 × ${logA.toFixed(4)} - 4.1082 = ${f3(r5n)}`;
+    f45p=`-0.4470 × ${logA.toFixed(4)} + 2.0093 = ${f3(r45p)}`;
+  } else {
+    wallSeg='A ≧ 50 m²';
+    f4n =`(GCp) = -1.4581`;
+    f5n =`(GCp) = -2.083`;
+    f45p=`(GCp) = +1.2498`;
+  }
+
+  const sel=zoneValidate();
+  const zones=[
+    {key:'r1',name:'屋頂 ① 中央區',neg:r1n,pos:0},
+    {key:'r2',name:'屋頂 ② 邊緣帶（2a = '+(2*a).toFixed(2)+' m）',neg:r2n,pos:0},
+    {key:'r3',name:'屋頂 ③ 角隅（2a×2a）',neg:r3n,pos:0},
+    {key:'w4',name:'外牆 ④ 中央牆面',neg:r4n,pos:r45p},
+    {key:'w5',name:'外牆 ⑤ 角隅牆（a = '+a.toFixed(2)+' m）',neg:r5n,pos:r45p},
+  ];
+
+  const formulaTable=`<div class="formula-box" style="margin-top:10px">
+    <b>📐 圖3.2 解析公式計算過程（A = ${A} m²）</b>
+    <table class="result-table" style="margin-top:8px;font-size:.82rem">
+      <thead><tr><th>曲線</th><th>本次適用公式</th><th>計算結果</th></tr></thead>
+      <tbody>
+        <tr><td colspan="3" style="background:#eff6ff;font-weight:700;color:#1a56db">屋頂（${roofSeg}）</td></tr>
+        <tr><td>① 中央區 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -2.9162':A<50?'(GCp) = 0.6130×log₁₀(A) - 2.9162':'(GCp) = -1.8747'}</td>
+          <td class="cp-neg"><b>${f1n}</b></td></tr>
+        <tr><td>② 邊緣帶 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -4.7909':A<50?'(GCp) = 0.8582×log₁₀(A) - 4.7909':'(GCp) = -3.3328'}</td>
+          <td class="cp-neg"><b>${f2n}</b></td></tr>
+        <tr><td>③ 角隅 負壓</td>
+          <td style="font-family:monospace">${A<=1?'(GCp) = -6.6656':A<50?'(GCp) = 1.1034×log₁₀(A) - 6.6656':'(GCp) = -4.7909'}</td>
+          <td class="cp-neg"><b>${f3n}</b></td></tr>
+        <tr><td colspan="3" style="background:#eff6ff;font-weight:700;color:#1a56db">外牆（${wallSeg}）</td></tr>
+        <tr><td>④ 中央牆面 負壓</td>
+          <td style="font-family:monospace">${A<=2?'(GCp) = -1.8747':A<50?'(GCp) = 0.2980×log₁₀(A) - 1.9644':'(GCp) = -1.4581'}</td>
+          <td class="cp-neg"><b>${f4n}</b></td></tr>
+        <tr><td>⑤ 角隅牆 負壓</td>
+          <td style="font-family:monospace">${A<=2?'(GCp) = -3.7494':A<50?'(GCp) = 1.1920×log₁₀(A) - 4.1082':'(GCp) = -2.083'}</td>
+          <td class="cp-neg"><b>${f5n}</b></td></tr>
+        <tr><td>④⑤ 共用 正壓</td>
+          <td style="font-family:monospace">${A<=2?'(GCp) = +1.8747':A<50?'(GCp) = -0.4470×log₁₀(A) + 2.0093':'(GCp) = +1.2498'}</td>
+          <td class="cp-pos"><b>${f45p}</b></td></tr>
+      </tbody>
+    </table>
+    <small style="color:#64748b">公式來源：建築物耐風設計規範 圖3.2 曲線方程式</small>
+  </div>`;
+
+  return calcCC_GCp_output(zones,gcpi,'圖3.2 外牆與屋頂（h > 18 m）',a,A,null,sel)+
+    formulaTable+
+    `<div class="note-box"><b>附註：</b>若 θ > 10°，設計屋頂所用 (GCp) 應由圖3.1(c)或圖3.1(d)決定，不使用圖3.2之屋頂數值</div>`;
+}
+
+// 圖3.3 Cpn lookup table
+// 結構：per theta, per blockType → 3 area rows:
+//   lt_a2  (A < a²),  mid (a² < A ≦ 4a²),  gt_4a2 (A > 4a²)
+// 每個 area row 存 [zone3_pos, zone3_neg, zone2_pos, zone2_neg, zone1_pos, zone1_neg]
+const CC_33a = {
+  unblock:[
+    {theta:0,   lt_a2: [2.4,-3.3, 1.8,-1.7, 1.2,-1.1], mid: [1.8,-1.7, 1.8,-1.7, 1.2,-1.1], gt_4a2:[1.2,-1.1, 1.2,-1.1, 1.2,-1.1]},
+    {theta:7.5, lt_a2: [3.2,-4.2, 2.4,-2.1, 1.6,-1.4], mid: [2.4,-2.1, 2.4,-2.1, 1.6,-1.4], gt_4a2:[1.6,-1.4, 1.6,-1.4, 1.6,-1.4]},
+    {theta:15,  lt_a2: [3.6,-3.8, 2.7,-2.9, 1.8,-1.9], mid: [2.7,-2.9, 2.7,-2.9, 1.8,-1.9], gt_4a2:[1.8,-1.9, 1.8,-1.9, 1.8,-1.9]},
+    {theta:30,  lt_a2: [5.2,-5.0, 3.9,-3.8, 2.6,-2.5], mid: [3.9,-3.8, 3.9,-3.8, 2.6,-2.5], gt_4a2:[2.6,-2.5, 2.6,-2.5, 2.6,-2.5]},
+    {theta:45,  lt_a2: [5.2,-4.6, 3.9,-3.5, 2.6,-2.3], mid: [3.9,-3.5, 3.9,-3.5, 2.6,-2.3], gt_4a2:[2.6,-2.3, 2.6,-2.3, 2.6,-2.3]},
+  ],
+  block:[
+    {theta:0,   lt_a2: [1.0,-3.6, 0.8,-1.8, 0.5,-1.2], mid: [0.8,-1.8, 0.8,-1.8, 0.5,-1.2], gt_4a2:[0.5,-1.2, 0.5,-1.2, 0.5,-1.2]},
+    {theta:7.5, lt_a2: [1.6,-5.1, 1.2,-2.6, 0.8,-1.7], mid: [1.2,-2.6, 1.2,-2.6, 0.8,-1.7], gt_4a2:[0.8,-1.7, 0.8,-1.7, 0.8,-1.7]},
+    {theta:15,  lt_a2: [2.4,-4.2, 1.8,-3.2, 1.2,-2.1], mid: [1.8,-3.2, 1.8,-3.2, 1.2,-2.1], gt_4a2:[1.2,-2.1, 1.2,-2.1, 1.2,-2.1]},
+    {theta:30,  lt_a2: [3.2,-4.6, 2.4,-3.5, 1.6,-2.3], mid: [2.4,-3.5, 2.4,-3.5, 1.6,-2.3], gt_4a2:[1.6,-2.3, 1.6,-2.3, 1.6,-2.3]},
+    {theta:45,  lt_a2: [4.2,-3.8, 3.2,-2.9, 2.1,-1.9], mid: [3.2,-2.9, 3.2,-2.9, 2.1,-1.9], gt_4a2:[2.1,-1.9, 2.1,-1.9, 2.1,-1.9]},
+  ]
+};
+const CC_33b = {
+  unblock:[
+    {theta:0,   lt_a2: [2.4,-3.3, 1.8,-1.7, 1.2,-1.1], mid: [1.8,-1.7, 1.8,-1.7, 1.2,-1.1], gt_4a2:[1.2,-1.1, 1.2,-1.1, 1.2,-1.1]},
+    {theta:7.5, lt_a2: [2.2,-3.6, 1.7,-1.8, 1.1,-1.2], mid: [1.7,-1.8, 1.7,-1.8, 1.1,-1.2], gt_4a2:[1.1,-1.2, 1.1,-1.2, 1.1,-1.2]},
+    {theta:15,  lt_a2: [2.2,-2.2, 1.7,-1.7, 1.1,-1.1], mid: [1.7,-1.7, 1.7,-1.7, 1.1,-1.1], gt_4a2:[1.1,-1.1, 1.1,-1.1, 1.1,-1.1]},
+    {theta:30,  lt_a2: [2.6,-1.8, 2.0,-1.4, 1.3,-0.9], mid: [2.0,-1.4, 2.0,-1.4, 1.3,-0.9], gt_4a2:[1.3,-0.9, 1.3,-0.9, 1.3,-0.9]},
+    {theta:45,  lt_a2: [2.2,-1.6, 1.7,-1.2, 1.1,-0.8], mid: [1.7,-1.2, 1.7,-1.2, 1.1,-0.8], gt_4a2:[1.1,-0.8, 1.1,-0.8, 1.1,-0.8]},
+  ],
+  block:[
+    {theta:0,   lt_a2: [1.0,-3.6, 0.8,-1.8, 0.5,-1.2], mid: [0.8,-1.8, 0.8,-1.8, 0.5,-1.2], gt_4a2:[0.5,-1.2, 0.5,-1.2, 0.5,-1.2]},
+    {theta:7.5, lt_a2: [1.0,-5.1, 0.8,-2.6, 0.5,-1.7], mid: [0.8,-2.6, 0.8,-2.6, 0.5,-1.7], gt_4a2:[0.5,-1.7, 0.5,-1.7, 0.5,-1.7]},
+    {theta:15,  lt_a2: [1.0,-3.2, 0.8,-2.4, 0.5,-1.6], mid: [0.8,-2.4, 0.8,-2.4, 0.5,-1.6], gt_4a2:[0.5,-1.6, 0.5,-1.6, 0.5,-1.6]},
+    {theta:30,  lt_a2: [1.0,-2.4, 0.8,-1.8, 0.5,-1.2], mid: [0.8,-1.8, 0.8,-1.8, 0.5,-1.2], gt_4a2:[0.5,-1.2, 0.5,-1.2, 0.5,-1.2]},
+    {theta:45,  lt_a2: [1.0,-2.4, 0.8,-1.8, 0.5,-1.2], mid: [0.8,-1.8, 0.8,-1.8, 0.5,-1.2], gt_4a2:[0.5,-1.2, 0.5,-1.2, 0.5,-1.2]},
+  ]
+};
+
+// interp33: returns interpolated row {lt_a2:[z3p,z3n,z2p,z2n,z1p,z1n], mid:[...], gt_4a2:[...]}
+// Also returns lower/upper theta rows for display
+function interp33(table, theta, blockType){
+  const arr=table[blockType];
+  const interpRow=(rLow, rHigh, t)=>{
+    const interpArr=(k)=>rLow[k].map((v,i)=>v+t*(rHigh[k][i]-v));
+    return {lt_a2:interpArr('lt_a2'),mid:interpArr('mid'),gt_4a2:interpArr('gt_4a2')};
+  };
+  if(theta<=arr[0].theta) return {d:arr[0], tLow:arr[0].theta, tHigh:arr[0].theta, dLow:arr[0], dHigh:arr[0], isExact:true};
+  if(theta>=arr[arr.length-1].theta) return {d:arr[arr.length-1], tLow:arr[arr.length-1].theta, tHigh:arr[arr.length-1].theta, dLow:arr[arr.length-1], dHigh:arr[arr.length-1], isExact:true};
+  for(let i=0;i<arr.length-1;i++){
+    if(theta>=arr[i].theta&&theta<=arr[i+1].theta){
+      const t=(theta-arr[i].theta)/(arr[i+1].theta-arr[i].theta);
+      const isExact=(t===0||t===1);
+      return {d:interpRow(arr[i],arr[i+1],t), tLow:arr[i].theta, tHigh:arr[i+1].theta, dLow:arr[i], dHigh:arr[i+1], isExact, t};
+    }
+  }
+  return {d:arr[arr.length-1], tLow:arr[arr.length-1].theta, tHigh:arr[arr.length-1].theta, dLow:arr[arr.length-1], dHigh:arr[arr.length-1], isExact:true};
+}
+
+// Helper: get zone value from row array [z3p,z3n,z2p,z2n,z1p,z1n]
+// zone=3→idx 0,1; zone=2→idx 2,3; zone=1→idx 4,5
+function zoneVal(rowArr, zone){ const b=(3-zone)*2; return {pos:rowArr[b],neg:rowArr[b+1]}; }
+// area key from A vs aSquare
+function areaKey(A, aSquare){ return A<=aSquare?'lt_a2':(A<=4*aSquare?'mid':'gt_4a2'); }
+function areaLabel(A, aSquare){ return A<=aSquare?`A ≦ a²`:(A<=4*aSquare?`a² < A ≦ 4a²`:`A > 4a²`); }
+function areaLabelFull(A, aSquare){ return A<=aSquare?`A ≦ a² = ${aSquare.toFixed(2)} m²`:(A<=4*aSquare?`a² < A ≦ 4a² = ${(4*aSquare).toFixed(2)} m²`:`A > 4a² = ${(4*aSquare).toFixed(2)} m²`); }
+
+function calcCC_Fig33(tableData, figLabel){
+  const h=parseFloat(document.getElementById('cc33_h').value);
+  const L=parseFloat(document.getElementById('cc33_L').value);
+  const minW=parseFloat(document.getElementById('cc33_minW').value);
+  const A=parseFloat(document.getElementById('cc33_A').value);
+  const theta=parseFloat(document.getElementById('cc33_theta').value);
+  const blockType=document.getElementById('cc33_block').value;
+  const sel=zoneValidate();
+  if([h,L,minW,A,theta].some(isNaN)) throw new Error('請填入所有必要參數');
+  if(theta<0||theta>45) throw new Error('θ 應介於 0° ~ 45°');
+  const hL=h/L;
+  if(hL<0.25||hL>1) throw new Error(`h/L = ${hL.toFixed(3)}，不滿足 0.25 ≦ h/L ≦ 1 之使用條件`);
+  const a=Math.max(0.9,0.1*minW);
+  const aSquare=a*a;
+  const blockLabel=blockType==='unblock'?'屋頂下無阻擋':'屋頂下有阻擋';
+  const key=areaKey(A,aSquare);
+  const zFull=areaLabelFull(A,aSquare);
+  const zShort=areaLabel(A,aSquare);
+
+  const {d, tLow, tHigh, dLow, dHigh, isExact} = interp33(tableData, theta, blockType);
+
+  // Values for all zones at actual A bracket
+  const z3=zoneVal(d[key],3), z2=zoneVal(d[key],2), z1=zoneVal(d[key],1);
+
+  // Zone name map for selected zone label
+  const zoneNames={z3:'區域3（角隅）',z2:'區域2（邊緣）',z1:'區域1（中央）',all:'全部區域'};
+  const selLabel=zoneNames[sel]||'全部區域';
+
+  // Build result section: selected zone(s) only
+  const allZoneData=[
+    {key:'z3', label:'區域3（角隅）', data:z3, bg:'#fecaca'},
+    {key:'z2', label:'區域2（邊緣）', data:z2, bg:'#fef08a'},
+    {key:'z1', label:'區域1（中央）', data:z1, bg:'#bbf7d0'},
+  ];
+  const displayZones = (sel==='all') ? allZoneData : allZoneData.filter(z=>z.key===sel);
+
+  let selectedRows='';
+  displayZones.forEach(z=>{
+    selectedRows+=`<tr>
+      <td style="background:${z.bg}20"><b>${z.label}</b><br><small>${zFull}</small></td>
+      <td class="cp-neg"><b>${f3(z.data.neg)}</b></td>
+      <td class="cp-pos"><b>+${f3(z.data.pos)}</b></td>
+    </tr>`;
+  });
+
+  // Build interpolation detail if needed
+  let interpDetail='';
+  if(!isExact){
+    const tRatio=((theta-tLow)/(tHigh-tLow)*100).toFixed(1);
+    const lo3=zoneVal(dLow[key],3), lo2=zoneVal(dLow[key],2), lo1=zoneVal(dLow[key],1);
+    const hi3=zoneVal(dHigh[key],3), hi2=zoneVal(dHigh[key],2), hi1=zoneVal(dHigh[key],1);
+    const showAll=(sel==='all');
+    const td=(show,neg,pos,bold)=>show?('<td'+(bold?' style="font-weight:700"':'')+'>'+f3(neg)+' / +'+f3(pos)+'</td>'):'';
+    const th3=showAll||sel==='z3', th2=showAll||sel==='z2', th1=showAll||sel==='z1';
+    interpDetail=`<div class="formula-box" style="margin-top:10px">
+      <b>📏 θ = ${theta}° 線性內插計算過程（${zShort}）</b><br>
+      <small>內插比例 t = (${theta} - ${tLow}) / (${tHigh} - ${tLow}) = ${tRatio}%</small>
+      <table class="result-table" style="margin-top:8px;font-size:.82rem">
+        <thead><tr><th>θ（插值依據）</th>
+          ${th3?'<th>區域3 Cpn（負/正）</th>':''}
+          ${th2?'<th>區域2 Cpn（負/正）</th>':''}
+          ${th1?'<th>區域1 Cpn（負/正）</th>':''}
+        </tr></thead>
+        <tbody>
+          <tr><td>θ = ${tLow}°（表列下限）</td>
+            ${td(th3,lo3.neg,lo3.pos,false)}
+            ${td(th2,lo2.neg,lo2.pos,false)}
+            ${td(th1,lo1.neg,lo1.pos,false)}
+          </tr>
+          <tr><td>θ = ${tHigh}°（表列上限）</td>
+            ${td(th3,hi3.neg,hi3.pos,false)}
+            ${td(th2,hi2.neg,hi2.pos,false)}
+            ${td(th1,hi1.neg,hi1.pos,false)}
+          </tr>
+          <tr class="highlight"><td>θ = ${theta}°（內插結果）</td>
+            ${td(th3,z3.neg,z3.pos,true)}
+            ${td(th2,z2.neg,z2.pos,true)}
+            ${td(th1,z1.neg,z1.pos,true)}
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  const thetaNote = isExact
+    ? `θ = ${theta}°（直接查表）`
+    : `θ = ${theta}°（由 θ=${tLow}° 與 θ=${tHigh}° 線性內插）`;
+
+  return `<div class="formula-box">
+    <h4>📐 ${figLabel} 淨風壓係數 Cpn 查詢結果</h4>
+    <span class="formula">h = ${h} m　│　L = ${L} m　│　h/L = ${hL.toFixed(3)}　│　a = ${a.toFixed(3)} m　│　A = ${A} m²</span>
+    <small>${blockLabel}　│　${thetaNote}　│　${zFull}　│　查詢區域：<b>${selLabel}</b></small>
+  </div>
+  <table class="result-table">
+    <thead><tr><th>區域</th><th>Cpn 負值（吸力）</th><th>Cpn 正值（壓力）</th></tr></thead>
+    <tbody>${selectedRows}</tbody>
+  </table>
+  ${interpDetail}
+  <div class="note-box">
+    ✅ <b>正值</b>：壓力指向表面；<b>負值</b>：壓力遠離表面<br>
+    設計風壓公式：<b>p = q(h) × G × Cpn</b>（G 採普通建築物陣風反應因子，依 2.7 節）<br>
+    每個部分應依最大正負壓力設計
+  </div>`;
+}
+
+function calcCC_Fig33a(){ return calcCC_Fig33(CC_33a,'圖3.3(a) 單斜屋頂（開放式建築物）'); }
+function calcCC_Fig33b(){ return calcCC_Fig33(CC_33b,'圖3.3(b) 雙斜屋頂（開放式建築物）'); }
+
+function numInput(id,label,unit,min,max,step,val,hint){
+  const unitHtml = unit ? ' <span style="color:#64748b;font-weight:400">('+unit+')</span>' : '';
+  const hintHtml = hint ? '<div style="font-size:.75rem;color:#6b7280;margin-bottom:4px">'+hint+'</div>' : '';
+  return '<div><label for="'+id+'">'+label+unitHtml+'</label>'+hintHtml+
+    '<input type="number" id="'+id+'" min="'+(min||'')+'" max="'+(max||'')+'" step="'+(step||'any')+'" value="'+(val||'')+'" placeholder="請輸入數值"></div>';
+}
+function selInput(id,label,options){
+  const opts = options.map(o=>'<option value="'+o.v+'">'+o.t+'</option>').join('');
+  return '<div><label for="'+id+'">'+label+'</label><select id="'+id+'"><option value="">-- 請選擇 --</option>'+opts+'</select></div>';
+}
+
+// ----- Wall Form -----
+function renderWallForm(pa,pd){
+  pa.innerHTML=`<div class="grid-2">
+    ${numInput('inp_L','L：平行於風向之水平尺寸','m',0.1,9999,0.1,'','建築物平行於來風方向的長度')}
+    ${numInput('inp_B','B：垂直於風向之水平尺寸','m',0.1,9999,0.1,'','建築物垂直於來風方向的寬度')}
+  </div>`;
+  pd.innerHTML=`<div class="diagram-wrap">
+    <svg width="380" height="180" viewBox="0 0 380 180">
+      <defs>
+        <marker id="aw" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#1a56db"/></marker>
+        <marker id="awb" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#374151"/></marker>
+      </defs>
+      <!-- Wind arrow -->
+      <line x1="10" y1="90" x2="55" y2="90" stroke="#ef4444" stroke-width="2.5" marker-end="url(#aw)" stroke-dasharray="0"/>
+      <text x="5" y="80" font-size="11" fill="#ef4444" font-weight="bold">風向</text>
+      <!-- Building plan view -->
+      <rect x="80" y="40" width="100" height="80" fill="#dbeafe" stroke="#1a56db" stroke-width="2"/>
+      <!-- Wind faces labels -->
+      <text x="70" y="92" text-anchor="end" font-size="10" fill="#16a34a" font-weight="bold">迎風面</text>
+      <text x="195" y="92" font-size="10" fill="#dc2626" font-weight="bold">背風面</text>
+      <text x="130" y="36" text-anchor="middle" font-size="10" fill="#ca8a04" font-weight="bold">側風面</text>
+      <text x="130" y="135" text-anchor="middle" font-size="10" fill="#ca8a04" font-weight="bold">側風面</text>
+      <!-- Cp values -->
+      <text x="72" y="104" text-anchor="end" font-size="9" fill="#16a34a">Cp=+0.8</text>
+      <text x="195" y="104" font-size="9" fill="#dc2626">Cp=-0.2~-0.5</text>
+      <text x="130" y="48" text-anchor="middle" font-size="9" fill="#ca8a04">Cp=-0.7</text>
+      <text x="130" y="148" text-anchor="middle" font-size="9" fill="#ca8a04">Cp=-0.7</text>
+      <!-- B dimension -->
+      <line x1="80" y1="155" x2="180" y2="155" stroke="#374151" stroke-width="1.5" marker-end="url(#awb)"/>
+      <line x1="180" y1="155" x2="80" y2="155" stroke="#374151" stroke-width="1.5" marker-end="url(#awb)"/>
+      <text x="130" y="168" text-anchor="middle" font-size="11" fill="#374151" font-weight="bold">L（平行於風向）</text>
+      <!-- L dimension -->
+      <line x1="200" y1="40" x2="200" y2="120" stroke="#374151" stroke-width="1.5" marker-end="url(#awb)"/>
+      <line x1="200" y1="120" x2="200" y2="40" stroke="#374151" stroke-width="1.5" marker-end="url(#awb)"/>
+      <text x="215" y="85" font-size="11" fill="#374151" font-weight="bold">B</text>
+      <text x="215" y="98" font-size="9" fill="#374151">(垂直於風向)</text>
+      <!-- Pressure arrows on windward -->
+      <line x1="60" y1="58" x2="77" y2="58" stroke="#16a34a" stroke-width="1.5" marker-end="url(#aw)"/>
+      <line x1="60" y1="80" x2="77" y2="80" stroke="#16a34a" stroke-width="1.5" marker-end="url(#aw)"/>
+      <line x1="60" y1="102" x2="77" y2="102" stroke="#16a34a" stroke-width="1.5" marker-end="url(#aw)"/>
+      <!-- Suction on leeward -->
+      <line x1="195" y1="58" x2="215" y2="58" stroke="#dc2626" stroke-width="1.5" marker-end="url(#aw)"/>
+      <line x1="195" y1="80" x2="215" y2="80" stroke="#dc2626" stroke-width="1.5" marker-end="url(#aw)"/>
+      <line x1="195" y1="102" x2="215" y2="102" stroke="#dc2626" stroke-width="1.5" marker-end="url(#aw)"/>
+      <text x="340" y="90" font-size="9" fill="#374151">（俯視平面圖）</text>
+    </svg>
+  </div>`;
+}
+
+// ----- Flat/Slope Roof Form -----
+function renderFlatRoofForm(pa,pd){
+  pa.innerHTML=`<div class="grid-3">
+    ${numInput('inp_h','h：平均屋頂高度','m',0.1,9999,0.1,'','當θ＜10°時，h = 屋簷高')}
+    ${numInput('inp_L','L：平行於風向之水平尺寸（垂直屋脊時使用）','m',0.1,9999,0.1,'')}
+    ${numInput('inp_B','B：垂直於風向之水平尺寸（平行屋脊時使用）','m',0.1,9999,0.1,'')}
+  </div>
+  <div style="margin-top:10px">
+    ${numInput('inp_theta','θ：屋頂與水平面夾角','度',0,90,1,'0','0=平屋頂')}
+  </div>
+  <div class="note-box" style="margin-top:10px">📐 系統將同時計算<strong>風向垂直於屋脊</strong>及<strong>風向平行於屋脊</strong>兩種情況，結果並列顯示。</div>`;
+  pd.innerHTML=`<div class="diagram-wrap"><svg width="380" height="170" viewBox="0 0 380 170">
+    <defs><marker id="arr_r" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#1a56db"/></marker></defs>
+    <!-- Side view of sloped roof -->
+    <line x1="10" y1="100" x2="50" y2="100" stroke="#ef4444" stroke-width="2.5" marker-end="url(#arr_r)"/>
+    <text x="5" y="90" font-size="10" fill="#ef4444" font-weight="bold">風向</text>
+    <rect x="70" y="100" width="200" height="50" fill="#dbeafe" stroke="#1a56db" stroke-width="2"/>
+    <polygon points="70,100 270,100 270,70 170,50" fill="#93c5fd" stroke="#1a56db" stroke-width="2"/>
+    <text x="120" y="78" font-size="10" fill="#dc2626" font-weight="bold">迎風面屋頂</text>
+    <text x="230" y="78" font-size="10" fill="#16a34a" font-weight="bold">背風面</text>
+    <line x1="60" y1="100" x2="60" y2="150" stroke="#374151" stroke-width="1.5"/>
+    <text x="44" y="130" font-size="11" fill="#374151" font-weight="bold">h</text>
+    <line x1="70" y1="165" x2="270" y2="165" stroke="#374151" stroke-width="1.5"/>
+    <text x="170" y="158" text-anchor="middle" font-size="11" fill="#374151" font-weight="bold">L</text>
+    <path d="M 70,100 A30,30 0 0,1 95,90" fill="none" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="88" y="112" font-size="11" fill="#ca8a04" font-weight="bold">θ</text>
+    <text x="310" y="90" font-size="9" fill="#374151">（側視圖）</text>
+  </svg></div>`;
+}
+
+// ----- Arch Roof Form -----
+function renderArchRoofForm(pa,pd){
+  pa.innerHTML=`<div class="grid-2">
+    ${selInput('inp_archType','拱形屋頂支承形式',[{v:'wall',t:'牆上（拱腳在牆上）'},{v:'ground',t:'地面支撐（拱腳直接在地面）'}])}
+    ${numInput('inp_r','r：拱高與跨度之比值','–',0,0.6,0.01,0.1,'r = 拱高 D / 跨度 S')}
+  </div>`;
+  pd.innerHTML=`<div class="diagram-wrap"><svg width="380" height="160" viewBox="0 0 380 160">
+    <defs><marker id="arr_a" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#1a56db"/></marker></defs>
+    <line x1="10" y1="100" x2="48" y2="100" stroke="#ef4444" stroke-width="2.5" marker-end="url(#arr_a)"/>
+    <text x="5" y="90" font-size="10" fill="#ef4444" font-weight="bold">風向</text>
+    <!-- Ground arch -->
+    <rect x="60" y="100" width="200" height="10" fill="#94a3b8" stroke="#475569" stroke-width="1"/>
+    <path d="M 60,100 Q 160,20 260,100" fill="#dbeafe" stroke="#1a56db" stroke-width="2"/>
+    <!-- Labels -->
+    <text x="90" y="75" font-size="9" fill="#dc2626" font-weight="bold">P迎風面</text>
+    <text x="145" y="45" font-size="9" fill="#ca8a04" font-weight="bold">Q中央</text>
+    <text x="205" y="75" font-size="9" fill="#16a34a" font-weight="bold">P背風面</text>
+    <!-- D -->
+    <line x1="160" y1="22" x2="160" y2="100" stroke="#374151" stroke-width="1.5" stroke-dasharray="4,2"/>
+    <text x="163" y="65" font-size="10" fill="#374151" font-weight="bold">D</text>
+    <!-- S -->
+    <line x1="60" y1="120" x2="260" y2="120" stroke="#374151" stroke-width="1.5"/>
+    <text x="160" y="135" text-anchor="middle" font-size="11" fill="#374151" font-weight="bold">S（跨度）</text>
+    <text x="310" y="70" font-size="9" fill="#374151">r = D/S</text>
+    <text x="310" y="83" font-size="9" fill="#374151">各佔1/4跨</text>
+    <text x="310" y="96" font-size="9" fill="#374151">中央佔1/2跨</text>
+  </svg></div>`;
+}
+
+// ----- Dual Slope Roof -----
+function renderDualRoofForm(pa,pd){
+  pa.innerHTML=`<div class="grid-3">
+    ${numInput('inp_h','h：平均屋頂高度','m',0.1,9999,0.1,'')}
+    ${numInput('inp_L','L：平行於風向之水平尺寸','m',0.1,9999,0.1,'')}
+    ${numInput('inp_theta','θ：屋頂斜面與水平面夾角','度',0,90,1,'')}
+  </div>`;
+  pd.innerHTML=`<div class="diagram-wrap"><svg width="400" height="170" viewBox="0 0 400 170">
+    <defs>
+      <marker id="arr_d" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#1a56db"/></marker>
+      <marker id="arr_db" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#374151"/></marker>
+    </defs>
+    <!-- Wind arrow -->
+    <line x1="5" y1="105" x2="48" y2="105" stroke="#ef4444" stroke-width="2.5" marker-end="url(#arr_d)"/>
+    <text x="4" y="95" font-size="10" fill="#ef4444" font-weight="bold">風向</text>
+    <!-- Wall body -->
+    <rect x="60" y="105" width="220" height="40" fill="#dbeafe" stroke="#1a56db" stroke-width="2"/>
+    <!-- Roof: W(windward slope) + C(horizontal ridge) + L(leeward slope) -->
+    <!-- W: 60,105 → 130,50 -->
+    <line x1="60" y1="105" x2="130" y2="50" stroke="#1a56db" stroke-width="2.5"/>
+    <!-- C: 130,50 → 210,50  (horizontal) -->
+    <line x1="130" y1="50" x2="210" y2="50" stroke="#1a56db" stroke-width="2.5"/>
+    <!-- L: 210,50 → 280,105 -->
+    <line x1="210" y1="50" x2="280" y2="105" stroke="#1a56db" stroke-width="2.5"/>
+    <!-- Fill roof shape -->
+    <polygon points="60,105 130,50 210,50 280,105" fill="#93c5fd" stroke="none" opacity="0.5"/>
+    <!-- Face labels with leader lines -->
+    <text x="82" y="72" text-anchor="middle" font-size="10" fill="#dc2626" font-weight="bold">W</text>
+    <text x="82" y="84" text-anchor="middle" font-size="9" fill="#dc2626">（迎風面）</text>
+    <text x="170" y="44" text-anchor="middle" font-size="10" fill="#ca8a04" font-weight="bold">C（中央部分）</text>
+    <text x="258" y="72" text-anchor="middle" font-size="10" fill="#16a34a" font-weight="bold">L</text>
+    <text x="258" y="84" text-anchor="middle" font-size="9" fill="#16a34a">（背風面）</text>
+    <!-- theta arc on windward side: from horizontal (95,105) to slope direction, concave toward angle -->
+    <path d="M 95,105 A35,35 0 0,0 87,84" fill="none" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="100" y="101" font-size="11" fill="#ca8a04" font-weight="bold">θ</text>
+    <!-- h dimension: from ground (y=145) to mean roof height (y=75) -->
+    <line x1="50" y1="145" x2="50" y2="75" stroke="#374151" stroke-width="1.2" stroke-dasharray="3,2"/>
+    <line x1="45" y1="145" x2="55" y2="145" stroke="#374151" stroke-width="1.2"/>
+    <line x1="45" y1="75" x2="55" y2="75" stroke="#374151" stroke-width="1.2"/>
+    <text x="36" y="113" font-size="10" fill="#374151" font-weight="bold">h</text>
+    <!-- L dimension (total horizontal span) -->
+    <line x1="60" y1="155" x2="280" y2="155" stroke="#374151" stroke-width="1.2"/>
+    <line x1="60" y1="150" x2="60" y2="160" stroke="#374151" stroke-width="1.2"/>
+    <line x1="280" y1="150" x2="280" y2="160" stroke="#374151" stroke-width="1.2"/>
+    <text x="170" y="167" text-anchor="middle" font-size="10" fill="#374151" font-weight="bold">L（平行於風向）</text>
+    <!-- note -->
+    <text x="300" y="75" font-size="9" fill="#374151">（側視圖）</text>
+  </svg></div>`;
+}
+
+// ----- Sawtooth -----
+function renderSawtoothForm(pa,pd){
+  pa.innerHTML=`<div class="grid-3">
+    ${numInput('inp_h','h：平均屋頂高度','m',0.1,9999,0.1,'')}
+    ${numInput('inp_L','L：平行於風向之水平尺寸','m',0.1,9999,0.1,'')}
+    ${numInput('inp_theta','θ：屋頂斜面角度','度',0,90,1,'')}
+  </div>`;
+  pd.innerHTML=`<div class="diagram-wrap"><svg width="460" height="155" viewBox="0 0 460 155">
+    <defs>
+      <marker id="arr_s" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#ef4444"/></marker>
+    </defs>
+    <!-- Wind arrow -->
+    <line x1="5" y1="72" x2="42" y2="72" stroke="#ef4444" stroke-width="2" marker-end="url(#arr_s)"/>
+    <text x="3" y="62" font-size="10" fill="#ef4444" font-weight="bold">風向</text>
+    <!-- Ground line -->
+    <line x1="55" y1="110" x2="345" y2="110" stroke="#374151" stroke-width="1.5"/>
+    <!-- Ground hatch lines -->
+    <line x1="60" y1="110" x2="52" y2="120" stroke="#374151" stroke-width="1"/><line x1="75" y1="110" x2="67" y2="120" stroke="#374151" stroke-width="1"/>
+    <line x1="90" y1="110" x2="82" y2="120" stroke="#374151" stroke-width="1"/><line x1="105" y1="110" x2="97" y2="120" stroke="#374151" stroke-width="1"/>
+    <line x1="120" y1="110" x2="112" y2="120" stroke="#374151" stroke-width="1"/><line x1="135" y1="110" x2="127" y2="120" stroke="#374151" stroke-width="1"/>
+    <line x1="150" y1="110" x2="142" y2="120" stroke="#374151" stroke-width="1"/><line x1="165" y1="110" x2="157" y2="120" stroke="#374151" stroke-width="1"/>
+    <line x1="180" y1="110" x2="172" y2="120" stroke="#374151" stroke-width="1"/><line x1="195" y1="110" x2="187" y2="120" stroke="#374151" stroke-width="1"/>
+    <line x1="210" y1="110" x2="202" y2="120" stroke="#374151" stroke-width="1"/><line x1="225" y1="110" x2="217" y2="120" stroke="#374151" stroke-width="1"/>
+    <line x1="240" y1="110" x2="232" y2="120" stroke="#374151" stroke-width="1"/><line x1="255" y1="110" x2="247" y2="120" stroke="#374151" stroke-width="1"/>
+    <line x1="270" y1="110" x2="262" y2="120" stroke="#374151" stroke-width="1"/><line x1="285" y1="110" x2="277" y2="120" stroke="#374151" stroke-width="1"/>
+    <line x1="300" y1="110" x2="292" y2="120" stroke="#374151" stroke-width="1"/><line x1="315" y1="110" x2="307" y2="120" stroke="#374151" stroke-width="1"/>
+    <line x1="330" y1="110" x2="322" y2="120" stroke="#374151" stroke-width="1"/><line x1="345" y1="110" x2="337" y2="120" stroke="#374151" stroke-width="1"/>
+    <!-- Sawtooth profile: 5 teeth, each D(steep,w=15)+E(gentle,w=35)=50px -->
+    <!-- Points: (70,110)→(85,35)→(120,110)→(135,35)→(170,110)→(185,35)→(220,110)→(235,35)→(270,110)→(285,35)→(320,110) -->
+    <!-- Right vertical wall at B end: (320,110)→(320,35) -->
+    <polyline points="70,110 85,35 120,110 135,35 170,110 185,35 220,110 235,35 270,110 285,35 320,110"
+      fill="none" stroke="#1a56db" stroke-width="1.8"/>
+    <!-- Left vertical wall at A end -->
+    <line x1="70" y1="35" x2="70" y2="110" stroke="#374151" stroke-width="1.2" stroke-dasharray="3,2"/>
+    <!-- Horizontal reference line at top for theta -->
+    <line x1="70" y1="35" x2="115" y2="35" stroke="#374151" stroke-width="1" stroke-dasharray="3,2"/>
+    <!-- θ arc: at base of first D slope (70,110), from horizontal to slope -->
+    <path d="M 100,110 A30,30 0 0,0 76,87" fill="none" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="103" y="107" font-size="11" fill="#ca8a04" font-weight="bold">θ</text>
+    <!-- Face labels above each slope -->
+    <text x="74" y="27" text-anchor="middle" font-size="9" fill="#dc2626" font-weight="bold">D</text>
+    <text x="104" y="27" text-anchor="middle" font-size="9" fill="#16a34a" font-weight="bold">E</text>
+    <text x="124" y="27" text-anchor="middle" font-size="9" fill="#dc2626" font-weight="bold">D'</text>
+    <text x="154" y="27" text-anchor="middle" font-size="9" fill="#16a34a" font-weight="bold">E'</text>
+    <text x="174" y="27" text-anchor="middle" font-size="9" fill="#dc2626" font-weight="bold">D"</text>
+    <text x="204" y="27" text-anchor="middle" font-size="9" fill="#16a34a" font-weight="bold">E"</text>
+    <text x="224" y="27" text-anchor="middle" font-size="9" fill="#dc2626" font-weight="bold">D"'</text>
+    <text x="254" y="27" text-anchor="middle" font-size="9" fill="#16a34a" font-weight="bold">E"'</text>
+    <text x="274" y="27" text-anchor="middle" font-size="9" fill="#dc2626" font-weight="bold">D""</text>
+    <text x="312" y="27" text-anchor="middle" font-size="9" fill="#16a34a" font-weight="bold">E""</text>
+
+    <!-- A and B labels -->
+    <text x="62" y="128" text-anchor="middle" font-size="11" fill="#374151" font-weight="bold">A</text>
+    <text x="320" y="128" text-anchor="middle" font-size="11" fill="#374151" font-weight="bold">B</text>
+    <!-- Note -->
+    <text x="360" y="50" font-size="9" fill="#374151">（側視圖）</text>
+    <text x="360" y="63" font-size="9" fill="#374151">風向A→B</text>
+  </svg></div>`;
+}
+
+// ----- Open Mono -----
+function renderOpenMonoForm(pa,pd){
+  pa.innerHTML=`<div class="grid-3">
+    ${numInput('inp_theta_m','θ：屋頂角度','度',10,30,5,'','10°, 15°, 20°, 25°, 30°')}
+    ${numInput('inp_L_m','L：順風向屋頂尺寸','m',0.1,9999,0.1,'')}
+    ${numInput('inp_B_m','B：垂直風向屋頂尺寸','m',0.1,9999,0.1,'')}
+  </div>`;
+  pd.innerHTML=`<div class="diagram-wrap"><svg width="380" height="150" viewBox="0 0 380 150">
+    <defs><marker id="arr_m" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#1a56db"/></marker></defs>
+    <line x1="5" y1="100" x2="50" y2="100" stroke="#ef4444" stroke-width="2" marker-end="url(#arr_m)"/>
+    <text x="2" y="90" font-size="9" fill="#ef4444" font-weight="bold">風→</text>
+    <!-- Open building mono roof -->
+    <line x1="60" y1="80" x2="250" y2="110" stroke="#1a56db" stroke-width="3"/>
+    <!-- Support columns -->
+    <line x1="60" y1="80" x2="60" y2="130" stroke="#374151" stroke-width="2"/>
+    <line x1="155" y1="95" x2="155" y2="130" stroke="#374151" stroke-width="2"/>
+    <line x1="250" y1="110" x2="250" y2="130" stroke="#374151" stroke-width="2"/>
+    <line x1="50" y1="130" x2="260" y2="130" stroke="#374151" stroke-width="2"/>
+    <!-- Labels -->
+    <text x="140" y="78" font-size="9" fill="#1a56db" font-weight="bold">單斜屋頂面</text>
+    <path d="M 60,80 A 40,40 0 0,1 90,95" fill="none" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="70" y="112" font-size="10" fill="#ca8a04" font-weight="bold">θ</text>
+    <!-- L -->
+    <line x1="60" y1="140" x2="250" y2="140" stroke="#374151" stroke-width="1.2"/>
+    <text x="155" y="150" text-anchor="middle" font-size="10" fill="#374151" font-weight="bold">L</text>
+    <text x="310" y="90" font-size="9" fill="#374151">開放式建築物</text>
+    <text x="310" y="103" font-size="9" fill="#374151">X：壓力中心</text>
+  </svg></div>`;
+}
+
+// ----- Solid Sign -----
+function renderSolidSignForm(pa,pd){
+  pa.innerHTML=`<div class="grid-2">
+    ${selInput('inp_signLoc','標示物位置',[{v:'ground',t:'位於地面上（底緣距地面 < 0.25×垂直尺寸）'},{v:'elevated',t:'位於地面以上（底緣距地面 ≧ 0.25×垂直尺寸）'}])}
+    ${numInput('inp_signRatio','高寬比 ν（地面上）或 M/N（地面以上）','–',1,100,0.5,'',
+      '地面上：ν=高/寬；地面以上：M=較大邊(m)，N=較小邊(m)')}
+  </div>`;
+  pd.innerHTML='';
+}
+
+// ----- Open Sign -----
+function renderOpenSignForm(pa,pd){
+  pa.innerHTML=`<div class="grid-2">
+    ${selInput('inp_secType','斷面形式',[{v:'round_low',t:'圓形斷面 D√q(z) < 1.70'},{v:'round_high',t:'圓形斷面 D√q(z) ≧ 1.70'},{v:'flat',t:'平邊構材'}])}
+    ${numInput('inp_solidity','實體比 ε（實體面積/總面積）','–',0,0.7,0.01,'')}
+  </div>`;
+  pd.innerHTML='';
+}
+
+// ----- Chimney -----
+function renderChimneyForm(pa,pd){
+  pa.innerHTML=`<div class="grid-3">
+    ${selInput('inp_chimShape','橫斷面形狀',[
+      {v:'sq_perp',t:'方形（風向垂直於面）'},
+      {v:'sq_diag',t:'方形（風向沿對角線）'},
+      {v:'hex_oct',t:'六邊形或八邊形'},
+      {v:'circ_low_smooth',t:'圓形 D√q<1.70 中度光滑'},
+      {v:'circ_low_rough',t:'圓形 D√q<1.70 粗糙 D\'/D≧0.02'},
+      {v:'circ_low_vrough',t:'圓形 D√q<1.70 極粗糙 D\'/D≧0.08'},
+      {v:'circ_high',t:'圓形 D√q≧1.70'},
+    ])}
+    ${numInput('inp_h_c','h：結構物高度','m',1,9999,1,'')}
+    ${numInput('inp_D_c','D：直徑或最小水平尺寸','m',0.1,999,0.1,'')}
+  </div>`;
+  pd.innerHTML='';
+}
+
+// ----- Prism -----
+function renderPrismForm(pa,pd){
+  pa.innerHTML=`<div class="grid-3">
+    ${selInput('inp_prismShape','形狀與風向',[
+      {v:'rect_long',t:'長方柱－風向垂直於長邊'},
+      {v:'rect_short',t:'長方柱－風向垂直於短邊'},
+      {v:'tri_vert',t:'等邊三角柱－風向循頂點'},
+      {v:'tri_face',t:'等邊三角柱－風向垂直於面'},
+      {v:'right_tri',t:'直角等腰三角柱－循直角頂'},
+    ])}
+    ${numInput('inp_h_p','h：結構物高度','m',1,9999,1,'')}
+    ${numInput('inp_D_p','D：最小水平尺寸','m',0.1,999,0.1,'')}
+  </div>`;
+  pd.innerHTML='';
+}
+
+// ----- Cable -----
+function renderCableForm(pa,pd){
+  pa.innerHTML=`<div class="grid-2">
+    ${selInput('inp_cableSurf','表面粗糙分類',[
+      {v:'smooth',t:'光滑之繩、竿、管'},
+      {v:'medium',t:'中度光滑之繩、竿、管'},
+      {v:'fine',t:'細電纜、鋼索'},
+      {v:'coarse',t:'粗電纜、鋼索'},
+    ])}
+    ${selInput('inp_cableMode','D√q(z) 分類',[
+      {v:'low',t:'D√q(z) < 1.70'},
+      {v:'high',t:'D√q(z) ≧ 1.70'},
+    ])}
+  </div>`;
+  pd.innerHTML='';
+}
+
+// ----- Truss Tower -----
+function renderTrussForm(pa,pd){
+  pa.innerHTML=`<div class="grid-2">
+    ${selInput('inp_trussShape','高塔形狀',[{v:'square',t:'方形高塔'},{v:'triangle',t:'三角形高塔'}])}
+    ${numInput('inp_solidity_t','ε：實體面積/總面積','–',0,1,0.01,'')}
+  </div>`;
+  pd.innerHTML='';
+}
+
+// ----- Guy Wire -----
+function renderGuyWireForm(pa,pd){
+  pa.innerHTML=`<div class="grid-2">
+    ${numInput('inp_theta_g','θ：風向與拉固索之弦所夾角度','度',10,90,10,'','可輸入10~90°，內插計算')}
+  </div>`;
+  pd.innerHTML=`<div class="diagram-wrap"><svg width="300" height="150" viewBox="0 0 300 150">
+    <defs><marker id="arr_g" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="#ef4444"/></marker></defs>
+    <!-- 塔（垂直） -->
+    <line x1="150" y1="130" x2="150" y2="20" stroke="#374151" stroke-width="3"/>
+    <text x="155" y="30" font-size="9" fill="#374151">塔</text>
+    <!-- 拉固索 -->
+    <line x1="150" y1="80" x2="60" y2="130" stroke="#1a56db" stroke-width="2"/>
+    <text x="72" y="125" font-size="9" fill="#1a56db">拉固索</text>
+    <!-- 風向線（紅色水平），CD標籤置於線上方 -->
+    <line x1="20" y1="80" x2="148" y2="80" stroke="#ef4444" stroke-width="2" marker-end="url(#arr_g)"/>
+    <text x="10" y="76" font-size="9" fill="#ef4444">風→</text>
+    <text x="60" y="73" font-size="9" fill="#ef4444" font-weight="bold">CD：順風向</text>
+    <!-- θ弧線：頂點(150,80)，從水平方向(110,80)弧到拉固索方向(115,99)，凸面向下(sweep=1) -->
+    <path d="M 110,80 A 40,40 0 0,1 115,99" fill="none" stroke="#ca8a04" stroke-width="1.5"/>
+    <text x="118" y="92" font-size="11" fill="#ca8a04" font-weight="bold">θ</text>
+    <!-- CL標籤 -->
+    <text x="160" y="103" font-size="9" fill="#374151">CL：橫風向</text>
+  </svg></div>`;
+}
+
+// ----- Internal Pressure -----
+function renderInternalForm(pa,pd){
+  pa.innerHTML=`<div style="background:#f0f4ff;padding:14px;border-radius:8px;font-size:.88rem">
+    <b>內風壓係數 (GCpi) — 表2.17</b><br><br>
+    依建築物形式自動查表，無需額外輸入參數。<br>
+    請直接點擊「計算風壓係數」取得結果。
+  </div>`;
+  pd.innerHTML='';
+}
+
+// ========== CALCULATION ==========
+function calculate(){
+  const res=document.getElementById('resultCard');
+  const rc=document.getElementById('resultContent');
+  let html='';
+  let hasError=false;
+
+  try{
+    switch(currentComponent){
+      case 'wall': html=calcWall(); break;
+      case 'flat_roof': html=calcFlatRoof(); break;
+      case 'arch_roof': html=calcArchRoof(); break;
+      case 'dual_roof': html=calcDualRoof(); break;
+      case 'sawtooth': html=calcSawtooth(); break;
+      case 'open_mono': html=calcOpenMono(); break;
+      case 'solid_sign': html=calcSolidSign(); break;
+      case 'open_sign': html=calcOpenSign(); break;
+      case 'chimney': html=calcChimney(); break;
+      case 'prism': html=calcPrism(); break;
+      case 'cable': html=calcCable(); break;
+      case 'truss': html=calcTruss(); break;
+      case 'guy_wire': html=calcGuyWire(); break;
+      case 'internal': html=calcInternal(); break;
+      // CC figures (局部構件及外部被覆物)
+      case 'cc_fig31a': html=calcCC_Fig31a(); break;
+      case 'cc_fig31b': html=calcCC_Fig31b(); break;
+      case 'cc_fig31c': html=calcCC_Fig31c(); break;
+      case 'cc_fig31d': html=calcCC_Fig31d(); break;
+      case 'cc_fig32':  html=calcCC_Fig32(); break;
+      case 'cc_fig33a': html=calcCC_Fig33a(); break;
+      case 'cc_fig33b': html=calcCC_Fig33b(); break;
+      default: html='<p>尚未實作</p>';
+    }
+    // Always append internal pressure for enclosed/partial (MWFRS components only)
+    if(currentSystemType!=='cc' && ['wall','flat_roof','arch_roof','dual_roof','sawtooth'].includes(currentComponent)){
+      html += internalPressureSection();
+    }
+    // For CC enclosed/partial, show GCpi at bottom
+    if(currentSystemType==='cc' && ['cc_fig31a','cc_fig31b','cc_fig31c','cc_fig31d','cc_fig32'].includes(currentComponent)){
+      html += internalPressureSection();
+    }
+  }catch(e){
+    html=`<div class="note-box">⚠️ 計算錯誤：${e.message}</div>`;
+    hasError=true;
+  }
+
+  rc.innerHTML=html;
+  res.classList.add('show');
+
+  // 若計算錯誤：不切換步驟、不捲動、不回傳
+  if(hasError){
+    return;
+  }
+
+  setStep(4);
+  res.scrollIntoView({behavior:'smooth'});
+
+  // 回傳結果至整合式父頁面
+  if (window.parent !== window) {
+    const compDef = (COMPONENTS[currentBuilding]||[]).find(c=>c.value===currentComponent);
+    let label = compDef ? compDef.label : currentComponent;
+    let tableRef = compDef ? '表'+compDef.table : '';
+    const buildingLabels = {enclosed:'封閉式建築物', partial:'部分封閉式建築物', open:'開放式建築物'};
+
+    // 取得 GCpi（封閉/部分封閉才有）
+    let gcpi = null;
+    const gcpiRow = DB.table_2_17.find(r=>
+      (currentBuilding==='enclosed'&&r.type==='封閉式建築')||
+      (currentBuilding==='partial'&&r.type==='部分封閉式建築')||
+      (currentBuilding==='open'&&r.type==='開放式建築')
+    );
+    if (gcpiRow) gcpi = {pos: gcpiRow.pos, neg: gcpiRow.neg};
+
+    // 各構件係數擷取
+    let coefficients = [];
+    let inputs = [];
+    try {
+      switch(currentComponent) {
+        case 'wall': {
+          const L=val('inp_L'), B=val('inp_B'), LB=L/B;
+          let cpLee;
+          if(LB<=1) cpLee=-0.5;
+          else if(LB<=2) cpLee=-0.5+(-0.3+0.5)*(LB-1);
+          else if(LB<=4) cpLee=-0.3+(-0.2+0.3)/(2)*(LB-2);
+          else cpLee=-0.2;
+          inputs = [
+            {label:'L（平行風向）', value:L+' m'},
+            {label:'B（垂直風向）', value:B+' m'},
+            {label:'L/B', value:LB.toFixed(2)},
+          ];
+          coefficients = [
+            {face:'迎風面', coef:'Cp', value:+0.8, note:'q(z)'},
+            {face:'背風面', coef:'Cp', value:parseFloat(cpLee.toFixed(3)), note:'q(h), L/B='+LB.toFixed(2)},
+            {face:'側風面', coef:'Cp', value:-0.7, note:'q(h)'},
+          ];
+          break;
+        }
+        case 'flat_roof': {
+          const h=val('inp_h'),L=val('inp_L'),theta=val('inp_theta')||0,B=val('inp_B');
+          const hL=h/L;
+          const getRowCp2=(row,th)=>{
+            if(th===0) return {pos:row[3],neg:null};
+            if(th<=15){ if(row[4]!==null&&row[5]!==null) return {pos:row[4],neg:row[5]}; return {pos:row[4],neg:null}; }
+            if(th<=20) return {pos:row[6],neg:null};
+            if(th<=30) return {pos:row[7],neg:null};
+            if(th<=40) return {pos:row[8],neg:null};
+            if(th<=50) return {pos:row[9],neg:null};
+            return {pos:0.01*th,neg:null};
+          };
+          const rowsPerp=DB.table_2_5_roof.rows.filter(r=>r[1]==='垂直於屋脊');
+          let hLRow;
+          if(hL<=0.3) hLRow=rowsPerp[0];
+          else if(hL<=0.5) hLRow=rowsPerp[1];
+          else if(hL<=1.0) hLRow=rowsPerp[2];
+          else hLRow=rowsPerp[3];
+          const cpRes=getRowCp2(hLRow,theta);
+          const cpLee=hLRow[11];
+          const hB = B && !isNaN(B) ? h/B : hL;
+          const cpPara = hB<=2.5 ? -0.7 : -0.8;
+          inputs = [
+            {label:'h（平均屋頂高度）', value:h+' m'},
+            {label:'L（平行風向）', value:L+' m'},
+            {label:'B（垂直風向）', value:B&&!isNaN(B)?B+' m':'未輸入'},
+            {label:'θ（屋面傾角）', value:theta+'°'},
+            {label:'h/L', value:hL.toFixed(2)+' → 使用列 '+hLRow[2]},
+            {label:'h/B', value:B&&!isNaN(B)?(h/B).toFixed(2):'—'},
+          ];
+          coefficients = [
+            {face:'迎風面屋頂（垂直屋脊）', coef:'Cp', value:cpRes.pos, note:'q(h)'},
+            ...(cpRes.neg!==null ? [{face:'迎風面屋頂（垂直屋脊）', coef:'Cp', value:cpRes.neg, note:'q(h)，需與正值同時考慮'}] : []),
+            {face:'背風面屋頂（垂直屋脊）', coef:'Cp', value:cpLee, note:'q(h)，所有θ及h/L'},
+            {face:'迎風面及背風面（平行屋脊）', coef:'Cp', value:cpPara, note:'q(h)，h/B '+(hB<=2.5?'≦':'＞')+' 2.5'},
+          ];
+          break;
+        }
+        case 'arch_roof': {
+          const archType=selVal('inp_archType');
+          const r=parseFloat(document.getElementById('inp_r').value);
+          const archTypeLabel = archType==='wall' ? '牆上（拱腳在牆上）' : '地面支撐';
+          let cpWind;
+          if(archType==='wall'){
+            if(r<0.2) cpWind=-0.9;
+            else if(r<0.3) cpWind=1.5*r-0.3;
+            else cpWind=2.75*r-0.7;
+          } else cpWind=1.4*r;
+          const cpCenter=-0.7-r;
+          inputs = [
+            {label:'支承形式', value:archTypeLabel},
+            {label:'r（拱高/跨度）', value:r},
+          ];
+          coefficients = [
+            {face:'迎風面 P（各佔1/4跨）', coef:'Cp', value:parseFloat(cpWind.toFixed(4)), note:'q(h)'},
+            {face:'中央部分 Q（佔1/2跨）', coef:'Cp', value:parseFloat(cpCenter.toFixed(4)), note:'q(h)'},
+            {face:'背風面 P（各佔1/4跨）', coef:'Cp', value:-0.5, note:'q(h)'},
+          ];
+          break;
+        }
+        case 'dual_roof': {
+          const h=val('inp_h'),L=val('inp_L'),theta=val('inp_theta');
+          inputs = [
+            {label:'h（平均屋頂高度）', value:h+' m'},
+            {label:'L（平行風向）', value:L+' m'},
+            {label:'θ（屋面傾角）', value:theta+'°'},
+            {label:'h/L', value:(h/L).toFixed(2)},
+          ];
+          coefficients = [
+            {face:'迎風面 W', coef:'Cp', value:'查表2.5迎風面', note:''},
+            {face:'背風面 L', coef:'Cp', value:-0.7, note:'q(h)'},
+            {face:'中央部分 C', coef:'Cp', value:-0.7, note:'q(h)'},
+          ];
+          break;
+        }
+        case 'sawtooth': {
+          const theta=val('inp_theta'), h=val('inp_h');
+          inputs = [
+            {label:'h（平均屋頂高度）', value:h+' m'},
+            {label:'θ（屋面傾角）', value:theta+'°'},
+          ];
+          coefficients = [
+            {face:'第一迎風面 D', coef:'Cp', value:'查表2.5迎風面', note:''},
+            {face:'第一背風面 E', coef:'Cp', value:'查表2.5背風面', note:''},
+            {face:"第二迎風面 D'", coef:'Cp', value:'查表2.5背風面', note:''},
+            {face:"第二背風面 E'", coef:'Cp', value:-0.5, note:''},
+            {face:"第三迎風面 D\"", coef:'Cp', value:-0.5, note:''},
+            {face:"第三背風面 E\"", coef:'Cp', value:-0.4, note:''},
+            {face:'其餘', coef:'Cp', value:-0.3, note:'q(h)'},
+          ];
+          break;
+        }
+        case 'open_mono': {
+          const theta=val('inp_theta_m'), L=val('inp_L_m'), B=val('inp_B_m');
+          const LB=L/B;
+          const data=DB.table_2_9.data;
+          const thetas=[10,15,20,25,30];
+          const interpTheta=(th)=>{
+            const lbKs=Object.keys(data[th]).map(Number);
+            let lbLow=lbKs[0],lbHigh=lbKs[lbKs.length-1];
+            for(let lb of lbKs){if(lb<=LB)lbLow=lb;}
+            for(let lb of [...lbKs].reverse()){if(lb>=LB)lbHigh=lb;}
+            if(lbLow===lbHigh) return data[th][lbLow];
+            return data[th][lbLow]+(data[th][lbHigh]-data[th][lbLow])/(lbHigh-lbLow)*(LB-lbLow);
+          };
+          let thLow=10,thHigh=30;
+          for(let t of thetas){if(t<=theta)thLow=t;}
+          for(let t of [...thetas].reverse()){if(t>=theta)thHigh=t;}
+          let cf;
+          if(thLow===thHigh) cf=interpTheta(thLow);
+          else { const cfL=interpTheta(thLow),cfH=interpTheta(thHigh); cf=cfL+(cfH-cfL)/(thHigh-thLow)*(theta-thLow); }
+          inputs = [
+            {label:'θ（屋面傾角）', value:theta+'°'},
+            {label:'L（平行風向）', value:L+' m'},
+            {label:'B（垂直風向）', value:B+' m'},
+            {label:'L/B', value:LB.toFixed(2)},
+          ];
+          coefficients = [{face:'屋頂', coef:'Cf', value:parseFloat(cf.toFixed(3)), note:'θ='+theta+'°, L/B='+LB.toFixed(2)}];
+          break;
+        }
+        case 'solid_sign': {
+          const loc=selVal('inp_signLoc'), ratio=val('inp_signRatio');
+          const data_g=[[3,1.2],[5,1.3],[8,1.4],[10,1.5],[20,1.75],[30,1.85],[40,2.0]];
+          const data_e=[[6,1.2],[10,1.3],[16,1.4],[20,1.5],[40,1.75],[60,1.85],[80,2.0]];
+          const arr=loc==='ground'?data_g:data_e;
+          let lo=arr[0],hi=arr[arr.length-1];
+          for(let r of arr){if(r[0]<=ratio)lo=r;}
+          for(let r of [...arr].reverse()){if(r[0]>=ratio)hi=r;}
+          const cf=lo===hi?lo[1]:lo[1]+(hi[1]-lo[1])/(hi[0]-lo[0])*(ratio-lo[0]);
+          inputs = [
+            {label:'位置', value:loc==='ground'?'地面上':'地面以上'},
+            {label:loc==='ground'?'高寬比 ν':'M/N', value:ratio},
+          ];
+          coefficients = [{face:'標示物', coef:'Cf', value:parseFloat(cf.toFixed(3)), note:''}];
+          break;
+        }
+        case 'open_sign': {
+          const secType=selVal('inp_secType'), eps=val('inp_solidity');
+          const rows=[[0,0.1,2.0,1.2,0.8],[0.1,0.29,1.8,1.3,0.9],[0.3,0.7,1.6,1.5,1.1]];
+          let row=rows.find(r=>eps>=r[0]&&eps<=r[1])||rows[rows.length-1];
+          const cf=secType==='flat'?row[2]:secType==='round_low'?row[3]:row[4];
+          const secLabel=secType==='flat'?'平邊構材':secType==='round_low'?'圓形 D√q≦1.70':'圓形 D√q>1.70';
+          inputs = [
+            {label:'斷面形式', value:secLabel},
+            {label:'ε（實體比）', value:eps},
+          ];
+          coefficients = [{face:'構架', coef:'Cf', value:cf, note:'ε='+eps}];
+          break;
+        }
+        case 'chimney': {
+          const shape=selVal('inp_chimShape'),h=val('inp_h_c'),D=val('inp_D_c');
+          const hD=h/D;
+          const shapeMap={'sq_perp':{idx:0},'sq_diag':{idx:1},'hex_oct':{idx:2},'circ_low_smooth':{idx:3},'circ_low_rough':{idx:4},'circ_low_vrough':{idx:5},'circ_high':{idx:6}};
+          const row=DB.table_2_12[shapeMap[shape].idx];
+          let cf;
+          if(hD<=1) cf=row.cf[0];
+          else if(hD<=7) cf=row.cf[0]+(row.cf[1]-row.cf[0])/6*(hD-1);
+          else if(hD<=25) cf=row.cf[1]+(row.cf[2]-row.cf[1])/18*(hD-7);
+          else cf=row.cf[2];
+          inputs = [
+            {label:'形狀', value:row.shape+' '+row.surf},
+            {label:'h（高度）', value:h+' m'},
+            {label:'D（直徑/邊長）', value:D+' m'},
+            {label:'h/D', value:hD.toFixed(2)},
+          ];
+          coefficients = [{face:row.shape+' '+row.surf, coef:'Cf', value:parseFloat(cf.toFixed(3)), note:'h/D='+hD.toFixed(2)}];
+          break;
+        }
+        case 'prism': {
+          const shape=selVal('inp_prismShape'),h=val('inp_h_p'),D=val('inp_D_p');
+          const cfMap={rect_long:2.2,rect_short:1.4,tri_vert:1.2,tri_face:2.0,right_tri:1.55};
+          const shapeLabels={rect_long:'長方柱（長邊迎風）',rect_short:'長方柱（短邊迎風）',tri_vert:'三角柱（頂點迎風）',tri_face:'三角柱（斜面迎風）',right_tri:'直角三角柱'};
+          const cf=cfMap[shape], ratio=2*h/D;
+          let R=ratio<=4?0.6:ratio<=8?0.7:ratio<=40?0.8:1.0;
+          inputs = [
+            {label:'形狀', value:shapeLabels[shape]||shape},
+            {label:'h（高度）', value:h+' m'},
+            {label:'D（斷面尺寸）', value:D+' m'},
+            {label:'2h/D', value:ratio.toFixed(2)},
+            {label:'修正係數 R', value:R},
+          ];
+          coefficients = [
+            {face:'柱體', coef:'Cf', value:cf, note:'基本值'},
+            {face:'柱體（修正後）', coef:'Cf×R', value:parseFloat((cf*R).toFixed(3)), note:'R='+R+', 2h/D='+ratio.toFixed(2)},
+          ];
+          break;
+        }
+        case 'cable': {
+          const surf=selVal('inp_cableSurf'),mode=selVal('inp_cableMode');
+          const surfLabels={smooth:'光滑表面',medium:'中度粗糙',fine:'細粗糙',coarse:'粗糙'};
+          const map={smooth:[1.2,0.5],medium:[1.2,0.7],fine:[1.2,0.9],coarse:[1.3,1.1]};
+          const cf=mode==='low'?map[surf][0]:map[surf][1];
+          inputs = [
+            {label:'表面狀況', value:surfLabels[surf]||surf},
+            {label:'D√q(z)', value:mode==='low'?'< 1.70':'≧ 1.70'},
+          ];
+          coefficients = [{face:'繩竿管', coef:'Cf', value:cf, note:mode==='low'?'D√q<1.70':'D√q≧1.70'}];
+          break;
+        }
+        case 'truss': {
+          const shape=selVal('inp_trussShape'),eps=val('inp_solidity_t');
+          let cf;
+          if(eps<0.025) cf=shape==='square'?4.0:3.6;
+          else if(eps<=0.44) cf=shape==='square'?(4.1-5.2*eps):(3.7-4.5*eps);
+          else if(eps<=0.69) cf=shape==='square'?1.8:1.7;
+          else cf=shape==='square'?(1.3+0.7*eps):(1.0+eps);
+          inputs = [
+            {label:'形狀', value:shape==='square'?'方形高塔':'三角形高塔'},
+            {label:'ε（實體比）', value:eps},
+          ];
+          coefficients = [{face:shape==='square'?'方形高塔':'三角形高塔', coef:'Cf', value:parseFloat(cf.toFixed(3)), note:'ε='+eps}];
+          break;
+        }
+        case 'guy_wire': {
+          const theta=val('inp_theta_g');
+          const data=DB.table_2_16;
+          let lo=data[0],hi=data[data.length-1];
+          for(let r of data){if(r.theta<=theta)lo=r;}
+          for(let r of [...data].reverse()){if(r.theta>=theta)hi=r;}
+          let cd,cl;
+          if(lo.theta===hi.theta){cd=lo.cd;cl=lo.cl;}
+          else{cd=lo.cd+(hi.cd-lo.cd)/(hi.theta-lo.theta)*(theta-lo.theta);cl=lo.cl+(hi.cl-lo.cl)/(hi.theta-lo.theta)*(theta-lo.theta);}
+          inputs = [{label:'θ（索與水平夾角）', value:theta+'°'}];
+          coefficients = [
+            {face:'拉固索', coef:'CD（順風向）', value:parseFloat(cd.toFixed(3)), note:'θ='+theta+'°'},
+            {face:'拉固索', coef:'CL（橫風向）', value:parseFloat(cl.toFixed(3)), note:'θ='+theta+'°'},
+          ];
+          break;
+        }
+        case 'internal':
+          inputs = [{label:'建築物類型', value:buildingLabels[currentBuilding]}];
+          if(gcpiRow) coefficients = [
+            {face:'所有牆內面', coef:'+GCpi', value:gcpiRow.pos, note:'正內風壓'},
+            {face:'所有牆內面', coef:'-GCpi', value:gcpiRow.neg, note:'負內風壓'},
+          ];
+          break;
+
+        // ── CC 圖形（局部構件及外部被覆物）──
+        case 'cc_fig31a': case 'cc_fig31b': case 'cc_fig31c': case 'cc_fig31d': case 'cc_fig32': {
+          const ccA=parseFloat(document.getElementById('cc_A').value);
+          const ccH=parseFloat(document.getElementById('cc_h').value);
+          const ccMinW=parseFloat(document.getElementById('cc_minW').value);
+          const selZone=getSelectedZone();
+          const figLabels={'cc_fig31a':'圖3.1(a) 外牆（h≦18m）','cc_fig31b':'圖3.1(b) θ≦7°屋頂（h≦18m）','cc_fig31c':'圖3.1(c) 7°<θ≦27°屋頂（h≦18m）','cc_fig31d':'圖3.1(d) 27°<θ≦45°屋頂（h≦18m）','cc_fig32':'圖3.2 外牆與屋頂（h>18m）'};
+          label = figLabels[currentComponent]||currentComponent;
+          tableRef = '圖'+currentComponent.replace('cc_fig','').replace(/(\d)(\d)/,'$1.$2');
+          inputs = [
+            {label:'有效受風面積 A', value:ccA+' m²'},
+            {label:'平均屋頂高度 h', value:ccH+' m'},
+            {label:'建築物最小寬度', value:ccMinW+' m'},
+            {label:'查詢區域', value:selZone==='all'?'全部區域':selZone},
+          ];
+          // 依選擇區域與圖號擷取GCp值
+          const gcpFns={
+            'cc_fig31a':{z5:gcp31a_zone5_neg,z4:gcp31a_zone4_neg,pos:gcp31a_pos},
+            'cc_fig31b':{z1:gcp31b_z1_neg,z2:gcp31b_z2_neg,z3:gcp31b_z3_neg,pos:gcp31b_pos},
+            'cc_fig31c':{z1:gcp31c_z1_neg,z2:gcp31c_z2_neg,z3:gcp31c_z3_neg,pos:gcp31c_pos},
+            'cc_fig31d':{z1:gcp31d_z1_neg,z23:gcp31d_z23_neg,pos:gcp31d_pos},
+            'cc_fig32':{r1:gcp32_z1_neg,r2:gcp32_z2_neg,r3:gcp32_z3_neg,w4:gcp32_z4_neg,w5:gcp32_z5_neg,pos:gcp32_z45_pos},
+          };
+          const fns=gcpFns[currentComponent]||{};
+          const zoneLabels31a={z5:'⑤角隅區',z4:'④中央區'};
+          const zoneLabels31bcd={z1:'①中央區',z2:'②邊緣帶',z3:'③角隅區'};
+          const zoneLabels31d={z1:'①中央區',z23:'②③邊緣及角隅'};
+          const zoneLabels32={r1:'屋頂①中央',r2:'屋頂②邊緣',r3:'屋頂③角隅',w4:'外牆④中央',w5:'外牆⑤角隅'};
+          let zLabels={};
+          if(currentComponent==='cc_fig31a') zLabels=zoneLabels31a;
+          else if(currentComponent==='cc_fig31d') zLabels=zoneLabels31d;
+          else if(currentComponent==='cc_fig32') zLabels=zoneLabels32;
+          else zLabels=zoneLabels31bcd;
+          const posVal=fns.pos?fns.pos(ccA):null;
+          // 圖3.2 屋頂區域（r1/r2/r3）無正壓，僅外牆（w4/w5）有正壓
+          const roofOnlyZones=new Set(['r1','r2','r3']);
+          Object.entries(zLabels).forEach(([k,lbl])=>{
+            if((selZone==='all'||selZone===k)&&fns[k]){
+              const negVal=parseFloat(fns[k](ccA).toFixed(4));
+              // 僅在負壓值確實為負時回傳
+              if(negVal<0) coefficients.push({face:lbl, coef:'(GCp)負壓', value:negVal, note:'A='+ccA+'m²'});
+              // 正壓：屋頂僅負壓區域不回傳；posVal必須>0才回傳
+              const hasPosZone = !(currentComponent==='cc_fig32' && roofOnlyZones.has(k));
+              if(posVal!==null && posVal>0 && hasPosZone){
+                coefficients.push({face:lbl, coef:'(GCp)正壓', value:parseFloat(posVal.toFixed(4)), note:'A='+ccA+'m²'});
+              }
+            }
+          });
+          // 附加GCpi
+          if(gcpiRow){
+            coefficients.push({face:'內壓（正）', coef:'+GCpi', value:gcpiRow.pos, note:'表2.17'});
+            coefficients.push({face:'內壓（負）', coef:'-GCpi', value:gcpiRow.neg, note:'表2.17'});
+          }
+          break;
+        }
+        case 'cc_fig33a': case 'cc_fig33b': {
+          const ccH33=parseFloat(document.getElementById('cc33_h').value);
+          const ccL33=parseFloat(document.getElementById('cc33_L').value);
+          const ccMinW33=parseFloat(document.getElementById('cc33_minW').value);
+          const ccA33=parseFloat(document.getElementById('cc33_A').value);
+          const ccTheta=parseFloat(document.getElementById('cc33_theta').value);
+          const ccBlock=document.getElementById('cc33_block').value;
+          const selZone33=getSelectedZone();
+          const a33=Math.max(0.9,0.1*ccMinW33);
+          const aSquare33=a33*a33;
+          const key33=areaKey(ccA33,aSquare33);
+          const tableData33=currentComponent==='cc_fig33a'?CC_33a:CC_33b;
+          const {d:d33}=interp33(tableData33,ccTheta,ccBlock);
+          const zLabel33={z3:'區域3（角隅）',z2:'區域2（邊緣）',z1:'區域1（中央）'};
+          label = currentComponent==='cc_fig33a'?'圖3.3(a) 單斜屋頂（開放式）':'圖3.3(b) 雙斜屋頂（開放式）';
+          tableRef = currentComponent==='cc_fig33a'?'圖3.3(a)':'圖3.3(b)';
+          inputs = [
+            {label:'平均屋頂高度 h', value:ccH33+' m'},
+            {label:'順風向水平深度 L', value:ccL33+' m'},
+            {label:'h/L', value:(ccH33/ccL33).toFixed(3)},
+            {label:'有效受風面積 A', value:ccA33+' m²'},
+            {label:'屋頂坡角 θ', value:ccTheta+'°'},
+            {label:'阻擋狀況', value:ccBlock==='unblock'?'屋頂下無阻擋':'屋頂下有阻擋'},
+            {label:'a 值', value:a33.toFixed(3)+' m'},
+            {label:'查詢區域', value:selZone33==='all'?'全部區域':zLabel33[selZone33]||selZone33},
+          ];
+          ['z3','z2','z1'].forEach(zk=>{
+            if(selZone33==='all'||selZone33===zk){
+              const zNum={z3:3,z2:2,z1:1}[zk];
+              const zv=zoneVal(d33[key33],zNum);
+              coefficients.push({face:zLabel33[zk], coef:'Cpn 負壓', value:parseFloat(zv.neg.toFixed(4)), note:'θ='+ccTheta+'°'});
+              coefficients.push({face:zLabel33[zk], coef:'Cpn 正壓', value:parseFloat(zv.pos.toFixed(4)), note:'θ='+ccTheta+'°'});
+            }
+          });
+          break;
+        }
+      } // end switch(currentComponent)
+      // 附加內風壓（主體結構構件）
+      if(['wall','flat_roof','arch_roof','dual_roof','sawtooth'].includes(currentComponent) && gcpiRow) {
+        coefficients.push({face:'內壓（正）', coef:'+GCpi', value:gcpiRow.pos, note:'表2.17'});
+        coefficients.push({face:'內壓（負）', coef:'-GCpi', value:gcpiRow.neg, note:'表2.17'});
+      }
+    } catch(e2) { /* 擷取失敗不影響主流程 */ }
+
+    window.parent.postMessage({
+      source: 'wind_pressure_query',
+      buildingType: currentBuilding,
+      buildingLabel: buildingLabels[currentBuilding] || currentBuilding,
+      component: currentComponent,
+      componentLabel: label,
+      tableRef: tableRef,
+      inputs: inputs,
+      coefficients: coefficients,
+      gcpi: gcpi,
+      timestamp: new Date().toISOString()
+    }, '*');
+  }
+}
+
+function val(id){return parseFloat(document.getElementById(id).value);}
+function selVal(id){return document.getElementById(id).value;}
+function cpColor(v){return v>0?'cp-pos':'cp-neg';}
+
+function internalPressureSection(){
+  const gcpi=DB.table_2_17.find(r=>
+    (currentBuilding==='enclosed'&&r.type==='封閉式建築')||
+    (currentBuilding==='partial'&&r.type==='部分封閉式建築')||
+    (currentBuilding==='open'&&r.type==='開放式建築')
+  );
+  if(!gcpi) return '';
+  return `
+  <hr style="margin:16px 0;border:0;border-top:1px solid var(--border)">
+  <h3 style="font-size:.95rem;font-weight:700;color:#4f46e5;margin-bottom:8px">📋 內風壓係數（表2.17）</h3>
+  <div class="summary-grid">
+    <div class="summary-card internal">
+      <div class="sc-label">正內風壓 +GCpi</div>
+      <div class="sc-value" style="color:#4f46e5">+${gcpi.pos.toFixed(3)}</div>
+      <div class="sc-formula">所有牆內面</div>
+    </div>
+    <div class="summary-card internal">
+      <div class="sc-label">負內風壓 -GCpi</div>
+      <div class="sc-value" style="color:#4f46e5">${gcpi.neg.toFixed(3)}</div>
+      <div class="sc-formula">所有牆內面</div>
+    </div>
+  </div>
+  <div class="formula-box">
+    <h4>設計風壓公式（主要風力抵抗系統）</h4>
+    <code class="formula">p = q·G·Cp − qi·(GCpi)</code>
+    <div style="font-size:.8rem;margin-top:6px;color:#374151">
+      正值(+GCpi)與負值(-GCpi)均須分別考慮（取最不利值）
+    </div>
+  </div>`;
+}
+
+// ===== Calc Wall (Table 2.4) =====
+function calcWall(){
+  const L=val('inp_L'), B=val('inp_B');
+  if(!L||!B) throw new Error('請輸入 L 和 B 值');
+  const LB=L/B;
+
+  // Leeward interpolation
+  let cpLee;
+  if(LB<=1) cpLee=-0.5;
+  else if(LB<=2){
+    cpLee=-0.5+(-0.3-(-0.5))/(2-1)*(LB-1);
+  } else if(LB<=4){
+    cpLee=-0.3+(-0.2-(-0.3))/(4-2)*(LB-2);
+  } else cpLee=-0.2;
+
+  const cpWind=0.8, cpSide=-0.7;
+
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.4 牆之外風壓係數（主要風力抵抗系統）</h4>
+    <code class="formula">L = ${L} m，B = ${B} m，L/B = ${LB.toFixed(2)}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card windward">
+      <div class="sc-label">迎風面 Cp</div>
+      <div class="sc-value">+${cpWind.toFixed(1)}</div>
+      <div class="sc-formula">使用 q(z)（隨高度變化）</div>
+    </div>
+    <div class="summary-card leeward">
+      <div class="sc-label">背風面 Cp</div>
+      <div class="sc-value">${cpLee.toFixed(2)}</div>
+      <div class="sc-formula">使用 q(h)${LB>1&&LB<4?'　<span class="interp-tag">內插</span>':''}</div>
+    </div>
+    <div class="summary-card side">
+      <div class="sc-label">側風面 Cp</div>
+      <div class="sc-value">${cpSide.toFixed(1)}</div>
+      <div class="sc-formula">使用 q(h)</div>
+    </div>
+  </div>
+  <table class="result-table">
+    <tr><th>所屬牆面</th><th>L/B</th><th>Cp</th><th>使用風速壓</th></tr>
+    <tr class="${LB<=1?'highlight':''}"><td>迎風面</td><td>所有值</td><td class="cp-pos">+0.8</td><td>q(z)</td></tr>
+    <tr class="${LB<=1?'highlight':''}"><td rowspan="3">背風面</td><td>0~1</td><td class="cp-neg">-0.5</td><td rowspan="3">q(h)</td></tr>
+    <tr class="${LB>1&&LB<=2?'highlight':''}"><td>2</td><td class="cp-neg">-0.3</td></tr>
+    <tr class="${LB>4?'highlight':''}"><td>≧4</td><td class="cp-neg">-0.2</td></tr>
+    <tr><td>側風面</td><td>所有值</td><td class="cp-neg">-0.7</td><td>q(h)</td></tr>
+  </table>
+  ${(()=>{
+    if(!(LB>1&&LB<4)) return '';
+    const formula = LB<=2
+      ? '-0.5 + (-0.3-(-0.5))/(2-1) × (' + LB.toFixed(2) + '-1) = ' + cpLee.toFixed(3)
+      : '-0.3 + (-0.2-(-0.3))/(4-2) × (' + LB.toFixed(2) + '-2) = ' + cpLee.toFixed(3);
+    return '<div class="note-box">⚠️ <b>內插結果</b>：L/B = ' + LB.toFixed(2) + '，背風面 Cp 由線性內插得 <b>' + cpLee.toFixed(3) + '</b><br>計算式：Cp = ' + formula + '</div>';
+  })()}
+  <div class="formula-box">
+    <h4>設計風壓計算步驟</h4>
+    <code class="formula">p_迎風面 = q(z) × G × 0.8 − qi(GCpi)</code>
+    <code class="formula">p_背風面 = q(h) × G × (${cpLee.toFixed(2)}) − qi(GCpi)</code>
+    <code class="formula">p_側風面 = q(h) × G × (-0.7) − qi(GCpi)</code>
+    <div style="font-size:.8rem;margin-top:6px;color:#374151">G：陣風反應因子（見2.7節）；q(z)：高度z處風速壓；q(h)：平均屋頂高度處風速壓</div>
+  </div>`;
+}
+
+// ===== Calc Flat/Slope Roof (Table 2.5) =====
+function calcFlatRoof(){
+  const h=val('inp_h'), L=val('inp_L'), theta=val('inp_theta')||0, B=val('inp_B');
+  if(!h||!L) throw new Error('請輸入 h 和 L');
+
+  const hL=h/L;
+
+  // ── 共用：getRowCp helper ──
+  const getRowCp=(row,th)=>{
+    if(th===0) return {pos:row[3],neg:null};
+    if(th<=15){
+      if(row[4]!==null&&row[5]!==null) return {pos:row[4],neg:row[5]};
+      if(row[4]!==null) return {pos:row[4],neg:null};
+      return {pos:null,neg:null};
+    }
+    if(th<=20) return {pos:row[6],neg:null};
+    if(th<=30) return {pos:row[7],neg:null};
+    if(th<=40) return {pos:row[8],neg:null};
+    if(th<=50) return {pos:row[9],neg:null};
+    return {pos:0.01*th,neg:null};
+  };
+
+  // ── 垂直於屋脊 ──
+  const rowsPerp=DB.table_2_5_roof.rows.filter(r=>r[1]==='垂直於屋脊');
+  let hLRow;
+  if(hL<=0.3) hLRow=rowsPerp[0];
+  else if(hL<=0.5) hLRow=rowsPerp[1];
+  else if(hL<=1.0) hLRow=rowsPerp[2];
+  else hLRow=rowsPerp[3];
+  const cpRes=getRowCp(hLRow,theta);
+  const cpLee=hLRow[11];
+
+  // ── 平行於屋脊 ──
+  const hB = B && !isNaN(B) ? h/B : hL;
+  const cpPara = hB<=2.5 ? -0.7 : -0.8;
+
+  const perpNegNote = cpRes.neg!==null ? `<br><span style="color:#888;font-size:.78rem">亦需考慮：${cpRes.neg.toFixed(2)}</span>` : '';
+
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.5 屋頂外風壓係數 Cp（主要風力抵抗系統）</h4>
+    <code class="formula">h = ${h} m，L = ${L} m，B = ${B&&!isNaN(B)?B+' m':'未輸入'}，θ = ${theta}°</code>
+    <code class="formula">h/L = ${hL.toFixed(2)} → 使用列 ${hLRow[2]}${B&&!isNaN(B)?'　　h/B = '+(h/B).toFixed(2):''}</code>
+  </div>
+
+  <h3 style="font-size:.9rem;font-weight:700;color:var(--primary);margin:16px 0 8px">① 風向垂直於屋脊</h3>
+  <div class="summary-grid">
+    <div class="summary-card windward">
+      <div class="sc-label">迎風面屋頂 Cp</div>
+      <div class="sc-value">${cpRes.pos!==null?cpRes.pos.toFixed(2):'−'}${perpNegNote}</div>
+      <div class="sc-formula">${cpRes.neg!==null?'*兩者均需考慮　':''} 使用 q(h)</div>
+    </div>
+    <div class="summary-card leeward">
+      <div class="sc-label">背風面屋頂 Cp</div>
+      <div class="sc-value">${cpLee.toFixed(1)}</div>
+      <div class="sc-formula">所有θ及h/L值，使用 q(h)</div>
+    </div>
+  </div>
+  <table class="result-table">
+    <tr><th>h/L</th><th>θ=0°</th><th>θ=10~15°</th><th>θ=20°</th><th>θ=30°</th><th>θ=40°</th><th>θ=50°</th><th>θ≧60°</th><th>背風面</th></tr>
+    ${rowsPerp.map(r=>`<tr ${r[2]===hLRow[2]?'class="highlight"':''}>
+      <td>${r[2]}</td><td>${r[3]}</td>
+      <td>${r[4]!==null?r[4]:''}${r[5]!==null?'<br>'+r[5]:''}</td>
+      <td>${r[6]||'−'}</td><td>${r[7]||'−'}</td><td>${r[8]||'−'}</td><td>${r[9]||'−'}</td>
+      <td>${r[10]}</td><td>${r[11]}</td>
+    </tr>`).join('')}
+  </table>
+  <div class="note-box">*(1) θ=10~15°時，0.2和-0.9都要用（兩者均須設計）。負號表示風壓遠離屋面；正號表示指向屋面。</div>
+
+  <h3 style="font-size:.9rem;font-weight:700;color:var(--primary);margin:20px 0 8px">② 風向平行於屋脊</h3>
+  <div class="summary-grid">
+    <div class="summary-card side">
+      <div class="sc-label">迎風面及背風面 Cp</div>
+      <div class="sc-value">${cpPara.toFixed(1)}</div>
+      <div class="sc-formula">h/L或h/B ${hB<=2.5?'≦':'＞'} 2.5，使用 q(h)</div>
+    </div>
+  </div>
+  <table class="result-table">
+    <tr><th>條件</th><th>Cp（迎風面及背風面）</th></tr>
+    <tr ${hB<=2.5?'class="highlight"':''}><td>h/L 或 h/B ≦ 2.5</td><td class="cp-neg">−0.7</td></tr>
+    <tr ${hB>2.5?'class="highlight"':''}><td>h/L 或 h/B ＞ 2.5</td><td class="cp-neg">−0.8</td></tr>
+  </table>
+
+  <div class="formula-box" style="margin-top:14px">
+    <h4>設計風壓公式（兩種風向均適用）</h4>
+    <code class="formula">p = q(h) × G × Cp − qi(GCpi)</code>
+  </div>`;
+}
+
+// ===== Calc Arch Roof (Table 2.6) =====
+function calcArchRoof(){
+  const archType=selVal('inp_archType');
+  const rStr=document.getElementById('inp_r').value.trim();
+  if(!archType) throw new Error('請選擇拱形屋頂支承形式');
+  if(rStr==='') throw new Error('請輸入拱高與跨度比值 r');
+  const r=parseFloat(rStr);
+  if(isNaN(r)||r<=0||r>0.6) throw new Error('r 值需在 0 < r ≦ 0.6 範圍內');
+
+  let cpWind, cpCenter;
+  let formulaWind='';
+  if(archType==='wall'){
+    if(r<0.2){    cpWind=-0.9;         formulaWind='-0.9'; }
+    else if(r<0.3){ cpWind=1.5*r-0.3; formulaWind='1.5×'+r+' − 0.3'; }
+    else{          cpWind=2.75*r-0.7; formulaWind='2.75×'+r+' − 0.7'; }
+  } else {
+    cpWind=1.4*r; formulaWind='1.4×'+r;
+  }
+  cpCenter=-0.7-r;
+
+  const tableRows=DB.table_2_6_arch.rows;
+  // rows: [id, type_str, r_min, r_max, cp_wind_str, cp_center_str, cp_lee]
+  const tableHTML=tableRows.map(function(row){
+    const isGround=(row[1].indexOf('ground')>=0);
+    const typeMatch=(archType==='ground'&&isGround)||(archType==='wall'&&!isGround);
+    const rMatch=(r>row[2]&&r<=row[3]);
+    const hi=typeMatch&&rMatch?'class="highlight"':'';
+    return '<tr '+hi+'><td>'+(isGround?'地面支撐':'牆上')+'</td>'
+      +'<td>'+row[2]+' &lt; r ≦ '+row[3]+'</td>'
+      +'<td>'+row[4]+'</td><td>'+row[5]+'</td><td>'+row[6]+'</td></tr>';
+  }).join('');
+
+  const alt6r = (r>=0.2&&r<=0.3)?(6*r-2.1).toFixed(4):'不適用（僅0.2≦r≦0.3時）';
+
+  return '<div class="formula-box">'
+    +'<h4>📐 表2.6 拱形屋頂外風壓係數（主要風力抵抗系統）</h4>'
+    +'<code class="formula">支承形式：'+(archType==='wall'?'牆上（拱腳在牆上）':'地面支撐（拱腳直接在地面）')+'，r = '+r+'</code>'
+    +'<code class="formula">迎風面 Cp(P) = '+formulaWind+' = '+cpWind.toFixed(4)+'</code>'
+    +'<code class="formula">中央部分 Cp(Q) = −0.7 − r = −0.7 − '+r+' = '+cpCenter.toFixed(4)+'</code>'
+    +'<code class="formula">背風面 Cp(P) = −0.5</code>'
+    +'</div>'
+    +'<div class="summary-grid">'
+    +'<div class="summary-card windward"><div class="sc-label">迎風面 P（各佔1/4跨度）</div>'
+    +'<div class="sc-value '+(cpWind>=0?'cp-pos':'cp-neg')+'">'+(cpWind>=0?'+':'')+cpWind.toFixed(3)+'</div>'
+    +'<div class="sc-formula">使用 q(h)</div></div>'
+    +'<div class="summary-card side"><div class="sc-label">中央部分 Q（佔1/2跨度）</div>'
+    +'<div class="sc-value cp-neg">'+cpCenter.toFixed(3)+'</div>'
+    +'<div class="sc-formula">使用 q(h)</div></div>'
+    +'<div class="summary-card leeward"><div class="sc-label">背風面 P（各佔1/4跨度）</div>'
+    +'<div class="sc-value cp-neg">−0.500</div>'
+    +'<div class="sc-formula">使用 q(h)</div></div>'
+    +'</div>'
+    +'<table class="result-table">'
+    +'<tr><th>支承</th><th>r 範圍</th><th>迎風面 P 公式</th><th>中央部分 Q 公式</th><th>背風面 P</th></tr>'
+    +tableHTML
+    +'</table>'
+    +'<div class="note-box">⚠️ <b>注意事項：</b><br>'
+    +'(1) 正號：風壓指向屋頂面；負號：風壓遠離屋頂面。<br>'
+    +'(2) 迎風面及背風面各佔跨度 1/4，中央部分佔 1/2。<br>'
+    +'(3) 當 0.2 ≦ r ≦ 0.3 時，牆上拱形屋頂迎風面亦得以 6r − 2.1 計算（= '+alt6r+'）。<br>'
+    +'(4) 局部構材設計時，Cp 值須乘以 <b>1.81</b> 倍。'
+    +'</div>';
+}
+
+
+// ===== Calc Dual Roof (Table 2.7) =====
+function calcDualRoof(){
+  const h=val('inp_h'),L=val('inp_L'),theta=val('inp_theta');
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.7 雙斜式屋頂外風壓係數</h4>
+    <code class="formula">h = ${h||'−'} m，L = ${L||'−'} m，θ = ${theta||'−'}°</code>
+  </div>
+  <table class="result-table">
+    <tr><th>屋頂面</th><th>代號</th><th>Cp</th></tr>
+    <tr class="highlight"><td>迎風面</td><td>W</td><td>查表2.5迎風面（h/L=${(h/L).toFixed(2)}，θ=${theta}°）</td></tr>
+    <tr><td>背風面</td><td>L</td><td>查表2.5背風面（Cp = -0.7）</td></tr>
+    <tr><td>中央部分</td><td>C</td><td>查表2.5背風面（Cp = -0.7）</td></tr>
+  </table>
+  <div class="note-box">雙斜式屋頂之Cp值請依表2.5之迎風面及背風面值決定，本表提供代號對應關係。</div>`;
+}
+
+// ===== Calc Sawtooth (Table 2.8) =====
+function calcSawtooth(){
+  const theta=val('inp_theta');
+  const data=[
+    {code:'D',name:'第一個迎風面',cp:'查表2.5迎風面'},
+    {code:'E',name:'第一個背風面',cp:'查表2.5背風面'},
+    {code:"D'",name:'第二個迎風面',cp:'查表2.5背風面'},
+    {code:"E'",name:'第二個背風面',cp:'-0.5'},
+    {code:'D"',name:'第三個迎風面',cp:'-0.5'},
+    {code:'E"',name:'第三個背風面',cp:'-0.4'},
+    {code:"D\"'",name:'第四個迎風面',cp:'-0.4'},
+    {code:"E\"'",name:'第四個背風面',cp:'-0.3'},
+    {code:'D""',name:'第五個迎風面',cp:'-0.3'},
+    {code:'其餘',name:'其餘',cp:'-0.3'},
+  ];
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.8 鋸齒狀屋頂外風壓係數</h4>
+    <code class="formula">θ = ${theta||'−'}°，h = ${val('inp_h')||'−'} m</code>
+  </div>
+  <table class="result-table">
+    <tr><th>傾斜面</th><th>代號</th><th>Cp</th></tr>
+    ${data.map((d,i)=>`<tr ${i<2?'class="highlight"':''}><td>${d.name}</td><td>${d.code}</td><td>${d.cp}</td></tr>`).join('')}
+  </table>
+  <div class="note-box">若風向從B端吹來，則迎風面取在B端。使用風速壓均為q(h)。</div>`;
+}
+
+// ===== Calc Open Mono (Table 2.9) =====
+function calcOpenMono(){
+  const theta=val('inp_theta_m'), L=val('inp_L_m'), B=val('inp_B_m');
+  if(!theta||!L||!B) throw new Error('請輸入 θ、L、B');
+  const LB=L/B;
+  const data=DB.table_2_9.data;
+  const thetas=[10,15,20,25,30];
+  const lbKeys=[5,3,2,1,0.5,0.333,0.2];
+
+  // Interpolate theta
+  let cf;
+  const interpTheta=(th)=>{
+    const lbKs=Object.keys(data[th]).map(Number);
+    // Find closest LB
+    let lbLow=lbKs[0],lbHigh=lbKs[lbKs.length-1];
+    for(let lb of lbKs){if(lb<=LB)lbLow=lb;}
+    for(let lb of lbKs.reverse()){if(lb>=LB)lbHigh=lb;}
+    if(lbLow===lbHigh) return data[th][lbLow];
+    return data[th][lbLow]+(data[th][lbHigh]-data[th][lbLow])/(lbHigh-lbLow)*(LB-lbLow);
+  };
+
+  let thLow=10,thHigh=30;
+  for(let t of thetas){if(t<=theta)thLow=t;}
+  for(let t of [...thetas].reverse()){if(t>=theta)thHigh=t;}
+  if(thLow===thHigh) cf=interpTheta(thLow);
+  else {
+    const cfL=interpTheta(thLow), cfH=interpTheta(thHigh);
+    cf=cfL+(cfH-cfL)/(thHigh-thLow)*(theta-thLow);
+  }
+
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.9 開放式建築物單斜式屋頂風力係數 Cf</h4>
+    <code class="formula">θ = ${theta}°，L = ${L} m，B = ${B} m，L/B = ${LB.toFixed(2)}</code>
+    <code class="formula">Cf = ${cf.toFixed(3)} ${(thLow!==theta||LB!==Math.round(LB))?'（內插）':''}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card windward">
+      <div class="sc-label">風力係數 Cf</div>
+      <div class="sc-value">${cf.toFixed(3)}</div>
+      <div class="sc-formula">向內向外均考慮</div>
+    </div>
+  </div>
+  <table class="result-table">
+    <tr><th>θ</th><th>L/B=5</th><th>L/B=3</th><th>L/B=2</th><th>L/B=1</th><th>L/B=1/2</th><th>L/B=1/3</th><th>L/B=1/5</th></tr>
+    ${thetas.map(t=>`<tr ${t===thLow||t===thHigh?'class="highlight"':''}>
+      <td>${t}°</td>${[5,3,2,1,0.5,0.333,0.2].map(lb=>`<td>${(data[t][lb]||'').toFixed?data[t][lb].toFixed(2):data[t][lb]||'−'}</td>`).join('')}
+    </tr>`).join('')}
+  </table>
+  <div class="formula-box">
+    <h4>設計風力公式</h4>
+    <code class="formula">F = q(z_Ac) × G × Cf × Ac</code>
+    <div style="font-size:.8rem;margin-top:6px;color:#374151">Ac：受風面積（屋頂面積）；z_Ac：Ac形心高度</div>
+  </div>`;
+}
+
+// ===== Calc Solid Sign (Table 2.10) =====
+function calcSolidSign(){
+  const loc=selVal('inp_signLoc'), ratio=val('inp_signRatio');
+  if(!loc||!ratio) throw new Error('請選擇位置並輸入比值');
+  const data_g=[[3,1.2],[5,1.3],[8,1.4],[10,1.5],[20,1.75],[30,1.85],[40,2.0]];
+  const data_e=[[6,1.2],[10,1.3],[16,1.4],[20,1.5],[40,1.75],[60,1.85],[80,2.0]];
+  const arr=loc==='ground'?data_g:data_e;
+  // Interpolate
+  let cf;
+  let lo=arr[0],hi=arr[arr.length-1];
+  for(let r of arr){if(r[0]<=ratio)lo=r;}
+  for(let r of [...arr].reverse()){if(r[0]>=ratio)hi=r;}
+  if(lo===hi) cf=lo[1];
+  else cf=lo[1]+(hi[1]-lo[1])/(hi[0]-lo[0])*(ratio-lo[0]);
+
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.10 實體標示物風力係數 Cf</h4>
+    <code class="formula">位置：${loc==='ground'?'地面上（ν='+ratio+'）':'地面以上（M/N='+ratio+'）'}，Cf = ${cf.toFixed(2)}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card windward">
+      <div class="sc-label">風力係數 Cf</div>
+      <div class="sc-value">${cf.toFixed(2)}</div>
+    </div>
+  </div>
+  <table class="result-table">
+    <tr><th>${loc==='ground'?'高寬比 ν':'M/N'}</th><th>Cf</th></tr>
+    ${arr.map(r=>`<tr ${r[0]===lo[0]||r[0]===hi[0]?'class="highlight"':''}>
+      <td>${r[0]==='40'||r[0]===40&&loc==='ground'?'≧'+r[0]:r[0]==='80'||r[0]===80&&loc==='elevated'?'≧'+r[0]:r[0]}</td><td>${r[1]}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+// ===== Calc Open Sign (Table 2.11) =====
+function calcOpenSign(){
+  const secType=selVal('inp_secType'), eps=val('inp_solidity');
+  if(!secType||eps===null||isNaN(eps)) throw new Error('請選擇斷面形式並輸入實體比');
+  // rows: [eps_min, eps_max, cf_flat, cf_round_low, cf_round_high]
+  // 對應原表欄位順序：平邊構材 | 圓形D√q≦1.70 | 圓形D√q>1.70
+  const rows=[
+    [0,   0.1,  2.0, 1.2, 0.8],
+    [0.1, 0.29, 1.8, 1.3, 0.9],
+    [0.3, 0.7,  1.6, 1.5, 1.1]
+  ];
+  let row=rows.find(r=>eps>=r[0]&&eps<=r[1])||rows[rows.length-1];
+  let cf;
+  if(secType==='flat')       cf=row[2];   // 平邊構材
+  else if(secType==='round_low')  cf=row[3];   // 圓形 D√q≦1.70
+  else                       cf=row[4];   // 圓形 D√q>1.70
+
+  const secLabel = secType==='flat'?'平邊構材':secType==='round_low'?'圓形斷面 D√q(z) ≦ 1.70':'圓形斷面 D√q(z) > 1.70';
+
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.11 中空式/格子式構架風力係數 Cf</h4>
+    <code class="formula">ε = ${eps}，斷面形式：${secLabel}</code>
+    <code class="formula">Cf = ${cf}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card windward"><div class="sc-label">風力係數 Cf</div><div class="sc-value">${cf}</div></div>
+  </div>
+  <table class="result-table">
+    <tr><th>ε</th><th>平邊構材</th><th>圓形 D√q(z) ≦ 1.70</th><th>圓形 D√q(z) &gt; 1.70</th></tr>
+    ${rows.map(r=>{
+      const hi=(eps>=r[0]&&eps<=r[1])?'class="highlight"':'';
+      return '<tr '+hi+'><td>'+r[0]+'～'+r[1]+'</td><td>'+(secType==='flat'?'<b>'+r[2]+'</b>':r[2])+'</td><td>'+(secType==='round_low'?'<b>'+r[3]+'</b>':r[3])+'</td><td>'+(secType==='round_high'?'<b>'+r[4]+'</b>':r[4])+'</td></tr>';
+    }).join('')}
+  </table>
+  <div class="note-box">
+    ε：實體面積與總面積之比值。D：圓形斷面構件直徑（m）。q(z)：風速壓（kgf/m²）。
+  </div>`;
+}
+
+// ===== Calc Chimney (Table 2.12) =====
+function calcChimney(){
+  const shape=selVal('inp_chimShape'), h=val('inp_h_c'), D=val('inp_D_c');
+  if(!shape||!h||!D) throw new Error('請完整輸入參數');
+  const hD=h/D;
+  const shapeMap={
+    'sq_perp':{idx:0},'sq_diag':{idx:1},'hex_oct':{idx:2},
+    'circ_low_smooth':{idx:3},'circ_low_rough':{idx:4},'circ_low_vrough':{idx:5},'circ_high':{idx:6}
+  };
+  const row=DB.table_2_12[shapeMap[shape].idx];
+  // Interpolate hD: 1,7,25
+  let cf;
+  if(hD<=1) cf=row.cf[0];
+  else if(hD<=7) cf=row.cf[0]+(row.cf[1]-row.cf[0])/(7-1)*(hD-1);
+  else if(hD<=25) cf=row.cf[1]+(row.cf[2]-row.cf[1])/(25-7)*(hD-7);
+  else cf=row.cf[2];
+
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.12 煙囪、水塔風力係數 Cf</h4>
+    <code class="formula">h = ${h} m，D = ${D} m，h/D = ${hD.toFixed(2)}</code>
+    <code class="formula">形狀：${row.shape}，表面：${row.surf}</code>
+    <code class="formula">Cf = ${cf.toFixed(3)} ${hD!==1&&hD!==7&&hD!==25?'（內插）':''}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card windward"><div class="sc-label">風力係數 Cf</div><div class="sc-value">${cf.toFixed(3)}</div></div>
+  </div>
+  <table class="result-table">
+    <tr><th>形狀</th><th>表面</th><th>h/D=1</th><th>h/D=7</th><th>h/D=25</th></tr>
+    ${DB.table_2_12.map((r,i)=>`<tr ${i===shapeMap[shape].idx?'class="highlight"':''}>
+      <td>${r.shape}</td><td>${r.surf}</td><td>${r.cf[0]}</td><td>${r.cf[1]}</td><td>${r.cf[2]}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+// ===== Calc Prism (Table 2.13) =====
+function calcPrism(){
+  const shape=selVal('inp_prismShape'), h=val('inp_h_p'), D=val('inp_D_p');
+  if(!shape||!h||!D) throw new Error('請完整輸入參數');
+  const cfMap={rect_long:2.2,rect_short:1.4,tri_vert:1.2,tri_face:2.0,right_tri:1.55};
+  const cf=cfMap[shape];
+  const ratio=2*h/D;
+  let R;
+  if(ratio<=4) R=0.6;
+  else if(ratio<=8) R=0.7;
+  else if(ratio<=40) R=0.8;
+  else R=1.0;
+  const cfFinal=cf*R;
+
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.13 角柱體風力係數 Cf 及修正係數 R</h4>
+    <code class="formula">形狀：${shape}，h = ${h} m，D = ${D} m</code>
+    <code class="formula">2h/D = ${ratio.toFixed(2)}，基本 Cf = ${cf}，R = ${R}</code>
+    <code class="formula">設計風力係數 = Cf × R = ${cf} × ${R} = ${cfFinal.toFixed(3)}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card windward"><div class="sc-label">Cf（基本）</div><div class="sc-value">${cf}</div></div>
+    <div class="summary-card side"><div class="sc-label">修正係數 R</div><div class="sc-value">${R}</div></div>
+    <div class="summary-card internal"><div class="sc-label">Cf × R</div><div class="sc-value">${cfFinal.toFixed(3)}</div></div>
+  </div>`;
+}
+
+// ===== Calc Cable (Table 2.14) =====
+function calcCable(){
+  const surf=selVal('inp_cableSurf'), mode=selVal('inp_cableMode');
+  if(!surf||!mode) throw new Error('請選擇所有選項');
+  const map={smooth:[1.2,0.5],medium:[1.2,0.7],fine:[1.2,0.9],coarse:[1.3,1.1]};
+  const vals=map[surf];
+  const cf=mode==='low'?vals[0]:vals[1];
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.14 繩、竿、管之風力係數 Cf</h4>
+    <code class="formula">表面：${surf}，D√q(z)：${mode==='low'?'< 1.70':'≧ 1.70'}，Cf = ${cf}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card windward"><div class="sc-label">風力係數 Cf</div><div class="sc-value">${cf}</div></div>
+  </div>`;
+}
+
+// ===== Calc Truss (Table 2.15) =====
+function calcTruss(){
+  const shape=selVal('inp_trussShape'), eps=val('inp_solidity_t');
+  if(!shape||isNaN(eps)) throw new Error('請完整輸入參數');
+  let cf;
+  if(eps<0.025) cf=shape==='square'?4.0:3.6;
+  else if(eps<=0.44) cf=shape==='square'?(4.1-5.2*eps):(3.7-4.5*eps);
+  else if(eps<=0.69) cf=shape==='square'?1.8:1.7;
+  else cf=shape==='square'?(1.3+0.7*eps):(1.0+eps);
+
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.15 桁架高塔風力係數 Cf</h4>
+    <code class="formula">形狀：${shape==='square'?'方形':'三角形'}高塔，ε = ${eps}</code>
+    <code class="formula">Cf = ${cf.toFixed(3)}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card windward"><div class="sc-label">風力係數 Cf</div><div class="sc-value">${cf.toFixed(3)}</div></div>
+  </div>
+  <table class="result-table">
+    <tr><th>ε 範圍</th><th>方形高塔 Cf</th><th>三角形高塔 Cf</th></tr>
+    <tr ${eps<0.025?'class="highlight"':''}><td>&lt; 0.025</td><td>4.0</td><td>3.6</td></tr>
+    <tr ${eps>=0.025&&eps<=0.44?'class="highlight"':''}><td>0.025～0.44</td><td>4.1-5.2ε</td><td>3.7-4.5ε</td></tr>
+    <tr ${eps>0.44&&eps<=0.69?'class="highlight"':''}><td>0.45～0.69</td><td>1.8</td><td>1.7</td></tr>
+    <tr ${eps>0.69?'class="highlight"':''}><td>0.70～1.0</td><td>1.3+0.7ε</td><td>1.0+ε</td></tr>
+  </table>`;
+}
+
+// ===== Calc Guy Wire (Table 2.16) =====
+function calcGuyWire(){
+  const theta=val('inp_theta_g');
+  if(!theta) throw new Error('請輸入角度 θ');
+  const data=DB.table_2_16;
+  let lo=data[0],hi=data[data.length-1];
+  for(let r of data){if(r.theta<=theta)lo=r;}
+  for(let r of [...data].reverse()){if(r.theta>=theta)hi=r;}
+  let cd,cl;
+  if(lo.theta===hi.theta){cd=lo.cd;cl=lo.cl;}
+  else {
+    cd=lo.cd+(hi.cd-lo.cd)/(hi.theta-lo.theta)*(theta-lo.theta);
+    cl=lo.cl+(hi.cl-lo.cl)/(hi.theta-lo.theta)*(theta-lo.theta);
+  }
+
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.16 高塔拉固索風力係數</h4>
+    <code class="formula">θ = ${theta}°</code>
+    <code class="formula">CD = ${cd.toFixed(3)}，CL = ${cl.toFixed(3)} ${lo.theta!==theta?'（內插）':''}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card windward"><div class="sc-label">順風向 CD</div><div class="sc-value">${cd.toFixed(3)}</div></div>
+    <div class="summary-card side"><div class="sc-label">橫風向 CL</div><div class="sc-value">${cl.toFixed(3)}</div></div>
+  </div>
+  <table class="result-table">
+    <tr><th>θ（度）</th><th>CD</th><th>CL</th></tr>
+    ${data.map(r=>`<tr ${r.theta===lo.theta||r.theta===hi.theta?'class="highlight"':''}><td>${r.theta}</td><td>${r.cd}</td><td>${r.cl}</td></tr>`).join('')}
+  </table>`;
+}
+
+// ===== Calc Internal (Table 2.17) =====
+function calcInternal(){
+  const row=DB.table_2_17.find(r=>
+    (currentBuilding==='enclosed'&&r.type==='封閉式建築')||
+    (currentBuilding==='partial'&&r.type==='部分封閉式建築')||
+    (currentBuilding==='open'&&r.type==='開放式建築')
+  );
+  return `
+  <div class="formula-box">
+    <h4>📐 表2.17 內風壓係數（GCpi）</h4>
+    <code class="formula">建築物類型：${row.type}</code>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card internal">
+      <div class="sc-label">正內風壓</div>
+      <div class="sc-value" style="color:#4f46e5">+${row.pos.toFixed(3)}</div>
+      <div class="sc-formula">所有牆內面均為正值</div>
+    </div>
+    <div class="summary-card internal">
+      <div class="sc-label">負內風壓</div>
+      <div class="sc-value" style="color:#4f46e5">${row.neg.toFixed(3)}</div>
+      <div class="sc-formula">所有牆內面均為負值</div>
+    </div>
+  </div>
+  <table class="result-table">
+    <tr><th>建築物形式</th><th>(GCpi) 正值</th><th>(GCpi) 負值</th></tr>
+    ${DB.table_2_17.map(r=>`<tr ${r.type===row.type?'class="highlight"':''}>
+      <td>${r.type}</td><td class="cp-pos">+${r.pos.toFixed(3)}</td><td class="cp-neg">${r.neg.toFixed(3)}</td>
+    </tr>`).join('')}
+  </table>
+  <div class="note-box">下面兩種情況須分別考慮：<br>
+    (1) 所有牆內面之(GCpi)為正值：+${row.pos.toFixed(3)}<br>
+    (2) 所有牆內面之(GCpi)為負值：${row.neg.toFixed(3)}
+  </div>
+  <div class="formula-box">
+    <h4>設計風壓公式</h4>
+    <code class="formula">p = q·G·Cp − qi·(GCpi)</code>
+    <div style="font-size:.8rem;margin-top:6px;color:#374151">
+      qi：封閉式建築使用q(h)；<br>
+      部分封閉式（正值GCpi）：使用q(zh0)（zh0為影響正值內風壓之最高開口高度）；<br>
+      部分封閉式（負值GCpi）：使用q(h)
+    </div>
+  </div>`;
+}
+
+function resetAll(){
+  document.getElementById('systemType').value='';
+  document.getElementById('buildingTypeWrap').style.display='none';
+  document.getElementById('buildingType').value='';
+  document.getElementById('buildingNote').style.display='none';
+  document.getElementById('buildingDiag').style.display='none';
+  document.getElementById('card2').style.display='none';
+  document.getElementById('card3').style.display='none';
+  document.getElementById('resultCard').classList.remove('show');
+  currentBuilding=''; currentComponent=''; currentSystemType='';
+  setStep(1);
+}
+</script>
+</body>
+</html>

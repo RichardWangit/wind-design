@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建築物用途係數查詢系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --ink: #1a1a2e;
+    --paper: #f5f0e8;
+    --accent: #c0392b;
+    --gold: #b8860b;
+    --muted: #8a7e6e;
+    --border: #d4c9b0;
+    --card: #fdfaf4;
+    --highlight: #fff3cd;
+    --success-bg: #e8f5e9;
+    --success: #2e7d32;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Serif TC', serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(180,160,120,0.12) 31px, rgba(180,160,120,0.12) 32px);
+  }
+
+  header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 2rem 2.5rem 1.5rem;
+    border-bottom: 4px solid var(--accent);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.02) 10px, rgba(255,255,255,0.02) 11px);
+  }
+  .header-inner { position: relative; max-width: 860px; margin: 0 auto; }
+  .header-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  header h1 {
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+  }
+  header p {
+    font-size: 0.85rem;
+    color: #a09080;
+    margin-top: 0.4rem;
+    letter-spacing: 0.03em;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Step indicators */
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 2rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+  }
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.8rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+  .step-item:first-child { border-radius: 4px 0 0 4px; }
+  .step-item:last-child { border-radius: 0 4px 4px 0; }
+  .step-item.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .step-item.done {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .step-num {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: currentColor;
+    color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step-item.active .step-num { background: var(--accent); color: white; }
+  .step-item.done .step-num { background: white; color: var(--accent); }
+  .step-arrow { color: var(--border); font-size: 0.8rem; padding: 0 0.1rem; background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+
+  /* Panels */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    display: none;
+    animation: slideIn 0.3s ease;
+  }
+  .panel.visible { display: block; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .panel-header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.75rem 1.25rem;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .panel-header .ph-icon {
+    font-size: 1rem;
+    color: var(--accent);
+  }
+
+  /* Category cards */
+  .category-grid {
+    padding: 1.25rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .cat-card {
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    padding: 1rem 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .cat-card:hover { border-color: var(--ink); transform: translateX(3px); box-shadow: -3px 0 0 var(--ink); }
+  .cat-card.selected { border-color: var(--accent); background: #fff8f7; box-shadow: -3px 0 0 var(--accent); }
+  .cat-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 500;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .cat-card.selected .cat-badge { background: var(--accent); }
+  .cat-info { flex: 1; }
+  .cat-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.25rem; }
+  .cat-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+  .cat-factor {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    background: var(--highlight);
+    border: 1px solid #e0c960;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--gold);
+    font-weight: 500;
+  }
+
+  /* Items list */
+  .items-list {
+    padding: 1.25rem;
+  }
+  .item-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    border: 1.5px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+  }
+  .item-row:hover { border-color: var(--ink); background: #fafafa; }
+  .item-row.selected { border-color: var(--accent); background: #fff8f7; }
+  .item-seq {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    width: 22px;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .item-text { font-size: 0.875rem; line-height: 1.6; }
+
+  /* Area condition note */
+  .area-note {
+    margin: 0 1.25rem 1rem;
+    padding: 0.75rem 1rem;
+    background: #fff8e1;
+    border-left: 3px solid var(--gold);
+    border-radius: 0 4px 4px 0;
+    font-size: 0.8rem;
+    color: #5d4037;
+    line-height: 1.6;
+  }
+  .area-note strong { color: var(--gold); }
+
+  /* Result panel */
+  .result-box {
+    padding: 1.5rem;
+  }
+  .result-path {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    font-family: 'DM Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .path-seg {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+  }
+  .result-main {
+    background: var(--success-bg);
+    border: 2px solid var(--success);
+    border-radius: 6px;
+    padding: 1.5rem;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  .result-label {
+    font-size: 0.78rem;
+    color: var(--success);
+    letter-spacing: 0.12em;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 0.5rem;
+  }
+  .result-value {
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: var(--success);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .result-period {
+    font-size: 0.82rem;
+    color: var(--success);
+    margin-top: 0.5rem;
+    opacity: 0.8;
+  }
+  .result-notes {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.85rem 1rem;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: var(--ink);
+  }
+  .result-notes strong { color: var(--accent); }
+
+  /* Reset btn */
+  .btn-reset {
+    margin-top: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1.2rem;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: 4px;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .btn-reset:hover { background: var(--accent); }
+
+  /* Loading */
+  #loading {
+    text-align: center;
+    padding: 3rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-family: 'DM Mono', monospace;
+  }
+  .spinner {
+    display: inline-block;
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .divider { width: 40px; height: 3px; background: var(--accent); margin: 0.5rem 0; }
+
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-label">建築物耐風設計規範 § 2.5</div>
+    <h1>建築物用途係數查詢系統</h1>
+    <p>依建築技術規則建築構造編第 32 條第 2 項規定</p>
+  </div>
+</header>
+
+<div class="container">
+  <div id="loading"><span class="spinner"></span>載入資料庫中…</div>
+
+  <div id="app" style="display:none">
+    <!-- Steps -->
+    <div class="steps">
+      <div class="step-item active" id="step1">
+        <span class="step-num">1</span>選擇建築類別
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step-item" id="step2">
+        <span class="step-num">2</span>確認列舉項目
+      </div>
+      <div class="step-arrow">›</div>
+      <div class="step-item" id="step3">
+        <span class="step-num">3</span>查看用途係數
+      </div>
+    </div>
+
+    <!-- Panel 1: Category selection -->
+    <div class="panel visible" id="panel-cat">
+      <div class="panel-header">
+        <span class="ph-icon">🏛</span>
+        STEP 1 — 選擇建築物類別
+      </div>
+      <div class="category-grid" id="cat-grid"></div>
+    </div>
+
+    <!-- Panel 2: Items -->
+    <div class="panel" id="panel-items">
+      <div class="panel-header">
+        <span class="ph-icon">📋</span>
+        STEP 2 — 確認適用項目
+      </div>
+      <div id="area-notes"></div>
+      <div class="items-list" id="items-list"></div>
+    </div>
+
+    <!-- Panel 3: Result -->
+    <div class="panel" id="panel-result">
+      <div class="panel-header">
+        <span class="ph-icon">✅</span>
+        STEP 3 — 用途係數查詢結果
+      </div>
+      <div class="result-box" id="result-box"></div>
+    </div>
+  </div>
+</div>
+
+<footer>資料來源：建築物耐風設計規範（2.5 用途係數）· SQLite + sql.js</footer>
+
+<script src="../shared/db/occupancy.js"></script>
+<script>
+// Embedded SQLite DB (base64)
+// 用途係數資料庫 — 由 shared/db/occupancy.js 提供
+
+let db;
+let selectedCat = null;
+let selectedItem = null;
+
+async function initDB() {
+  const SQL = await initSqlJs({
+    locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`
+  });
+  const bytes = Uint8Array.from(atob(DB_B64), c => c.charCodeAt(0));
+  db = new SQL.Database(bytes);
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  renderCategories();
+}
+
+function query(sql, params=[]) {
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) rows.push(stmt.getAsObject());
+  stmt.free();
+  return rows;
+}
+
+function renderCategories() {
+  const cats = query("SELECT * FROM categories ORDER BY id");
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = '';
+  cats.forEach(cat => {
+    const div = document.createElement('div');
+    div.className = 'cat-card';
+    div.dataset.id = cat.id;
+    div.innerHTML = `
+      <div class="cat-badge">第${['一','二','三','四','五'][cat.id-1]}類</div>
+      <div class="cat-info">
+        <div class="cat-name">${cat.name}</div>
+        <div class="cat-desc">${cat.description}</div>
+      </div>
+      <div class="cat-factor">I = ${cat.importance_factor}</div>
+    `;
+    div.addEventListener('click', () => selectCategory(cat.id));
+    grid.appendChild(div);
+  });
+}
+
+function selectCategory(catId) {
+  selectedCat = query("SELECT * FROM categories WHERE id=?", [catId])[0];
+  selectedItem = null;
+
+  // Update step indicator
+  document.getElementById('step1').className = 'step-item done';
+  document.getElementById('step2').className = 'step-item active';
+
+  // Highlight selected card
+  document.querySelectorAll('.cat-card').forEach(c => {
+    c.classList.toggle('selected', parseInt(c.dataset.id) === catId);
+  });
+
+  // Load items
+  const items = query("SELECT * FROM items WHERE category_id=? ORDER BY seq", [catId]);
+  const areaConds = query("SELECT * FROM area_conditions WHERE category_id=?", [catId]);
+
+  const noteEl = document.getElementById('area-notes');
+  if (areaConds.length > 0) {
+    noteEl.innerHTML = `<div class="area-note">
+      <strong>⚠ 面積條件限制</strong><br>
+      ${areaConds.map(a => a.description).join('<br>')}
+    </div>`;
+  } else {
+    noteEl.innerHTML = '';
+  }
+
+  const listEl = document.getElementById('items-list');
+  listEl.innerHTML = '';
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.dataset.id = item.id;
+    div.innerHTML = `
+      <span class="item-seq">(${item.seq})</span>
+      <span class="item-text">${item.description}</span>
+    `;
+    div.addEventListener('click', () => selectItem(item.id, item.description));
+    listEl.appendChild(div);
+  });
+
+  document.getElementById('panel-items').classList.add('visible');
+  document.getElementById('panel-result').classList.remove('visible');
+  document.getElementById('panel-items').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function selectItem(itemId, itemDesc) {
+  selectedItem = { id: itemId, desc: itemDesc };
+  document.querySelectorAll('.item-row').forEach(r => {
+    r.classList.toggle('selected', parseInt(r.dataset.id) === itemId);
+  });
+
+  document.getElementById('step2').className = 'step-item done';
+  document.getElementById('step3').className = 'step-item active';
+
+  showResult(itemDesc);
+}
+
+function showResult(itemDesc) {
+  const cat = selectedCat;
+  const areaConds = query("SELECT * FROM area_conditions WHERE category_id=?", [cat.id]);
+
+  const catLabel = `第${['一','二','三','四','五'][cat.id-1]}類建築物`;
+  const iVal = cat.importance_factor;
+  const period = cat.return_period;
+
+  let notesHtml = '';
+  if (cat.notes) {
+    notesHtml += `<div class="result-notes"><strong>📌 備註說明</strong><br>${cat.notes}</div>`;
+  }
+  if (areaConds.length > 0) {
+    notesHtml += `<div class="result-notes" style="margin-top:0.75rem"><strong>⚠ 面積條件</strong><br>${areaConds.map(a=>a.description).join('<br>')}</div>`;
+  }
+
+  document.getElementById('result-box').innerHTML = `
+    <div class="result-path">
+      <span class="path-seg">${catLabel}</span>
+      <span>›</span>
+      <span class="path-seg" style="font-size:0.72rem;max-width:400px;white-space:normal">${itemDesc}</span>
+    </div>
+    <div class="result-main">
+      <div class="result-label">用 途 係 數 I</div>
+      <div class="result-value">${iVal}</div>
+      <div class="result-period">設計風速採 ${period} 年回歸期</div>
+    </div>
+    ${notesHtml}
+    <div>
+      <button class="btn-reset" onclick="resetAll()">↩ 重新查詢</button>
+    </div>
+  `;
+
+  document.getElementById('panel-result').classList.add('visible');
+  document.getElementById('panel-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // 回傳結果至整合式父頁面
+  const resultPayload = {
+    source: 'occupancy_query',
+    category: catLabel,
+    categoryId: cat.id,
+    itemDesc: itemDesc,
+    importanceFactor: iVal,
+    returnPeriod: period,
+    notes: cat.notes || '',
+    timestamp: new Date().toISOString()
+  };
+  if (window.parent !== window) {
+    window.parent.postMessage(resultPayload, '*');
+  }
+}
+
+function resetAll() {
+  selectedCat = null;
+  selectedItem = null;
+
+  ['step1','step2','step3'].forEach((id,i) => {
+    document.getElementById(id).className = 'step-item' + (i===0 ? ' active' : '');
+  });
+
+  document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('panel-items').classList.remove('visible');
+  document.getElementById('panel-result').classList.remove('visible');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+initDB().catch(err => {
+  document.getElementById('loading').innerHTML = `<span style="color:var(--accent)">❌ 資料庫載入失敗：${err.message}</span>`;
+});
+</script>
+</body>
+</html>

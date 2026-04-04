@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>設計風壓計算</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Sans+TC:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/theme.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: 'Noto Sans TC', sans-serif; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<div id="calc-panel" style="max-width:900px;margin:0 auto;padding:20px 24px 32px;">
+
+  <!-- Formula banner -->
+  <div id="calc-formula-banner" style="background:var(--ink);color:var(--paper);border-radius:10px;padding:16px 22px;margin-bottom:16px;position:relative;overflow:hidden">
+    <div style="position:absolute;right:-10px;bottom:-20px;font-size:100px;opacity:0.04;font-family:'Noto Serif TC',serif;font-weight:900;pointer-events:none">p</div>
+    <div id="calc-formula-ref" style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--gold);margin-bottom:6px">請先在 F 區選擇計算公式</div>
+    <div id="calc-formula-display" style="font-size:16px;font-weight:700;letter-spacing:.04em;font-family:'Noto Serif TC',serif">—</div>
+    <div id="calc-formula-note" style="font-size:11px;color:rgba(245,240,232,0.5);margin-top:6px"></div>
+  </div>
+
+  <!-- Auto-fill notice -->
+  <div id="calc-notice" style="background:#f0f7ff;border:1px solid #c7d7f5;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:#1a4080;display:flex;align-items:center;gap:8px">
+    <span>💡</span><span id="calc-notice-text">請先在 F 區選擇設計公式，S 區將依所選公式自動調整計算參數。</span>
+  </div>
+
+  <!-- Parameter grid -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px" id="param-grid"></div>
+
+  <!-- Calc button -->
+  <div style="display:flex;gap:10px;margin-bottom:24px">
+    <button onclick="runCalc()" style="flex:1;padding:12px;background:var(--accent8,#5a2d82);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Serif TC',serif;letter-spacing:.06em;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">⚡ 計算設計風壓</button>
+    <button onclick="resetCalc()" style="padding:12px 18px;background:transparent;color:var(--muted);border:1.5px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'">↺ 重設</button>
+  </div>
+
+  <!-- Result output -->
+  <div id="calc-result"></div>
+</div>
+
+<script>
+// ── Hub results cache (populated via postMessage from hub) ────────
+let _hubResults = {};
+
+// ── postMessage bridge ────────────────────────────────────────────
+window.addEventListener('message', function(e) {
+  if (!e.data || typeof e.data !== 'object') return;
+  // Hub sends all cached results as a map
+  if (e.data.source === 'hub_to_sec_s_results') {
+    _hubResults = e.data.results || {};
+    buildParamGrid();
+  }
+  // Hub relays formula selection from frame-f
+  if (e.data.source === 'wind_pressure_formula') {
+    // Store as formula result so getActiveFormula can find it
+    if (e.data.formulas) _hubResults['formula'] = e.data;
+    buildParamGrid();
+  }
+});
+
+// ── Adapter: read from local cache instead of hub results array ───
+function getResultByType(type) {
+  return _hubResults[type] || null;
+}
+
+function getActiveFormula() {
+  const fd = _hubResults['formula'];
+  if (!fd || !fd.formulas) return null;
+  const mainFormulas = fd.formulas.filter(f => !f.isExtra);
+  if (!mainFormulas.length) return null;
+  return mainFormulas[0];
+}
+
+// ── Calc logic (ported from hub.js S-section) ────────────────────
+const FORMULA_CONFIGS = {
+  '2.1': {
+    name:'封閉/部分封閉式普通建築物 MWFRS',
+    display:'p = q(z) · G · Cp − qi · (GCpi)',
+    note:'q：迎風面取q(z)，其餘取q(h)；qi：封閉式取q(h)',
+    gLabel:'G  陣風反應因子（普通建築物）',
+    gHint:'普通建築物可取 1.88',
+    useGf: false, useAc: false, useCpn: false, useCf: false, useGCp: false,
+    hasCp: true, hasGCpi: true,
+  },
+  '2.2': {
+    name:'封閉/部分封閉式柔性建築物 MWFRS',
+    display:'p = q(z) · Gf · Cp − qi · (GCpi)',
+    note:'Gf 為柔性建築物陣風反應因子，須依公式(2.9)計算',
+    gLabel:'Gf  陣風反應因子（柔性建築物）',
+    gHint:'柔性建築物，須依公式(2.9)計算',
+    useGf: true, useAc: false, useCpn: false, useCf: false, useGCp: false,
+    hasCp: true, hasGCpi: true,
+  },
+  '2.3': {
+    name:'屋頂女兒牆設計風壓 (MWFRS)',
+    display:'pp = qp · (GCpn)',
+    note:'迎風面女兒牆：(GCpn)=+1.8；背風面女兒牆：(GCpn)=−1.1',
+    gLabel:null,
+    useGf: false, useAc: false, useCpn: true, useCf: false, useGCp: false,
+    hasCp: false, hasGCpi: false,
+  },
+  '2.4': {
+    name:'開放式建築物設計風力',
+    display:'F = q(zAc) · G · Cf · Ac',
+    note:'q(zAc) 為受風面積 Ac 形心高度處之風速壓',
+    gLabel:'G  陣風反應因子（普通建築物）',
+    gHint:'普通建築物可取 1.88',
+    useGf: false, useAc: true, useCpn: false, useCf: true, useGCp: false,
+    hasCp: false, hasGCpi: false,
+  },
+  '3.1': {
+    name:'局部構材設計風壓（高度 ≤ 18m）',
+    display:'p = q(h) · [(GCp) − (GCpi)]',
+    note:'q(h) 為平均屋頂高度處之風速壓；(GCp)含陣風因子，不可分離',
+    gLabel:null,
+    useGf: false, useAc: false, useCpn: false, useCf: false, useGCp: true,
+    hasCp: false, hasGCpi: true,
+  },
+  '3.2': {
+    name:'局部構材設計風壓（高度 > 18m）',
+    display:'p = q · (GCp) − qi · (GCpi)',
+    note:'迎風面取q(z)，其餘取q(h)；(GCp)含陣風因子',
+    gLabel:null,
+    useGf: false, useAc: false, useCpn: false, useCf: false, useGCp: true,
+    hasCp: false, hasGCpi: true,
+  },
+  '3.3': {
+    name:'屋頂女兒牆局部構材設計風壓 (C&C)',
+    display:'p = qp · [(GCp) − (GCpi)]',
+    note:'qp 為女兒牆頂端高度處之風速壓',
+    gLabel:null,
+    useGf: false, useAc: false, useCpn: false, useCf: false, useGCp: true,
+    hasCp: false, hasGCpi: true,
+  },
+  '3.4': {
+    name:'開放式建築物斜屋頂局部構材設計風壓',
+    display:'p = q(h) · G · Cpn',
+    note:'Cpn 為淨風壓係數（見圖3.3）',
+    gLabel:'G  陣風反應因子（普通建築物）',
+    gHint:'普通建築物可取 1.88',
+    useGf: false, useAc: false, useCpn: true, useCf: false, useGCp: false,
+    hasCp: false, hasGCpi: false,
+  },
+};
+
+// ── 取得目前 F 區公式 ─────────────────────────────────────────────
+function getActiveFormula() {
+  const wr = results.find(r => r.type === 'formula');
+  if (!wr) return null;
+  const mainFormulas = wr.data.formulas.filter(f => !f.isExtra);
+  if (!mainFormulas.length) return null;
+  return mainFormulas[0]; // 取第一條主要公式
+}
+
+function getResultByType(type) {
+  return results.find(r => r.type === type)?.data || null;
+}
+
+// ── 建立參數格子 ──────────────────────────────────────────────────
+function buildParamGrid() {
+  const formula = getActiveFormula();
+  const cfg = formula ? FORMULA_CONFIGS[formula.code] : null;
+
+  // Update banner
+  const bannerRef = document.getElementById('calc-formula-ref');
+  const bannerDisp = document.getElementById('calc-formula-display');
+  const bannerNote = document.getElementById('calc-formula-note');
+  const noticeText = document.getElementById('calc-notice-text');
+  if (cfg) {
+    bannerRef.textContent  = formula.code + ' · ' + cfg.name;
+    bannerDisp.textContent = cfg.display;
+    bannerNote.textContent = cfg.note;
+    noticeText.textContent = '系統已從查詢結果暫存區自動帶入已有參數，紅框欄位需手動填寫。';
+  } else {
+    bannerRef.textContent  = '請先在 F 區選擇設計公式';
+    bannerDisp.textContent = '—';
+    bannerNote.textContent = '';
+    noticeText.textContent = '請先在 F 區選擇設計公式，S 區將依所選公式自動調整計算參數。';
+  }
+
+  const grid = document.getElementById('param-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  document.getElementById('calc-result').innerHTML = '';
+
+  // Gather base values from other sections
+  const wa = getResultByType('wind');
+  const wb = getResultByType('occ');
+  const wc = getResultByType('terr');
+  const wd = getResultByType('kzt');
+  const we = getResultByType('wind-press');
+
+  const vals = {};
+  const wg = getResultByType('gust');
+
+  if (wa) vals.V10C = wa.speed;
+  if (wb) vals.I    = wb.importanceFactor;
+  if (wc && wc.parameters) {
+    const pa = wc.parameters.find(p => p.symbol === 'α');
+    const pg = wc.parameters.find(p => p.symbol === 'zg');
+    if (pa) vals.alpha = pa.value;
+    if (pg) vals.zg    = pg.value;
+  }
+  if (wd) vals.Kzt = wd.results.Kzt;
+  if (wg) vals.G = wg.value;   // G 或 Gf，統一存 vals.G
+  if (we && we.coefficients) {
+    we.coefficients.forEach(c => {
+      if (c.coef === '+GCpi' && vals.GCpi_pos === undefined) vals.GCpi_pos = c.value;
+      if (c.coef === '-GCpi' && vals.GCpi_neg === undefined) vals.GCpi_neg = c.value;
+    });
+    // Cp / GCp / Cf faces（排除 GCpi 及乘積項）
+    vals.faces = we.coefficients.filter(c =>
+      typeof c.value === 'number' &&
+      c.coef !== '+GCpi' && c.coef !== '-GCpi' &&
+      !c.coef.includes('×')
+    );
+    // Cpn faces（E區圖3.3查詢結果，供公式3.4使用）
+    vals.cpnFaces = we.coefficients.filter(c =>
+      typeof c.value === 'number' &&
+      (c.coef === 'Cpn 負壓' || c.coef === 'Cpn 正壓')
+    );
+  }
+
+  // ── Define which param cells to show depending on formula ──
+  const BASE = [
+    {key:'V10C', label:'V₁₀(C)  基本設計風速',   unit:'m/s', src:'A區', val:vals.V10C},
+    {key:'I',    label:'I  用途係數',             unit:'—',   src:'B區', val:vals.I},
+    {key:'alpha',label:'α  風速垂直分布指數',      unit:'—',   src:'C區', val:vals.alpha},
+    {key:'zg',   label:'zg  梯度高度',            unit:'m',   src:'C區', val:vals.zg},
+    {key:'Kzt',  label:'Kzt  地形係數',           unit:'—',   src:'D區', val:vals.Kzt},
+    {key:'z',    label:'z  建物計算高度',          unit:'m',   src:'手動', val:null},
+  ];
+
+  if (!cfg) {
+    // No formula selected: show base params grayed
+    BASE.forEach(d => addParamCell(grid, d));
+    return;
+  }
+
+  // Always show base params
+  BASE.forEach(d => addParamCell(grid, d));
+
+  // G / Gf
+  if (cfg.gLabel) {
+    const gVal = vals.G != null ? vals.G : null;
+    const gSrc = gVal != null ? 'G區' : '手動';
+    addParamCell(grid, {
+      key: 'G',
+      label: cfg.gLabel,
+      unit: '—', src: gSrc, val: gVal,
+      hint: gVal != null ? null : cfg.gHint
+    });
+  }
+
+  // GCpi (for formulas with internal pressure)
+  if (cfg.hasGCpi) {
+    addParamCell(grid, {key:'GCpi_pos', label:'(GCpi)₊  正內風壓係數', unit:'—', src:'E區', val:vals.GCpi_pos});
+    addParamCell(grid, {key:'GCpi_neg', label:'(GCpi)₋  負內風壓係數', unit:'—', src:'E區', val:vals.GCpi_neg});
+  }
+
+  // Ac for open building
+  if (cfg.useAc) {
+    addParamCell(grid, {key:'Ac', label:'Ac  受風特徵面積', unit:'m²', src:'手動', val:null, hint:'受風作用特徵面積'});
+  }
+
+  // Wind face Cp/Cf/GCp cells
+  const faceLabel = cfg.useGCp ? '(GCp) 外風壓係數（含陣風因子）' :
+                    cfg.useCf  ? 'Cf  風力係數' :
+                    cfg.useCpn ? 'Cpn  淨風壓係數' :
+                    cfg.hasCp  ? 'Cp  外風壓係數' : null;
+
+  if (faceLabel) {
+    const faceSection = document.createElement('div');
+    faceSection.style.cssText = 'grid-column:1/-1;margin-top:4px;';
+    const hasFaces = vals.faces && vals.faces.length > 0;
+    faceSection.innerHTML = `<div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;color:var(--muted);margin-bottom:10px">
+      ${hasFaces ? '各風面係數（E區自動）' : '各風面係數（請手動填寫）'}</div>`;
+    grid.appendChild(faceSection);
+
+    const faceGrid = document.createElement('div');
+    faceGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;grid-column:1/-1;';
+    faceGrid.id = 'face-grid';
+
+    if (hasFaces && (cfg.hasCp || cfg.useGCp || cfg.useCf)) {
+      vals.faces.forEach((f, idx) => {
+        addFaceCell(faceGrid, idx, f.face, f.coef, f.value);
+      });
+    } else if (cfg.useCpn && formula.code === '2.3') {
+      // 公式2.3（屋頂女兒牆 MWFRS）：固定使用規範值
+      addFaceCell(faceGrid, 0, '迎風面女兒牆', 'GCpn', 1.8,  true);
+      addFaceCell(faceGrid, 1, '背風面女兒牆', 'GCpn', -1.1, true);
+    } else if (cfg.useCpn) {
+      // 公式3.4（開放式建築物斜屋頂）：從E區圖3.3查詢結果取 Cpn，若無則顯示空白輸入格
+      const cpnFaces = vals.cpnFaces || [];
+      if (cpnFaces.length > 0) {
+        cpnFaces.forEach((f, idx) => {
+          addFaceCell(faceGrid, idx, f.face + '（' + f.coef + '）', 'Cpn', f.value, false);
+        });
+      } else {
+        addFaceCell(faceGrid, 0, '區域（請先查詢 E 區圖3.3 Cpn）', 'Cpn', null, false);
+      }
+    } else {
+      [['迎風面','Cp'],['背風面','Cp'],['側風面','Cp']].forEach((f, idx) => {
+        addFaceCell(faceGrid, idx, f[0], f[1], null, false);
+      });
+    }
+    grid.appendChild(faceGrid);
+  }
+}
+
+function addParamCell(grid, {key, label, unit, src, val, hint}) {
+  const has  = val !== undefined && val !== null;
+  const auto = src !== '手動';
+  const cell = document.createElement('div');
+  cell.style.cssText = 'background:var(--card-bg);border:1.5px solid ' + (has ? 'var(--border)' : 'var(--accent)') + ';border-radius:8px;padding:10px 12px;';
+  const srcBadge = `<span style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.1em;`
+    + `background:${has ? (auto ? 'rgba(44,122,75,.12)' : 'rgba(90,45,130,.12)') : 'rgba(192,57,43,.12)'};`
+    + `color:${has ? (auto ? 'var(--accent3)' : 'var(--accent8,#5a2d82)') : 'var(--accent)'};`
+    + `border-radius:4px;padding:1px 6px;margin-left:5px">`
+    + `${has ? (auto ? src + '自動' : '手動') : '缺少'}</span>`;
+  cell.innerHTML = `
+    <div style="font-size:10px;font-weight:600;color:var(--ink);margin-bottom:5px;display:flex;align-items:center;flex-wrap:wrap;gap:3px">
+      ${label} <span style="color:var(--muted);font-size:9px">(${unit})</span>${srcBadge}
+    </div>
+    <input type="number" step="any" id="cinp_${key}"
+      value="${has ? val : ''}"
+      placeholder="${hint || (has ? '' : '請手動輸入')}"
+      style="width:100%;padding:7px 10px;border:1.5px solid ${has ? 'var(--border)' : 'var(--accent)'};
+        border-radius:6px;font-size:13px;font-family:'DM Mono',monospace;
+        background:${has ? '#fff' : '#fff8f6'};outline:none;color:var(--ink)"
+      onfocus="this.style.borderColor='var(--accent8,#5a2d82)'"
+      onblur="this.style.borderColor='${has ? 'var(--border)' : 'var(--accent)'}'">`;
+  grid.appendChild(cell);
+}
+
+function addFaceCell(grid, idx, faceName, coefLabel, val, isFixed) {
+  const has = val !== undefined && val !== null;
+  const cell = document.createElement('div');
+  cell.style.cssText = 'background:var(--card-bg);border:1.5px solid ' + (has ? 'var(--border)' : 'var(--accent)') + ';border-radius:8px;padding:10px 12px;';
+  const srcBadge = !has
+    ? `<span style="font-size:8px;background:rgba(192,57,43,.12);color:var(--accent);border-radius:4px;padding:1px 5px;font-family:'DM Mono',monospace;margin-left:4px">缺少</span>`
+    : isFixed
+      ? `<span style="font-size:8px;background:rgba(26,82,118,.12);color:var(--accent2);border-radius:4px;padding:1px 5px;font-family:'DM Mono',monospace;margin-left:4px">規範值</span>`
+      : `<span style="font-size:8px;background:rgba(44,122,75,.12);color:var(--accent3);border-radius:4px;padding:1px 5px;font-family:'DM Mono',monospace;margin-left:4px">E區自動</span>`;
+  cell.innerHTML = `
+    <div style="font-size:10px;font-weight:600;color:var(--ink);margin-bottom:5px;display:flex;align-items:center;gap:4px">
+      ${faceName} <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted)">(${coefLabel})</span>${srcBadge}
+    </div>
+    <input type="number" step="any" id="cinp_face_${idx}"
+      value="${has ? val : ''}"
+      data-face="${faceName}" data-coef="${coefLabel}"
+      placeholder="${has ? '' : '請輸入 ' + coefLabel}"
+      ${isFixed ? 'readonly' : ''}
+      style="width:100%;padding:7px 10px;border:1.5px solid ${has ? 'var(--border)' : 'var(--accent)'};
+        border-radius:6px;font-size:13px;font-family:'DM Mono',monospace;
+        background:${isFixed ? '#f0f4f8' : (has ? '#fff' : '#fff8f6')};outline:none;color:var(--ink);
+        ${isFixed ? 'cursor:default;' : ''}"
+      onfocus="${isFixed ? '' : "this.style.borderColor='var(--accent8,#5a2d82)'"}"
+      onblur="${isFixed ? '' : "this.style.borderColor='" + (has ? 'var(--border)' : 'var(--accent)') + "'"}">`;
+  grid.appendChild(cell);
+}
+
+function getInputVal(key) {
+  const el = document.getElementById('cinp_' + key);
+  return el ? parseFloat(el.value) : NaN;
+}
+
+function getFaceInputs() {
+  return Array.from(document.querySelectorAll('[id^="cinp_face_"]'))
+    .map(el => ({face: el.dataset.face, coef: el.dataset.coef, value: parseFloat(el.value)}))
+    .filter(f => !isNaN(f.value));
+}
+
+// ── Main calculation ──────────────────────────────────────────────
+function runCalc() {
+  const formula = getActiveFormula();
+  const cfg = formula ? FORMULA_CONFIGS[formula.code] : null;
+  const out = document.getElementById('calc-result');
+
+  if (!cfg) {
+    out.innerHTML = `<div style="background:#fff2f0;border:1px solid var(--accent);border-radius:8px;padding:14px 16px;color:var(--accent);font-size:13px">⚠ 請先在 F 區選擇設計公式</div>`;
+    return;
+  }
+
+  const V   = getInputVal('V10C');
+  const I   = getInputVal('I');
+  const alp = getInputVal('alpha');
+  const zg  = getInputVal('zg');
+  const Kzt = getInputVal('Kzt');
+  const z   = getInputVal('z');
+  const G   = cfg.gLabel ? getInputVal('G') : NaN;
+  const GCpi_pos = cfg.hasGCpi ? getInputVal('GCpi_pos') : 0;
+  const GCpi_neg = cfg.hasGCpi ? getInputVal('GCpi_neg') : 0;
+  const Ac  = cfg.useAc ? getInputVal('Ac') : NaN;
+  const faces = getFaceInputs();
+
+  // Validate
+  const missing = [];
+  if (isNaN(V))   missing.push('V₁₀(C)');
+  if (isNaN(I))   missing.push('I');
+  if (isNaN(alp)) missing.push('α');
+  if (isNaN(zg))  missing.push('zg');
+  if (isNaN(Kzt)) missing.push('Kzt');
+  if (isNaN(z) || z < 0) missing.push('z');
+  if (cfg.gLabel && isNaN(G)) missing.push(cfg.useGf ? 'Gf' : 'G');
+  if (cfg.hasGCpi && isNaN(GCpi_pos)) missing.push('(GCpi)₊');
+  if (cfg.hasGCpi && isNaN(GCpi_neg)) missing.push('(GCpi)₋');
+  if (cfg.useAc && isNaN(Ac)) missing.push('Ac');
+  if ((cfg.hasCp || cfg.useGCp || cfg.useCf || cfg.useCpn) && faces.length === 0) missing.push('至少一個風面係數');
+
+  if (missing.length) {
+    out.innerHTML = `<div style="background:#fff2f0;border:1px solid var(--accent);border-radius:8px;padding:14px 16px;color:var(--accent);font-size:13px">⚠ 缺少以下參數：<strong>${missing.join('、')}</strong></div>`;
+    return;
+  }
+
+  const f4 = n => typeof n === 'number' ? n.toFixed(4) : n;
+  const f2 = n => typeof n === 'number' ? n.toFixed(2) : n;
+  const signed = n => (n >= 0 ? '+' : '') + f2(n);
+  const Gval = cfg.gLabel ? G : null;
+  const GLabel = cfg.useGf ? 'Gf' : 'G';
+
+  // ── Step 1: K(z) ──
+  const zCalc = Math.max(z, 5);
+  const Kz = 2.774 * Math.pow(zCalc / zg, 2 * alp);
+  const Kz_note = z < 5 ? `（z=${z}m<5m，取5m）` : '';
+
+  // ── Step 2: q(z) and q(h) ──
+  const qz = 0.06 * Kz * Kzt * I * V * I * V;
+  const qi = qz; // assume z ≈ h
+
+  // ── Formula-specific step label ──
+  const stepRow = (num, label, formula_expr, result, unit='') => `
+    <div style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--paper);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${num}</div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--ink);margin-bottom:2px">${label}</div>
+        <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);line-height:1.6">${formula_expr}</div>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--accent8,#5a2d82);white-space:nowrap;text-align:right">${result} <span style="font-size:10px;color:var(--muted)">${unit}</span></div>
+    </div>`;
+
+  const paramRow = (sym, desc, val, unit, src) => `
+    <tr>
+      <td style="padding:5px 8px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent8,#5a2d82);font-weight:700;white-space:nowrap">${sym}</td>
+      <td style="padding:5px 8px;font-size:11px;color:var(--ink)">${desc}</td>
+      <td style="padding:5px 8px;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:var(--ink);text-align:right">${val}</td>
+      <td style="padding:5px 8px;font-size:10px;color:var(--muted)">${unit}</td>
+      <td style="padding:5px 8px"><span style="font-size:8px;background:rgba(90,45,130,.1);color:var(--accent8,#5a2d82);border-radius:3px;padding:1px 5px;font-family:'DM Mono',monospace">${src}</span></td>
+    </tr>`;
+
+  // ── Per-formula calculation ──────────────────────────────────────
+  let commonSteps = `
+    ${stepRow(1,'風速壓地況係數 K(z)',`2.774 × (${zCalc}/${f2(zg)})^(2×${alp}) ${Kz_note}`,f4(Kz),'—')}
+    ${stepRow(2,'風速壓 q(z) = q(h)',`0.06 × ${f4(Kz)} × ${f4(Kzt)} × [${f4(I)} × ${f2(V)}]²`,f2(qz),'kgf/m²')}`;
+
+  let faceResultsHTML = '';
+  let finalHTML = '';
+
+  // ── 2.1 / 2.2 ────────────────────────────────────────────────────
+  if (formula.code === '2.1' || formula.code === '2.2') {
+    const faceResults = faces.map(f => {
+      const p_pos = qz * G * f.value - qi * GCpi_pos;
+      const p_neg = qz * G * f.value - qi * GCpi_neg;
+      const p_ctrl = Math.abs(p_pos) >= Math.abs(p_neg) ? p_pos : p_neg;
+      return {...f, p_pos, p_neg, p_ctrl};
+    });
+    const allPos = faceResults.map(r => Math.max(r.p_pos, r.p_neg));
+    const allNeg = faceResults.map(r => Math.min(r.p_pos, r.p_neg));
+    const hasPos = allPos.some(v => v > 0), hasNeg = allNeg.some(v => v < 0);
+    const maxPos = Math.max(...allPos), minNeg = Math.min(...allNeg);
+    const maxPosFace = faceResults[allPos.indexOf(maxPos)];
+    const minNegFace = faceResults[allNeg.indexOf(minNeg)];
+
+    faceResultsHTML = buildFaceTable(faceResults, formula.code, GLabel, f4(G), f2(qz), f4(GCpi_pos), f4(GCpi_neg));
+    finalHTML = buildEnvelope(hasPos, hasNeg, maxPos, minNeg,
+      maxPosFace.face+'（'+((maxPosFace.p_pos>=maxPosFace.p_neg)?'正':'負')+'內壓控制）',
+      minNegFace.face+'（'+((minNegFace.p_pos<=minNegFace.p_neg)?'正':'負')+'內壓控制）');
+
+  // ── 2.3 ────────────────────────────────────────────────────────
+  } else if (formula.code === '2.3') {
+    const results23 = faces.map(f => {
+      const pp = qz * f.value;
+      return {...f, pp};
+    });
+    faceResultsHTML = `
+    <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+      <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">各風面設計風壓　pp = qp × (GCpn)</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <tr style="background:var(--paper)">
+          <th style="padding:7px 10px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">風面</th>
+          <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">(GCpn)</th>
+          <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--accent8,#5a2d82);border-bottom:1px solid var(--border)">pp (kgf/m²)</th>
+        </tr>
+        ${results23.map(r=>`<tr><td style="padding:8px 10px;font-size:11px">${r.face}</td>
+          <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right">${f4(r.value)}</td>
+          <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;text-align:right;color:${r.pp>=0?'#16a34a':'#dc2626'}">${signed(r.pp)}</td>
+        </tr>`).join('')}
+      </table></div>
+    </div>`;
+    const maxP = Math.max(...results23.map(r=>r.pp));
+    const minP = Math.min(...results23.map(r=>r.pp));
+    finalHTML = buildEnvelope(maxP>0, minP<0, maxP, minP,
+      results23.find(r=>Math.max(r.pp)===maxP)?.face||'',
+      results23.find(r=>Math.min(r.pp)===minP)?.face||'');
+
+  // ── 2.4 ────────────────────────────────────────────────────────
+  } else if (formula.code === '2.4') {
+    const fResults = faces.map(f => {
+      const F = qz * G * f.value * Ac;
+      return {...f, F};
+    });
+    faceResultsHTML = `
+    <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+      <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">各風面設計風力　F = q(z) × G × Cf × Ac</div>
+      <div style="padding:10px 16px 4px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">q(z)=${f2(qz)} kgf/m²　G=${f4(G)}　Ac=${f2(Ac)} m²</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <tr style="background:var(--paper)">
+          <th style="padding:7px 10px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">風面</th>
+          <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">Cf</th>
+          <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--accent8,#5a2d82);border-bottom:1px solid var(--border)">F (kgf)</th>
+        </tr>
+        ${fResults.map(r=>`<tr><td style="padding:8px 10px;font-size:11px">${r.face}</td>
+          <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right">${f4(r.value)}</td>
+          <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;text-align:right;color:${r.F>=0?'#16a34a':'#dc2626'}">${signed(r.F)}</td>
+        </tr>`).join('')}
+      </table></div>
+    </div>`;
+    const maxF = Math.max(...fResults.map(r=>r.F));
+    const minF = Math.min(...fResults.map(r=>r.F));
+    finalHTML = buildEnvelopeCustom(maxF, minF, '設計風力 F', 'kgf');
+
+  // ── 3.1 ────────────────────────────────────────────────────────
+  } else if (formula.code === '3.1') {
+    const faceResults = faces.map(f => {
+      const p_pos = qz * (f.value - GCpi_pos);
+      const p_neg = qz * (f.value - GCpi_neg);
+      const p_ctrl = Math.abs(p_pos) >= Math.abs(p_neg) ? p_pos : p_neg;
+      return {...f, p_pos, p_neg, p_ctrl};
+    });
+    const allPos = faceResults.map(r=>Math.max(r.p_pos,r.p_neg));
+    const allNeg = faceResults.map(r=>Math.min(r.p_pos,r.p_neg));
+    const hasPos = allPos.some(v=>v>0), hasNeg = allNeg.some(v=>v<0);
+    const maxPos = Math.max(...allPos), minNeg = Math.min(...allNeg);
+    faceResultsHTML = buildFaceTable31(faceResults, f2(qz), f4(GCpi_pos), f4(GCpi_neg));
+    finalHTML = buildEnvelope(hasPos, hasNeg, maxPos, minNeg,
+      faceResults[allPos.indexOf(maxPos)]?.face||'',
+      faceResults[allNeg.indexOf(minNeg)]?.face||'');
+
+  // ── 3.2 ────────────────────────────────────────────────────────
+  } else if (formula.code === '3.2') {
+    const faceResults = faces.map(f => {
+      const p_pos = qz * f.value - qi * GCpi_pos;
+      const p_neg = qz * f.value - qi * GCpi_neg;
+      const p_ctrl = Math.abs(p_pos) >= Math.abs(p_neg) ? p_pos : p_neg;
+      return {...f, p_pos, p_neg, p_ctrl};
+    });
+    const allPos = faceResults.map(r=>Math.max(r.p_pos,r.p_neg));
+    const allNeg = faceResults.map(r=>Math.min(r.p_pos,r.p_neg));
+    const hasPos = allPos.some(v=>v>0), hasNeg = allNeg.some(v=>v<0);
+    const maxPos = Math.max(...allPos), minNeg = Math.min(...allNeg);
+    faceResultsHTML = buildFaceTable(faceResults, formula.code, '(GCp)', '—', f2(qz), f4(GCpi_pos), f4(GCpi_neg));
+    finalHTML = buildEnvelope(hasPos, hasNeg, maxPos, minNeg,
+      faceResults[allPos.indexOf(maxPos)]?.face||'',
+      faceResults[allNeg.indexOf(minNeg)]?.face||'');
+
+  // ── 3.3 ────────────────────────────────────────────────────────
+  } else if (formula.code === '3.3') {
+    const faceResults = faces.map(f => {
+      const p_pos = qz * (f.value - GCpi_pos);
+      const p_neg = qz * (f.value - GCpi_neg);
+      const p_ctrl = Math.abs(p_pos) >= Math.abs(p_neg) ? p_pos : p_neg;
+      return {...f, p_pos, p_neg, p_ctrl};
+    });
+    const allPos = faceResults.map(r=>Math.max(r.p_pos,r.p_neg));
+    const allNeg = faceResults.map(r=>Math.min(r.p_pos,r.p_neg));
+    const hasPos = allPos.some(v=>v>0), hasNeg = allNeg.some(v=>v<0);
+    const maxPos = Math.max(...allPos), minNeg = Math.min(...allNeg);
+    faceResultsHTML = buildFaceTable31(faceResults, f2(qz), f4(GCpi_pos), f4(GCpi_neg));
+    finalHTML = buildEnvelope(hasPos, hasNeg, maxPos, minNeg,
+      faceResults[allPos.indexOf(maxPos)]?.face||'',
+      faceResults[allNeg.indexOf(minNeg)]?.face||'');
+
+  // ── 3.4 ────────────────────────────────────────────────────────
+  } else if (formula.code === '3.4') {
+    const faceResults = faces.map(f => {
+      const p = qz * G * f.value;
+      return {...f, p};
+    });
+    faceResultsHTML = `
+    <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+      <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">各風面設計風壓　p = q(h) × G × Cpn</div>
+      <div style="padding:10px 16px 4px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">q(h)=${f2(qz)} kgf/m²　G=${f4(G)}</div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <tr style="background:var(--paper)">
+          <th style="padding:7px 10px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">風面</th>
+          <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">Cpn</th>
+          <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--accent8,#5a2d82);border-bottom:1px solid var(--border)">p (kgf/m²)</th>
+        </tr>
+        ${faceResults.map(r=>`<tr><td style="padding:8px 10px;font-size:11px">${r.face}</td>
+          <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right">${f4(r.value)}</td>
+          <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;text-align:right;color:${r.p>=0?'#16a34a':'#dc2626'}">${signed(r.p)}</td>
+        </tr>`).join('')}
+      </table></div>
+    </div>`;
+    const maxP = Math.max(...faceResults.map(r=>r.p));
+    const minP = Math.min(...faceResults.map(r=>r.p));
+    finalHTML = buildEnvelope(maxP>0, minP<0, maxP, minP,
+      faceResults.find(r=>r.p===maxP)?.face||'',
+      faceResults.find(r=>r.p===minP)?.face||'');
+  }
+
+  // ── Parameter summary ────────────────────────────────────────────
+  const paramSummaryRows = [
+    paramRow('V₁₀(C)', '基本設計風速', f2(V), 'm/s', 'A區'),
+    paramRow('I', '用途係數', f4(I), '—', 'B區'),
+    paramRow('α', '風速垂直分布指數', f4(alp), '—', 'C區'),
+    paramRow('zg', '梯度高度', f2(zg), 'm', 'C區'),
+    paramRow('Kzt', '地形係數', f4(Kzt), '—', 'D區'),
+    paramRow('z', '建物計算高度', f2(z), 'm', '手動'),
+    ...(cfg.gLabel ? [paramRow(GLabel, cfg.gLabel.replace(/^[GGf]+\s+/, ''), f4(G), '—', '手動')] : []),
+    ...(cfg.hasGCpi ? [
+      paramRow('(GCpi)₊', '正內風壓係數', '+'+f4(GCpi_pos), '—', 'E區'),
+      paramRow('(GCpi)₋', '負內風壓係數', f4(GCpi_neg), '—', 'E區'),
+    ] : []),
+    ...(cfg.useAc ? [paramRow('Ac', '受風特徵面積', f2(Ac), 'm²', '手動')] : []),
+  ].join('');
+
+  out.innerHTML = `
+  <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+    <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">使用參數彙整</div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:var(--paper)">
+        <th style="padding:6px 8px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">符號</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">名稱</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">數值</th>
+        <th style="padding:6px 8px;font-size:9px;color:var(--muted);border-bottom:1px solid var(--border)">單位</th>
+        <th style="padding:6px 8px;font-size:9px;color:var(--muted);border-bottom:1px solid var(--border)">來源</th>
+      </tr></thead>
+      <tbody>${paramSummaryRows}</tbody>
+    </table></div>
+  </div>
+  <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+    <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">計算步驟（共用）</div>
+    <div style="padding:4px 16px 8px">${commonSteps}</div>
+  </div>
+  ${faceResultsHTML}
+  ${finalHTML}`;
+
+  out.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// ── Helper: face table for 2.1/2.2/3.2 ───────────────────────────
+function buildFaceTable(faceResults, code, GLabel, Gval, qz, gp, gn) {
+  const f2 = n => parseFloat(n).toFixed(2);
+  const signed = n => (n>=0?'+':'')+parseFloat(n).toFixed(2);
+  const allPos = faceResults.map(r=>Math.max(r.p_pos,r.p_neg));
+  const allNeg = faceResults.map(r=>Math.min(r.p_pos,r.p_neg));
+  const maxPos = Math.max(...allPos), minNeg = Math.min(...allNeg);
+  const rows = faceResults.map((r,i) => {
+    const isMaxPos = Math.max(r.p_pos,r.p_neg)===maxPos;
+    const isMinNeg = Math.min(r.p_pos,r.p_neg)===minNeg;
+    const tag = isMaxPos&&isMinNeg?' ▲▼':isMaxPos?' ▲':isMinNeg?' ▼':'';
+    const hl  = (isMaxPos||isMinNeg)?'background:rgba(90,45,130,.07)':'';
+    return `<tr style="${hl}"><td style="padding:8px 10px;font-size:11px;font-weight:${tag?700:400}">${r.face}</td>
+      <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">${r.coef}</td>
+      <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right">${parseFloat(r.value).toFixed(4)}</td>
+      <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right;color:#16a34a">${signed(r.p_pos)}</td>
+      <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right;color:#dc2626">${signed(r.p_neg)}</td>
+      <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;text-align:right;color:var(--accent8,#5a2d82)">${signed(r.p_ctrl)}</td>
+      <td style="padding:8px 10px;font-size:9px;color:var(--muted)">${r.p_pos>=r.p_neg?'正內壓':'負內壓'}控制${tag}</td>
+    </tr>`;
+  }).join('');
+  return `<div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+    <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">各風面設計風壓</div>
+    <div style="padding:10px 16px 4px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">q(z)=q(h)=${qz} kgf/m²　${GLabel}=${Gval}　(GCpi)₊=+${gp}　(GCpi)₋=${gn}</div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <tr style="background:var(--paper)">
+        <th style="padding:7px 10px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">風面</th>
+        <th style="padding:7px 10px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">係數</th>
+        <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">值</th>
+        <th style="padding:7px 10px;font-size:9px;text-align:right;color:#16a34a;border-bottom:1px solid var(--border)">p₊</th>
+        <th style="padding:7px 10px;font-size:9px;text-align:right;color:#dc2626;border-bottom:1px solid var(--border)">p₋</th>
+        <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--accent8,#5a2d82);border-bottom:1px solid var(--border)">設計值</th>
+        <th style="padding:7px 10px;font-size:9px;color:var(--muted);border-bottom:1px solid var(--border)">備註</th>
+      </tr>${rows}
+    </table></div>
+    <div style="padding:8px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--border)">▲最大正設計值　▼最小負設計值</div>
+  </div>`;
+}
+
+function buildFaceTable31(faceResults, qz, gp, gn) {
+  const signed = n => (n>=0?'+':'')+parseFloat(n).toFixed(2);
+  const allPos = faceResults.map(r=>Math.max(r.p_pos,r.p_neg));
+  const allNeg = faceResults.map(r=>Math.min(r.p_pos,r.p_neg));
+  const maxPos = Math.max(...allPos), minNeg = Math.min(...allNeg);
+  const rows = faceResults.map(r => {
+    const isMaxPos = Math.max(r.p_pos,r.p_neg)===maxPos;
+    const isMinNeg = Math.min(r.p_pos,r.p_neg)===minNeg;
+    const tag = isMaxPos&&isMinNeg?' ▲▼':isMaxPos?' ▲':isMinNeg?' ▼':'';
+    return `<tr style="${(isMaxPos||isMinNeg)?'background:rgba(90,45,130,.07)':''}">
+      <td style="padding:8px 10px;font-size:11px;font-weight:${tag?700:400}">${r.face}</td>
+      <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right">${parseFloat(r.value).toFixed(4)}</td>
+      <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right;color:#16a34a">${signed(r.p_pos)}</td>
+      <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right;color:#dc2626">${signed(r.p_neg)}</td>
+      <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;text-align:right;color:var(--accent8,#5a2d82)">${signed(r.p_ctrl)}</td>
+      <td style="padding:8px 10px;font-size:9px;color:var(--muted)">${r.p_pos>=r.p_neg?'正內壓':'負內壓'}控制${tag}</td>
+    </tr>`;
+  }).join('');
+  return `<div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+    <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">各風面設計風壓</div>
+    <div style="padding:10px 16px 4px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">q(h)=${qz} kgf/m²　(GCpi)₊=+${gp}　(GCpi)₋=${gn}</div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <tr style="background:var(--paper)">
+        <th style="padding:7px 10px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">風面</th>
+        <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">(GCp)</th>
+        <th style="padding:7px 10px;font-size:9px;text-align:right;color:#16a34a;border-bottom:1px solid var(--border)">p₊</th>
+        <th style="padding:7px 10px;font-size:9px;text-align:right;color:#dc2626;border-bottom:1px solid var(--border)">p₋</th>
+        <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--accent8,#5a2d82);border-bottom:1px solid var(--border)">設計值</th>
+        <th style="padding:7px 10px;font-size:9px;color:var(--muted);border-bottom:1px solid var(--border)">備註</th>
+      </tr>${rows}
+    </table></div>
+  </div>`;
+}
+
+function buildEnvelope(hasPos, hasNeg, maxPos, minNeg, maxPosFace, minNegFace) {
+  const signed = n => (n>=0?'+':'')+parseFloat(n).toFixed(2);
+  if (hasPos && hasNeg) {
+    return `<div style="background:var(--ink);border-radius:10px;padding:20px 24px;position:relative;overflow:hidden">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--gold);margin-bottom:12px;text-align:center">DESIGN WIND PRESSURE ENVELOPE</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.35);border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:9px;color:rgba(245,240,232,.5);margin-bottom:3px;font-family:'DM Mono',monospace">最大正設計值 ▲</div>
+          <div style="font-size:10px;color:rgba(245,240,232,.65);margin-bottom:5px">${maxPosFace}</div>
+          <div style="display:flex;align-items:baseline;justify-content:center;gap:5px">
+            <span style="font-family:'Noto Serif TC',serif;font-size:34px;font-weight:900;color:#4ade80;line-height:1">${signed(maxPos)}</span>
+            <span style="font-size:12px;color:rgba(245,240,232,.5)">kgf/m²</span>
+          </div>
+        </div>
+        <div style="background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.35);border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:9px;color:rgba(245,240,232,.5);margin-bottom:3px;font-family:'DM Mono',monospace">最小負設計值 ▼</div>
+          <div style="font-size:10px;color:rgba(245,240,232,.65);margin-bottom:5px">${minNegFace}</div>
+          <div style="display:flex;align-items:baseline;justify-content:center;gap:5px">
+            <span style="font-family:'Noto Serif TC',serif;font-size:34px;font-weight:900;color:#f87171;line-height:1">${signed(minNeg)}</span>
+            <span style="font-size:12px;color:rgba(245,240,232,.5)">kgf/m²</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px;text-align:center;font-size:10px;color:rgba(245,240,232,.3)">qi 採用 q(z)＝q(h)，假設計算高度即為平均屋頂高度</div>
+    </div>`;
+  } else if (hasPos) {
+    return `<div style="background:var(--ink);border-radius:10px;padding:20px 24px;text-align:center">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--gold);margin-bottom:8px">全局最大正設計值 ▲</div>
+      <div style="font-size:11px;color:rgba(245,240,232,.6);margin-bottom:6px">${maxPosFace}</div>
+      <div style="display:flex;align-items:baseline;justify-content:center;gap:8px">
+        <span style="font-family:'Noto Serif TC',serif;font-size:44px;font-weight:900;color:#4ade80;line-height:1">${signed(maxPos)}</span>
+        <span style="font-size:13px;color:rgba(245,240,232,.5)">kgf/m²</span>
+      </div>
+    </div>`;
+  } else {
+    return `<div style="background:var(--ink);border-radius:10px;padding:20px 24px;text-align:center">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--gold);margin-bottom:8px">全局最小負設計值 ▼</div>
+      <div style="font-size:11px;color:rgba(245,240,232,.6);margin-bottom:6px">${minNegFace}</div>
+      <div style="display:flex;align-items:baseline;justify-content:center;gap:8px">
+        <span style="font-family:'Noto Serif TC',serif;font-size:44px;font-weight:900;color:#f87171;line-height:1">${signed(minNeg)}</span>
+        <span style="font-size:13px;color:rgba(245,240,232,.5)">kgf/m²</span>
+      </div>
+    </div>`;
+  }
+}
+
+function buildEnvelopeCustom(maxVal, minVal, label, unit) {
+  const signed = n => (n>=0?'+':'')+parseFloat(n).toFixed(2);
+  return `<div style="background:var(--ink);border-radius:10px;padding:20px 24px;text-align:center">
+    <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--gold);margin-bottom:8px">${label}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.35);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:rgba(245,240,232,.5);margin-bottom:4px">最大值</div>
+        <div style="font-family:'Noto Serif TC',serif;font-size:32px;font-weight:900;color:#4ade80">${signed(maxVal)}</div>
+        <div style="font-size:10px;color:rgba(245,240,232,.4)">${unit}</div>
+      </div>
+      <div style="background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.35);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:9px;color:rgba(245,240,232,.5);margin-bottom:4px">最小值</div>
+        <div style="font-family:'Noto Serif TC',serif;font-size:32px;font-weight:900;color:#f87171">${signed(minVal)}</div>
+        <div style="font-size:10px;color:rgba(245,240,232,.4)">${unit}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function resetCalc() {
+  buildParamGrid();
+  document.getElementById('calc-result').innerHTML = '';
+}
+</script>
+</body>
+</html>
