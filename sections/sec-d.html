@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地形係數 K<sub>zt</sub> 計算系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent2: #f78166;
+    --accent3: #3fb950;
+    --accent4: #d2a8ff;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --text-dimmer: #484f58;
+    --gold: #e3b341;
+    --tag-bg: #1c2230;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  /* ---- header ---- */
+  .header {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 24px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .header-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .header-title { font-size: 20px; font-weight: 700; color: var(--text); }
+  .header-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .badge {
+    margin-left: auto;
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  /* ---- layout ---- */
+  .main { display: grid; grid-template-columns: 420px 1fr; gap: 0; min-height: calc(100vh - 81px); }
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px;
+    overflow-y: auto;
+  }
+  .content { padding: 24px; overflow-y: auto; }
+  /* ---- section titles ---- */
+  .section-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-dim); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  /* ---- form ---- */
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block; font-size: 12px; color: var(--text-dim);
+    margin-bottom: 6px; font-weight: 500;
+  }
+  .form-group label span.param {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-size: 13px;
+    font-style: italic;
+  }
+  .form-group label .unit {
+    color: var(--text-dimmer); font-size: 11px; margin-left: 4px;
+  }
+  select, input[type="number"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 9px 12px;
+    font-size: 14px;
+    font-family: 'Noto Sans TC', sans-serif;
+    outline: none;
+    transition: border-color .2s;
+  }
+  select:focus, input[type="number"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(88,166,255,.12);
+  }
+  /* terrain selector cards */
+  .terrain-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .terrain-card {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .terrain-card:hover { border-color: var(--accent); }
+  .terrain-card.active { border-color: var(--accent); background: rgba(88,166,255,.1); }
+  .terrain-card .tc-icon { font-size: 22px; margin-bottom: 4px; }
+  .terrain-card .tc-name { font-size: 12px; font-weight: 600; }
+  .terrain-card .tc-en { font-size: 10px; color: var(--text-dim); }
+  /* exposure selector */
+  .exp-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .exp-card {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .exp-card:hover { border-color: var(--gold); }
+  .exp-card.active { border-color: var(--gold); background: rgba(227,179,65,.1); }
+  .exp-card .ec-label { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--gold); }
+  .exp-card .ec-name { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+  /* calc button */
+  .calc-btn {
+    width: 100%; padding: 12px;
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    border: none; border-radius: 8px;
+    color: #fff; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: all .2s;
+    font-family: 'Noto Sans TC', sans-serif;
+    margin-top: 8px;
+  }
+  .calc-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,.4); }
+  .calc-btn:active { transform: translateY(0); }
+  /* divider */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  /* ---- figure panel ---- */
+  .fig-panel { margin-bottom: 24px; }
+  .fig-panel h3 { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
+  .fig-svg-wrap {
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid var(--border);
+  }
+  /* ---- formula card ---- */
+  .formula-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+  .formula-card .fc-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px; }
+  .formula-card .fc-eq { color: var(--accent); font-size: 15px; }
+  .formula-card .fc-desc { font-family: 'Noto Sans TC', sans-serif; font-size: 12px; color: var(--text-dim); margin-top: 8px; line-height: 1.7; }
+  .formula-card .fc-desc span.v { color: var(--accent4); font-family: 'JetBrains Mono', monospace; font-style: italic; }
+  /* ---- result panel ---- */
+  .result-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .result-header {
+    background: linear-gradient(135deg, #0f2746, #162032);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .result-header h2 { font-size: 14px; color: var(--accent); font-weight: 600; }
+  .result-body { padding: 20px; }
+  .result-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+  .result-cell {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+  }
+  .result-cell .rc-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .result-cell .rc-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px; font-weight: 700;
+    color: var(--accent3);
+  }
+  .result-cell .rc-val.k1c { color: var(--accent); }
+  .result-cell .rc-val.k2c { color: var(--accent4); }
+  .result-cell .rc-val.k3c { color: var(--gold); }
+  .kzt-display {
+    background: linear-gradient(135deg, #0a2a1a, #0d1f2d);
+    border: 2px solid var(--accent3);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+  .kzt-label { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+  .kzt-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 42px; font-weight: 700;
+    color: var(--accent3);
+    text-shadow: 0 0 20px rgba(63,185,80,.4);
+  }
+  .kzt-formula { font-size: 11px; color: var(--text-dim); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+  /* step log */
+  .step-log {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 16px;
+  }
+  .step-log h4 { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .step-log .step { margin-bottom: 6px; font-size: 12px; color: var(--text-dim); }
+  .step-log .step span.ok { color: var(--accent3); }
+  .step-log .step span.hi { color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+  .step-log .step span.warn { color: var(--gold); }
+  /* condition card */
+  .cond-card {
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .cond-card.warn { border-color: var(--gold); }
+  /* error */
+  .error-box {
+    background: rgba(247,129,102,.1);
+    border: 1px solid var(--accent2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: var(--accent2);
+    font-size: 13px;
+  }
+  /* table styles */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: center;
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .data-table td {
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .data-table tr.highlight td { background: rgba(88,166,255,.12); color: var(--text); }
+  .placeholder-msg {
+    text-align: center; padding: 48px; color: var(--text-dimmer); font-size: 13px;
+  }
+  .placeholder-msg .pm-icon { font-size: 40px; margin-bottom: 12px; opacity: .4; }
+  /* condition info */
+  .info-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .info-table td { padding: 4px 8px; color: var(--text-dim); vertical-align: top; }
+  .info-table td:first-child { color: var(--text); font-weight: 500; white-space: nowrap; }
+  .scroll-table { overflow-x: auto; }
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">⛰️</div>
+  <div>
+    <div class="header-title">地形係數 K<sub>zt</sub> 計算系統</div>
+    <div class="header-sub">依據《建築物耐風設計規範》第 2.6 節 — 表 2.3(a)(b)(c)</div>
+  </div>
+  <div class="badge">CNS / TW Wind Code</div>
+</div>
+
+<div class="main">
+  <!-- ========= SIDEBAR ========= -->
+  <div class="sidebar">
+    <div class="section-title">地形類型</div>
+    <div class="terrain-grid" style="margin-bottom:20px;grid-template-columns:repeat(2,1fr)">
+      <div class="terrain-card" onclick="setTerrain('山脊')" id="tc-山脊">
+        <div class="tc-icon">🏔️</div>
+        <div class="tc-name">山脊</div>
+        <div class="tc-en">Ridge</div>
+      </div>
+      <div class="terrain-card" onclick="setTerrain('懸崖')" id="tc-懸崖">
+        <div class="tc-icon">🪨</div>
+        <div class="tc-name">懸崖</div>
+        <div class="tc-en">Cliff</div>
+      </div>
+      <div class="terrain-card" onclick="setTerrain('山丘')" id="tc-山丘">
+        <div class="tc-icon">⛰️</div>
+        <div class="tc-name">山丘</div>
+        <div class="tc-en">Hill</div>
+      </div>
+      <div class="terrain-card" onclick="setTerrain('平地')" id="tc-平地">
+        <div class="tc-icon">🌾</div>
+        <div class="tc-name">平地</div>
+        <div class="tc-en">Flat / K<sub>zt</sub>=1</div>
+      </div>
+    </div>
+
+    <div class="section-title">地況分類</div>
+    <div class="exp-grid" style="margin-bottom:20px">
+      <div class="exp-card" onclick="setExposure('A')" id="ec-A">
+        <div class="ec-label">A</div>
+        <div class="ec-name">市區/密集</div>
+      </div>
+      <div class="exp-card" onclick="setExposure('B')" id="ec-B">
+        <div class="ec-label">B</div>
+        <div class="ec-name">郊區/低矮</div>
+      </div>
+      <div class="exp-card" onclick="setExposure('C')" id="ec-C">
+        <div class="ec-label">C</div>
+        <div class="ec-name">開闊/海邊</div>
+      </div>
+    </div>
+
+    <div class="section-title">輸入參數</div>
+
+    <div class="form-group">
+      <label><span class="param">H</span> — 地形高度 <span class="unit">(m)</span></label>
+      <input type="number" id="inp-H" value="50" min="0" step="0.1" placeholder="輸入 H (m)">
+    </div>
+    <div class="form-group">
+      <label><span class="param">L<sub>h</sub></span> — 上風側半長度 <span class="unit">(m)</span></label>
+      <input type="number" id="inp-Lh" value="200" min="0.1" step="0.1" placeholder="輸入 Lh (m)">
+    </div>
+    <div class="form-group">
+      <label><span class="param">x</span> — 建物至頂點水平距離 <span class="unit">(m)，上風側為負</span></label>
+      <input type="number" id="inp-x" value="0" step="0.1" placeholder="輸入 x (m)">
+    </div>
+    <div class="form-group">
+      <label><span class="param">z</span> — 建物計算高度 <span class="unit">(m)</span></label>
+      <input type="number" id="inp-z" value="10" min="0" step="0.1" placeholder="輸入 z (m)">
+    </div>
+
+    <button class="calc-btn" onclick="calculate()">⚡ 計算地形係數 K<sub>zt</sub></button>
+
+    <hr class="divider">
+
+    <div class="section-title">適用條件說明</div>
+    <div class="cond-card">H &gt; 4.5 m（地況 C）或 H &gt; 18 m（地況 A 或 B）</div>
+    <div class="cond-card">H/L<sub>h</sub> ≥ 0.20 且建議 H/L<sub>h</sub> ≤ 0.5</div>
+    <div class="cond-card">上風側 3.22 km 內地形高超過 H 兩倍以上</div>
+    <div class="cond-card">上風側 min(100H, 3.22 km) 內無類似障礙</div>
+
+    <hr class="divider">
+
+    <div class="section-title">地況類型說明</div>
+    <table class="info-table">
+      <tr><td>A</td><td>市區、密集建築物，地面粗糙度大，梯度高度 500 m</td></tr>
+      <tr><td>B</td><td>郊區、低矮建築物或稀疏林木，梯度高度 400 m</td></tr>
+      <tr><td>C</td><td>開闊平坦地、海岸或草原，梯度高度 300 m</td></tr>
+    </table>
+  </div>
+
+  <!-- ========= CONTENT ========= -->
+  <div class="content">
+
+    <!-- Figure 2.3(a) SVG -->
+    <div class="fig-panel">
+      <div class="section-title">表 2.3(a) 示意圖 — 地形幾何參數定義</div>
+      <div class="fig-svg-wrap" id="fig-container">
+        <!-- SVG drawn by JS -->
+      </div>
+    </div>
+
+    <!-- Formulas -->
+    <div class="section-title">計算公式</div>
+    <div class="formula-card">
+      <div class="fc-title">地形係數 — 主式 (2.8)</div>
+      <div class="fc-eq">K<sub>zt</sub> = ( 1 + K₁ · K₂ · K₃ )²</div>
+      <div class="fc-desc">
+        <span class="v">K₁</span>：與地形特徵及最大頂端加速有關（表 2.3(a)，依 H/L<sub>h</sub> 查表）<br>
+        <span class="v">K₂</span>：水平衰減係數（表 2.3(b)，依 x/L<sub>h</sub> 查表）<br>
+        <span class="v">K₃</span>：垂直衰減係數（表 2.3(c)，依 z/L<sub>h</sub> 查表）
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="formula-card">
+        <div class="fc-title">K₂ 計算式 (C2.9)</div>
+        <div class="fc-eq" style="font-size:13px">K₂ = (1 − |x|/μL<sub>h</sub>)</div>
+        <div class="fc-desc"><span class="v">μ</span>：水平衰減係數<br>山脊/山丘 上風=1.5，下風=1.5；懸崖 上風=1.5，下風=4</div>
+      </div>
+      <div class="formula-card">
+        <div class="fc-title">K₃ 計算式 (C2.10)</div>
+        <div class="fc-eq" style="font-size:13px">K₃ = e<sup>−γz/L<sub>h</sub></sup></div>
+        <div class="fc-desc"><span class="v">γ</span>：垂直衰減係數<br>山脊=3，懸崖=2.5，山丘=4</div>
+      </div>
+      <div class="formula-card">
+        <div class="fc-title">K₁ 線性內插 (表 2.3(a))</div>
+        <div class="fc-eq" style="font-size:13px">K₁ ∝ H/L<sub>h</sub></div>
+        <div class="fc-desc">若 H/L<sub>h</sub> &gt; 0.5 則取 H/L<sub>h</sub> = 0.5<br>若 H/L<sub>h</sub> &gt; 0.5 計算 K₂、K₃ 時取 L<sub>h</sub> = 2H</div>
+      </div>
+    </div>
+
+    <!-- Result panel -->
+    <div id="result-area">
+      <div class="placeholder-msg">
+        <div class="pm-icon">📐</div>
+        <div>輸入參數後按下「計算地形係數」按鈕<br>計算結果與查表過程將顯示於此</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  SQLite-style data embedded in JS
+// ============================================================
+const DB = {
+  terrainTypes: { '山脊': 1, '懸崖': 2, '山丘': 3 },
+  exposureCategories: { 'A': 4, 'B': 4, 'C': 3 },  // A&B share same table entry
+  // K1: keyed by terrain name + exposure group ('AB' or 'C')
+  k1: {
+    '山脊': { 'AB': [[0.20,0.26],[0.25,0.33],[0.30,0.39],[0.35,0.46],[0.40,0.52],[0.45,0.59],[0.50,0.65]],
+              'C':  [[0.20,0.29],[0.25,0.36],[0.30,0.43],[0.35,0.51],[0.40,0.58],[0.45,0.65],[0.50,0.72]] },
+    '懸崖': { 'AB': [[0.20,0.15],[0.25,0.19],[0.30,0.23],[0.35,0.26],[0.40,0.33],[0.45,0.34],[0.50,0.38]],
+              'C':  [[0.20,0.17],[0.25,0.21],[0.30,0.26],[0.35,0.30],[0.40,0.34],[0.45,0.38],[0.50,0.43]] },
+    '山丘': { 'AB': [[0.20,0.19],[0.25,0.24],[0.30,0.29],[0.35,0.33],[0.40,0.38],[0.45,0.43],[0.50,0.48]],
+              'C':  [[0.20,0.21],[0.25,0.26],[0.30,0.32],[0.35,0.37],[0.40,0.42],[0.45,0.47],[0.50,0.53]] },
+  },
+  // K2: keyed by terrain group ('懸崖' or '山脊山丘')
+  k2: {
+    '懸崖':   [[-4.00,0.00],[-3.50,0.00],[-3.00,0.00],[-2.50,0.00],[-2.00,0.00],[-1.50,0.00],
+               [-1.00,0.33],[-0.50,0.67],[0.00,1.00],[0.50,0.88],[1.00,0.75],[1.50,0.63],
+               [2.00,0.50],[2.50,0.38],[3.00,0.25],[3.50,0.13],[4.00,0.00]],
+    '山脊山丘':[[-4.00,0.00],[-3.50,0.00],[-3.00,0.00],[-2.50,0.00],[-2.00,0.00],[-1.50,0.00],
+               [-1.00,0.33],[-0.50,0.67],[0.00,1.00],[0.50,0.67],[1.00,0.33],[1.50,0.00],
+               [2.00,0.00],[2.50,0.00],[3.00,0.00],[3.50,0.00],[4.00,0.00]],
+  },
+  // K3: keyed by terrain name
+  k3: {
+    '山脊': [[0.00,1.00],[0.10,0.74],[0.20,0.55],[0.30,0.41],[0.40,0.30],[0.50,0.22],[0.60,0.17],
+             [0.70,0.12],[0.80,0.09],[0.90,0.07],[1.00,0.05],[1.50,0.01],[2.00,0.00]],
+    '懸崖': [[0.00,1.00],[0.10,0.78],[0.20,0.61],[0.30,0.47],[0.40,0.37],[0.50,0.29],[0.60,0.22],
+             [0.70,0.17],[0.80,0.14],[0.90,0.11],[1.00,0.08],[1.50,0.02],[2.00,0.00]],
+    '山丘': [[0.00,1.00],[0.10,0.67],[0.20,0.45],[0.30,0.30],[0.40,0.20],[0.50,0.14],[0.60,0.09],
+             [0.70,0.06],[0.80,0.04],[0.90,0.03],[1.00,0.02],[1.50,0.00],[2.00,0.00]],
+  }
+};
+
+// Linear interpolation from table array [[x,y],...]
+function interp(table, val) {
+  // clamp
+  if (val <= table[0][0]) return table[0][1];
+  if (val >= table[table.length-1][0]) return table[table.length-1][1];
+  for (let i = 0; i < table.length-1; i++) {
+    const [x0, y0] = table[i];
+    const [x1, y1] = table[i+1];
+    if (val >= x0 && val <= x1) {
+      const t = (val - x0) / (x1 - x0);
+      return y0 + t * (y1 - y0);
+    }
+  }
+  return table[table.length-1][1];
+}
+
+// State
+let terrain = null;
+let exposure = null;
+
+function setTerrain(t) {
+  terrain = t;
+  document.querySelectorAll('.terrain-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('tc-' + t).classList.add('active');
+
+  const isFlat = (t === '平地');
+
+  // Lock / unlock 地況分類
+  document.querySelectorAll('.exp-card').forEach(c => {
+    c.style.opacity    = isFlat ? '0.35' : '';
+    c.style.pointerEvents = isFlat ? 'none' : '';
+  });
+
+  // Lock / unlock 輸入參數
+  const inputIds = ['inp-H', 'inp-Lh', 'inp-x', 'inp-z'];
+  inputIds.forEach(id => {
+    const el = document.getElementById(id);
+    el.disabled = isFlat;
+    el.style.opacity = isFlat ? '0.4' : '';
+    if (isFlat) el.value = '';
+  });
+
+  // Clear result area when switching to flat
+  if (isFlat) {
+    document.getElementById('result-area').innerHTML = `
+      <div class="cond-card" style="border-color:var(--accent3);background:rgba(63,185,80,.08);color:var(--text)">
+        ✅ 已選擇<b>平地</b>：地形平坦，無地形加速效應，地形係數
+        <span style="font-family:'JetBrains Mono',monospace;color:var(--accent3);font-size:15px"> K<sub>zt</sub> = 1.0000</span>
+        <br><span style="font-size:11px;color:var(--text-dim);margin-top:4px;display:block">按下計算按鈕以回傳結果至暫存區。</span>
+      </div>`;
+  } else {
+    document.getElementById('result-area').innerHTML = `
+      <div class="placeholder-msg">
+        <div class="pm-icon">⛰️</div>
+        請在左側輸入參數後點擊「計算」
+      </div>`;
+  }
+
+  if (!isFlat) updateFigure();
+  else document.getElementById('fig-container').innerHTML = `
+    <div style="text-align:center;padding:32px 16px;color:var(--text-dim);font-size:13px">
+      <div style="font-size:36px;margin-bottom:8px">🌾</div>
+      平地地形無地形示意圖<br>K<sub>zt</sub> = 1.0
+    </div>`;
+}
+
+function setExposure(e) {
+  exposure = e;
+  document.querySelectorAll('.exp-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('ec-' + e).classList.add('active');
+}
+
+// ============================================================
+//  MAIN CALCULATION
+// ============================================================
+function calculate() {
+  // ---- 驗證：地形類型及地況分類必須選擇 ----
+  if (!terrain) {
+    document.getElementById('result-area').innerHTML =
+      `<div class="error-box">⚠ 請先選擇地形類型（山脊 / 懸崖 / 山丘 / 平地）</div>`;
+    return;
+  }
+  if (terrain !== '平地' && !exposure) {
+    document.getElementById('result-area').innerHTML =
+      `<div class="error-box">⚠ 請先選擇地況分類（A / B / C）</div>`;
+    return;
+  }
+
+  // ---- 平地：直接回傳 Kzt = 1 ----
+  if (terrain === '平地') {
+    const html = `
+      <div class="result-panel">
+        <div class="result-header">
+          <h2>計算結果 — 平地（無地形加速效應）</h2>
+          <span style="font-size:11px;color:var(--text-dim)">地形平坦，K<sub>zt</sub> 直接取 1.0</span>
+        </div>
+        <div class="result-body">
+          <div class="kzt-display">
+            <div class="kzt-label">地形係數</div>
+            <div class="kzt-val">K<sub>zt</sub> = 1.0000</div>
+            <div class="kzt-formula">平地地形，無地形加速效應，依規範取 K<sub>zt</sub> = 1.0</div>
+          </div>
+          <div class="step-log">
+            <h4>計算步驟記錄</h4>
+            <div class="step">1. 地形類型：<span class="hi">平地</span>，地形平坦開闊，不符合地形係數修正適用條件。</div>
+            <div class="step">2. <span class="ok">✔ K<sub>zt</sub> = <span class="hi">1.0000</span>（無地形加速效應）</span></div>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('result-area').innerHTML = html;
+    if (window.parent !== window) {
+      window.parent.postMessage({
+        source: 'kzt_calculator',
+        terrain: '平地',
+        exposure: '—',
+        inputs: { H: null, Lh: null, x: null, z: null },
+        results: { K1: 0, K2: 0, K3: 0, Kzt: 1.0, HLh: 0, xLh: 0, zLh: 0 },
+        timestamp: new Date().toISOString()
+      }, '*');
+    }
+    return;
+  }
+
+  const H  = parseFloat(document.getElementById('inp-H').value);
+  const Lh = parseFloat(document.getElementById('inp-Lh').value);
+  const x  = parseFloat(document.getElementById('inp-x').value);
+  const z  = parseFloat(document.getElementById('inp-z').value);
+
+  const steps = [];
+  let errors = [];
+
+  // Validate
+  if (isNaN(H) || H <= 0)  errors.push('H 必須為正數');
+  if (isNaN(Lh) || Lh <= 0) errors.push('Lh 必須為正數');
+  if (isNaN(x))  errors.push('x 數值無效');
+  if (isNaN(z) || z < 0) errors.push('z 必須 ≥ 0');
+
+  if (errors.length > 0) {
+    document.getElementById('result-area').innerHTML =
+      `<div class="error-box">⚠ 輸入錯誤：${errors.join('；')}</div>`;
+    return;
+  }
+
+  // Check H/Lh condition
+  let HLh = H / Lh;
+  steps.push(`計算 H/L<sub>h</sub> = ${H} / ${Lh} = <span class="hi">${HLh.toFixed(4)}</span>`);
+
+  if (HLh < 0.2) {
+    document.getElementById('result-area').innerHTML =
+      `<div class="error-box">⚠ H/L<sub>h</sub> = ${HLh.toFixed(3)} &lt; 0.20，不符合適用條件，地形係數 K<sub>zt</sub> = 1.0（無地形加速效應）</div>`;
+    return;
+  }
+
+  // Check minimum H
+  let minH = (exposure === 'C') ? 4.5 : 18;
+  if (H < minH) {
+    steps.push(`<span class="warn">⚠ H = ${H} m &lt; ${minH} m（地況 ${exposure} 最低要求），K<sub>zt</sub> 取 1.0</span>`);
+  }
+
+  // Cap H/Lh at 0.5 for K1
+  let HLh_K1 = Math.min(HLh, 0.5);
+  let Lh_K2K3 = Lh;
+  if (HLh > 0.5) {
+    steps.push(`H/L<sub>h</sub> &gt; 0.5，計算 K₁ 時取 H/L<sub>h</sub> = <span class="hi">0.5</span>；計算 K₂、K₃ 時取 L<sub>h</sub> = 2H = <span class="hi">${(2*H).toFixed(2)} m</span>`);
+    Lh_K2K3 = 2 * H;
+  }
+
+  // Exposure group
+  const expGroup = (exposure === 'C') ? 'C' : 'AB';
+  steps.push(`地況：<span class="hi">${exposure}</span>（查表組：${expGroup}），地形：<span class="hi">${terrain}</span>`);
+
+  // ---- K1 ----
+  const k1Table = DB.k1[terrain][expGroup];
+  const K1 = interp(k1Table, HLh_K1);
+  // find bracketing rows
+  let k1lo = k1Table[0], k1hi = k1Table[k1Table.length-1];
+  for (let i=0; i<k1Table.length-1; i++) {
+    if (HLh_K1 >= k1Table[i][0] && HLh_K1 <= k1Table[i+1][0]) {
+      k1lo = k1Table[i]; k1hi = k1Table[i+1]; break;
+    }
+  }
+  steps.push(`K₁：查表 H/L<sub>h</sub> = <span class="hi">${HLh_K1.toFixed(4)}</span>，內插於 [${k1lo[0].toFixed(2)}, ${k1lo[1].toFixed(2)}] ~ [${k1hi[0].toFixed(2)}, ${k1hi[1].toFixed(2)}]，得 K₁ = <span class="hi">${K1.toFixed(4)}</span>`);
+
+  // ---- K2 ----
+  const xLh = x / Lh_K2K3;
+  const k2Key = (terrain === '懸崖') ? '懸崖' : '山脊山丘';
+  const k2Table = DB.k2[k2Key];
+  const K2 = Math.max(0, interp(k2Table, xLh));
+  let k2lo = k2Table[0], k2hi = k2Table[k2Table.length-1];
+  for (let i=0; i<k2Table.length-1; i++) {
+    if (xLh >= k2Table[i][0] && xLh <= k2Table[i+1][0]) {
+      k2lo = k2Table[i]; k2hi = k2Table[i+1]; break;
+    }
+  }
+  steps.push(`K₂：x/L<sub>h</sub> = ${x} / ${Lh_K2K3.toFixed(2)} = <span class="hi">${xLh.toFixed(4)}</span>，查表（${k2Key}）得 K₂ = <span class="hi">${K2.toFixed(4)}</span>`);
+
+  // ---- K3 ----
+  const zLh = z / Lh_K2K3;
+  const k3Table = DB.k3[terrain];
+  const K3 = interp(k3Table, zLh);
+  let k3lo = k3Table[0], k3hi = k3Table[k3Table.length-1];
+  for (let i=0; i<k3Table.length-1; i++) {
+    if (zLh >= k3Table[i][0] && zLh <= k3Table[i+1][0]) {
+      k3lo = k3Table[i]; k3hi = k3Table[i+1]; break;
+    }
+  }
+  steps.push(`K₃：z/L<sub>h</sub> = ${z} / ${Lh_K2K3.toFixed(2)} = <span class="hi">${zLh.toFixed(4)}</span>，查表（${terrain}）得 K₃ = <span class="hi">${K3.toFixed(4)}</span>`);
+
+  // ---- Kzt ----
+  const Kzt = Math.pow(1 + K1 * K2 * K3, 2);
+  steps.push(`<span class="ok">✔ K<sub>zt</sub> = (1 + ${K1.toFixed(4)} × ${K2.toFixed(4)} × ${K3.toFixed(4)})² = <span class="hi">${Kzt.toFixed(4)}</span></span>`);
+
+  // Render results
+  const html = `
+    <div class="result-panel">
+      <div class="result-header">
+        <h2>計算結果 — ${terrain} / 地況 ${exposure}</h2>
+        <span style="font-size:11px;color:var(--text-dim)">H=${H}m, Lh=${Lh}m, x=${x}m, z=${z}m</span>
+      </div>
+      <div class="result-body">
+        <div class="result-grid">
+          <div class="result-cell">
+            <div class="rc-label">K₁（頂端加速）</div>
+            <div class="rc-val k1c">${K1.toFixed(4)}</div>
+            <div style="font-size:10px;color:var(--text-dimmer);margin-top:4px">H/Lh=${HLh_K1.toFixed(3)}</div>
+          </div>
+          <div class="result-cell">
+            <div class="rc-label">K₂（水平衰減）</div>
+            <div class="rc-val k2c">${K2.toFixed(4)}</div>
+            <div style="font-size:10px;color:var(--text-dimmer);margin-top:4px">x/Lh=${xLh.toFixed(3)}</div>
+          </div>
+          <div class="result-cell">
+            <div class="rc-label">K₃（垂直衰減）</div>
+            <div class="rc-val k3c">${K3.toFixed(4)}</div>
+            <div style="font-size:10px;color:var(--text-dimmer);margin-top:4px">z/Lh=${zLh.toFixed(3)}</div>
+          </div>
+        </div>
+        <div class="kzt-display">
+          <div class="kzt-label">地形係數</div>
+          <div class="kzt-val">K<sub>zt</sub> = ${Kzt.toFixed(4)}</div>
+          <div class="kzt-formula">= ( 1 + ${K1.toFixed(4)} × ${K2.toFixed(4)} × ${K3.toFixed(4)} )² = ${Kzt.toFixed(4)}</div>
+        </div>
+        <div class="step-log">
+          <h4>計算步驟記錄</h4>
+          ${steps.map((s,i)=>`<div class="step">${i+1}. ${s}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">查表資料（含插值位置標示）</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+      ${renderK1Table(terrain, expGroup, HLh_K1)}
+      ${renderK2Table(k2Key, xLh)}
+      ${renderK3Table(terrain, zLh)}
+    </div>
+  `;
+  document.getElementById('result-area').innerHTML = html;
+
+  // 回傳結果至整合式父頁面
+  if (window.parent !== window) {
+    window.parent.postMessage({
+      source: 'kzt_calculator',
+      terrain: terrain,
+      exposure: exposure,
+      inputs: { H, Lh, x, z },
+      results: {
+        K1: parseFloat(K1.toFixed(4)),
+        K2: parseFloat(K2.toFixed(4)),
+        K3: parseFloat(K3.toFixed(4)),
+        Kzt: parseFloat(Kzt.toFixed(4)),
+        HLh: parseFloat(HLh.toFixed(4)),
+        xLh: parseFloat(xLh.toFixed(4)),
+        zLh: parseFloat(zLh.toFixed(4))
+      },
+      timestamp: new Date().toISOString()
+    }, '*');
+  }
+}
+
+function renderK1Table(terrain, expGroup, targetHLh) {
+  const table = DB.k1[terrain][expGroup];
+  const rows = table.map(([h,k]) => {
+    const isClose = Math.abs(h - targetHLh) < 0.026;
+    return `<tr class="${isClose?'highlight':''}"><td>${h.toFixed(2)}</td><td>${k.toFixed(2)}</td></tr>`;
+  }).join('');
+  return `<div>
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">K₁ 表 — ${terrain} / ${expGroup}</div>
+    <div class="scroll-table"><table class="data-table">
+      <tr><th>H/L<sub>h</sub></th><th>K₁</th></tr>${rows}
+    </table></div></div>`;
+}
+function renderK2Table(k2Key, targetXLh) {
+  const table = DB.k2[k2Key];
+  const rows = table.map(([x,k]) => {
+    const isClose = Math.abs(x - targetXLh) < 0.26;
+    return `<tr class="${isClose?'highlight':''}"><td>${x.toFixed(2)}</td><td>${k.toFixed(2)}</td></tr>`;
+  }).join('');
+  return `<div>
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">K₂ 表 — ${k2Key}</div>
+    <div class="scroll-table" style="max-height:260px;overflow-y:auto"><table class="data-table">
+      <tr><th>x/L<sub>h</sub></th><th>K₂</th></tr>${rows}
+    </table></div></div>`;
+}
+function renderK3Table(terrain, targetZLh) {
+  const table = DB.k3[terrain];
+  const rows = table.map(([z,k]) => {
+    const isClose = Math.abs(z - targetZLh) < 0.06;
+    return `<tr class="${isClose?'highlight':''}"><td>${z.toFixed(2)}</td><td>${k.toFixed(2)}</td></tr>`;
+  }).join('');
+  return `<div>
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">K₃ 表 — ${terrain}</div>
+    <div class="scroll-table"><table class="data-table">
+      <tr><th>z/L<sub>h</sub></th><th>K₃</th></tr>${rows}
+    </table></div></div>`;
+}
+
+// ============================================================
+//  FIGURE DRAWING (SVG)
+// ============================================================
+function updateFigure() {
+  const container = document.getElementById('fig-container');
+  if (terrain === '懸崖') {
+    container.innerHTML = drawCliffSVG();
+  } else {
+    container.innerHTML = drawRidgeHillSVG(terrain);
+  }
+}
+
+function drawCliffSVG() {
+  // Geometry:
+  //   Ground left : y=185,  cliff top plateau : y=65
+  //   H = 120px (y: 65→185)
+  //   45° slope : horizontal span = vertical span = 120px
+  //   Slope bottom (toe) : x=180, y=185
+  //   Slope top  (crest) : x=300, y=65   ← x=0 reference
+  //   Top plateau extends right from x=300
+  //   H/2 level : y=125  → on slope, x = 300-(125-65) = 240
+  //   Lh arrow at y=125 : from x=300 (crest) left to x=240 (on slope face)
+  return `<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
+  <defs>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#aaa" stroke-width="1"/>
+    </pattern>
+    <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#333"/>
+    </marker>
+    <marker id="arr2" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#333"/>
+    </marker>
+    <marker id="bluearr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#1a5276"/>
+    </marker>
+    <marker id="redarr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#c0392b"/>
+    </marker>
+    <marker id="lharr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#2980b9"/>
+    </marker>
+    <marker id="lharr2" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#2980b9"/>
+    </marker>
+  </defs>
+
+  <!-- ground left (flat, below slope toe) -->
+  <rect x="20" y="185" width="160" height="20" fill="url(#hatch)" stroke="#555" stroke-width="1"/>
+  <!-- 45° slope body: toe(180,185) → crest(300,65) → right edge, filled -->
+  <polygon points="180,185 300,65 680,65 680,185" fill="#ddd" stroke="none"/>
+  <!-- slope outline -->
+  <line x1="180" y1="185" x2="300" y2="65" stroke="#333" stroke-width="2"/>
+  <!-- top plateau surface + hatch -->
+  <rect x="300" y="65" width="380" height="20" fill="url(#hatch)" stroke="#555" stroke-width="1"/>
+  <!-- bottom hatch strip under slope body -->
+  <rect x="180" y="185" width="500" height="20" fill="url(#hatch)" stroke="#555" stroke-width="1"/>
+
+  <!-- x=0 vertical dashed line at crest x=300 -->
+  <line x1="300" y1="32" x2="300" y2="215" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="304" y="44" font-size="11" fill="#e74c3c">x = 0</text>
+
+  <!-- H double-arrow: moved right to x=510 to avoid overlap with H/2 label -->
+  <line x1="510" y1="65" x2="510" y2="185" stroke="#333" stroke-width="1.5" marker-end="url(#arr)" marker-start="url(#arr2)"/>
+  <text x="518" y="132" font-size="15" fill="#333" font-style="italic">H</text>
+
+  <!-- H/2 dashed line at y=125 -->
+  <line x1="80" y1="125" x2="460" y2="125" stroke="#777" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="465" y="129" font-size="11" fill="#555">H/2</text>
+
+  <!-- Lh arrow at y=125: from crest x=300 left to slope face x=240 (300-(125-65)=240) -->
+  <line x1="300" y1="125" x2="240" y2="125" stroke="#2980b9" stroke-width="1.8" marker-end="url(#lharr)" marker-start="url(#lharr2)"/>
+  <text x="270" y="116" font-size="13" fill="#2980b9" font-style="italic" text-anchor="middle">L<tspan baseline-shift="sub" font-size="10">h</tspan></text>
+
+  <!-- x<0 x>0 labels -->
+  <text x="150" y="205" font-size="11" fill="#666" text-anchor="middle">x &lt; 0（上風側）</text>
+  <text x="490" y="55" font-size="11" fill="#666" text-anchor="middle">x &gt; 0（下風側）</text>
+
+  <!-- V(z) arrows left (approaching wind) -->
+  <text x="25" y="88" font-size="13" fill="#1a5276" font-style="italic">V(z)</text>
+  <path d="M25,125 Q65,118 105,114" stroke="#1a5276" stroke-width="2" fill="none" marker-end="url(#bluearr)"/>
+  <path d="M25,143 Q68,136 110,132" stroke="#1a5276" stroke-width="2" fill="none" marker-end="url(#bluearr)"/>
+  <path d="M25,158 Q72,152 115,148" stroke="#1a5276" stroke-width="2" fill="none" marker-end="url(#bluearr)"/>
+
+  <!-- V(z) arrows right (accelerated) — above peak level -->
+  <text x="520" y="18" font-size="13" fill="#c0392b" font-style="italic">V(z)</text>
+  <text x="580" y="18" font-size="11" fill="#c0392b">局部加速</text>
+  <path d="M355,28  Q415,22 470,18"  stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr)"/>
+  <path d="M355,40  Q418,34 473,30"  stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr)"/>
+  <path d="M355,52  Q422,46 476,42"  stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr)"/>
+
+  <!-- labels -->
+  <text x="80" y="180" font-size="12" fill="#777">平地</text>
+  <text x="350" y="250" font-size="13" fill="#333" text-anchor="middle" font-weight="bold">懸崖（Cliff）</text>
+</svg>`;
+}
+
+function drawRidgeHillSVG(type) {
+  const typeLabel = type === '山脊' ? '山脊（Ridge）' : '山丘（Hill）';
+  return `<svg viewBox="0 0 700 270" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
+  <defs>
+    <pattern id="hatch2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#aaa" stroke-width="1"/>
+    </pattern>
+    <marker id="arr3" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#333"/>
+    </marker>
+    <marker id="arr3r" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#333"/>
+    </marker>
+    <marker id="bluearr2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#1a5276"/>
+    </marker>
+    <marker id="redarr2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#c0392b"/>
+    </marker>
+    <marker id="lharr3" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#2980b9"/>
+    </marker>
+    <marker id="lharr3r" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#2980b9"/>
+    </marker>
+  </defs>
+  <!-- ground base -->
+  <rect x="20" y="195" width="660" height="15" fill="url(#hatch2)" stroke="#555" stroke-width="1"/>
+  <!-- hill/ridge shape -->
+  <path d="M20,195 Q140,195 260,195 Q310,60 350,55 Q390,60 440,195 Q560,195 680,195"
+        fill="#ddd" stroke="#333" stroke-width="2"/>
+  <!-- x=0 at peak -->
+  <line x1="350" y1="25" x2="350" y2="220" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="355" y="40" font-size="11" fill="#e74c3c">x = 0</text>
+  <!-- H arrow -->
+  <line x1="600" y1="55" x2="600" y2="195" stroke="#333" stroke-width="1.5" marker-end="url(#arr3)" marker-start="url(#arr3r)"/>
+  <text x="610" y="132" font-size="15" fill="#333" font-style="italic">H</text>
+  <!-- H/2 dashed line: peak y=55, base y=195, so H/2 at y=125 -->
+  <line x1="170" y1="125" x2="620" y2="125" stroke="#777" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="156" y="129" font-size="11" fill="#555">H/2</text>
+  <!-- Lh arrow: at H/2 level (y=125), from x=305 (within slope) to x=350 (peak vertical) -->
+  <line x1="350" y1="125" x2="305" y2="125" stroke="#2980b9" stroke-width="1.8" marker-end="url(#lharr3)" marker-start="url(#lharr3r)"/>
+  <text x="327" y="116" font-size="13" fill="#2980b9" font-style="italic" text-anchor="middle">L<tspan baseline-shift="sub" font-size="10">h</tspan></text>
+  <!-- x<0 x>0 -->
+  <text x="200" y="215" font-size="11" fill="#666" text-anchor="middle">x &lt; 0（上風側）</text>
+  <text x="500" y="215" font-size="11" fill="#666" text-anchor="middle">x &gt; 0（下風側）</text>
+  <!-- V(z) left -->
+  <text x="30" y="85" font-size="13" fill="#1a5276" font-style="italic">V(z)</text>
+  <path d="M30 130 Q80 122 130 118" stroke="#1a5276" stroke-width="2" fill="none" marker-end="url(#bluearr2)"/>
+  <path d="M30 148 Q85 140 138 136" stroke="#1a5276" stroke-width="2" fill="none" marker-end="url(#bluearr2)"/>
+  <path d="M30 163 Q90 156 145 152" stroke="#1a5276" stroke-width="2" fill="none" marker-end="url(#bluearr2)"/>
+  <!-- V(z) right (accelerated) -->
+  <text x="480" y="72" font-size="13" fill="#c0392b" font-style="italic">V(z)</text>
+  <text x="560" y="72" font-size="11" fill="#c0392b">局部加速</text>
+  <path d="M460 102 Q510 92 560 86" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr2)"/>
+  <path d="M460 115 Q515 104 568 98" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr2)"/>
+  <path d="M460 128 Q518 117 572 111" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr2)"/>
+  <text x="80" y="190" font-size="12" fill="#777">平地</text>
+  <text x="580" y="190" font-size="12" fill="#777">平地</text>
+  <text x="350" y="258" font-size="13" fill="#333" text-anchor="middle" font-weight="bold">${typeLabel}</text>
+</svg>`;
+}
+
+// init
+updateFigure();
+
+// ── 接收父框架傳來的 C 區地況資料，自動帶入並鎖定地況分類 ────────────
+function applyExposureFromHub(expId) {
+  // Set the exposure variable
+  exposure = expId;
+
+  // Visually select the card
+  document.querySelectorAll('.exp-card').forEach(c => c.classList.remove('active'));
+  const card = document.getElementById('ec-' + expId);
+  if (card) card.classList.add('active');
+
+  // Lock all exp-cards: disable pointer events, show locked style
+  document.querySelectorAll('.exp-card').forEach(c => {
+    c.style.pointerEvents = 'none';
+    c.style.cursor = 'not-allowed';
+    c.style.opacity = (c.id === 'ec-' + expId) ? '1' : '0.3';
+  });
+
+  // Add a locked badge below the exp-grid if not already present
+  if (!document.getElementById('exp-lock-notice')) {
+    const notice = document.createElement('div');
+    notice.id = 'exp-lock-notice';
+    notice.style.cssText = 'font-size:11px;color:#2d6a4a;background:rgba(45,106,74,0.08);border:1px solid rgba(45,106,74,0.3);border-radius:4px;padding:6px 10px;margin-bottom:12px;';
+    notice.innerHTML = '🔒 地況 <strong>' + expId + '</strong> 已由 C 區自動帶入，鎖定不可手動更改。';
+    const expGrid = document.querySelector('.exp-grid');
+    if (expGrid && expGrid.parentNode) {
+      expGrid.parentNode.insertBefore(notice, expGrid.nextSibling);
+    }
+  } else {
+    document.getElementById('exp-lock-notice').innerHTML =
+      '🔒 地況 <strong>' + expId + '</strong> 已由 C 區自動帶入，鎖定不可手動更改。';
+  }
+}
+
+window.addEventListener('message', function(ev) {
+  const d = ev.data;
+  if (!d || typeof d !== 'object') return;
+  if (d.source === 'hub_to_kzt_exposure' && d.terrainId) {
+    applyExposureFromHub(d.terrainId);
+  }
+});
+
+</script>
+</body>
+</html>

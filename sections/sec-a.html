@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基本設計風速查詢系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --paper: #f5f0e8;
+    --accent: #c0392b;
+    --accent-light: #e74c3c;
+    --gold: #c9a84c;
+    --muted: #7a7060;
+    --border: #d4c9b0;
+    --card-bg: #fdfaf4;
+    --shadow: 0 4px 24px rgba(26,26,46,0.10);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse at 0% 0%, rgba(192,57,43,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 100% 100%, rgba(201,168,76,0.08) 0%, transparent 60%);
+  }
+
+  /* Header */
+  header {
+    background: var(--ink);
+    color: #f5f0e8;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 60px,
+      rgba(255,255,255,0.015) 60px,
+      rgba(255,255,255,0.015) 61px
+    );
+  }
+
+  .header-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 36px 32px 28px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+  }
+
+  .header-icon {
+    font-size: 48px;
+    line-height: 1;
+    opacity: 0.9;
+  }
+
+  .header-text {}
+
+  h1 {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+  }
+
+  .header-sub {
+    font-size: 12px;
+    font-weight: 300;
+    letter-spacing: 0.18em;
+    color: rgba(245,240,232,0.6);
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+
+  .header-badge {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 0.12em;
+    text-align: right;
+    line-height: 1.6;
+    opacity: 0.9;
+  }
+
+  /* Main */
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  /* Step cards */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .step-card {
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    box-shadow: var(--shadow);
+    transition: border-color 0.2s;
+    position: relative;
+  }
+
+  .step-card.active {
+    border-color: var(--accent);
+  }
+
+  .step-card.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Noto Serif TC', serif;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-card.active .step-num {
+    background: var(--accent);
+  }
+
+  .step-label {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+  }
+
+  .step-selection {
+    font-size: 13px;
+    color: var(--muted);
+    margin-left: auto;
+    font-weight: 400;
+  }
+
+  .step-selection.chosen {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Toggle buttons */
+  .btn-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 10px 24px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.18s;
+    letter-spacing: 0.05em;
+  }
+
+  .btn:hover {
+    border-color: var(--ink);
+    background: #f8f4ec;
+  }
+
+  .btn.selected {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  /* County grid */
+  .county-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+  }
+
+  .county-btn {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.18s;
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+
+  .county-btn:hover {
+    border-color: var(--ink);
+    background: #f8f4ec;
+  }
+
+  .county-btn.selected {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  /* Township grid */
+  .township-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 9px;
+  }
+
+  .township-btn {
+    padding: 9px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    background: white;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.18s;
+    text-align: center;
+    letter-spacing: 0.04em;
+    position: relative;
+  }
+
+  .township-btn:hover {
+    border-color: var(--ink);
+    background: #f8f4ec;
+  }
+
+  .township-btn.selected {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  .speed-badge {
+    font-size: 10px;
+    font-weight: 300;
+    display: block;
+    opacity: 0.6;
+    margin-top: 2px;
+  }
+
+  .township-btn.selected .speed-badge {
+    opacity: 0.75;
+  }
+
+  /* Result */
+  #result-card {
+    display: none;
+    margin-top: 28px;
+  }
+
+  .result-inner {
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 14px;
+    padding: 36px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-inner::before {
+    content: '風';
+    position: absolute;
+    right: -10px;
+    bottom: -30px;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 160px;
+    font-weight: 900;
+    opacity: 0.05;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .result-location {
+    font-size: 15px;
+    letter-spacing: 0.12em;
+    color: rgba(245,240,232,0.7);
+    margin-bottom: 14px;
+    font-weight: 300;
+  }
+
+  .result-location span {
+    color: var(--gold);
+    font-weight: 500;
+  }
+
+  .result-speed {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--paper);
+    letter-spacing: -0.02em;
+  }
+
+  .result-unit {
+    font-size: 22px;
+    font-weight: 300;
+    color: rgba(245,240,232,0.7);
+    margin-left: 6px;
+    letter-spacing: 0.08em;
+  }
+
+  .result-zone {
+    margin-top: 14px;
+    font-size: 13px;
+    color: rgba(245,240,232,0.55);
+    letter-spacing: 0.1em;
+  }
+
+  .result-bar-wrap {
+    margin: 24px auto 0;
+    max-width: 380px;
+  }
+
+  .result-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: rgba(245,240,232,0.4);
+    margin-bottom: 8px;
+    letter-spacing: 0.08em;
+  }
+
+  .result-bar-bg {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    height: 8px;
+    overflow: hidden;
+  }
+
+  .result-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--gold), var(--accent-light));
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+  }
+
+  .result-note {
+    margin-top: 16px;
+    font-size: 11px;
+    color: rgba(245,240,232,0.35);
+    letter-spacing: 0.06em;
+    font-weight: 300;
+  }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+
+  @media (max-width: 600px) {
+    .header-inner { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .header-badge { margin-left: 0; text-align: left; }
+    h1 { font-size: 22px; }
+    .step-card { padding: 20px 18px; }
+    .result-speed { font-size: 54px; }
+    main { padding: 24px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-icon">🌀</div>
+    <div class="header-text">
+      <h1>基本設計風速查詢</h1>
+      <div class="header-sub">Basic Design Wind Speed · Taiwan Building Code</div>
+    </div>
+    <div class="header-badge">
+      依據建築技術規則<br>
+      中央氣象局 128 颱風資料統計
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="steps">
+
+    <!-- Step 1: 本島/外島 -->
+    <div class="step-card active" id="step1">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <div class="step-label">選擇地區類型</div>
+        <div class="step-selection" id="sel-island">尚未選擇</div>
+      </div>
+      <div class="btn-group">
+        <button class="btn" onclick="selectIsland('本島')">🗺 臺灣本島</button>
+        <button class="btn" onclick="selectIsland('外島')">🏝 外島地區</button>
+      </div>
+    </div>
+
+    <!-- Step 2: County -->
+    <div class="step-card disabled" id="step2">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div class="step-label">選擇縣市</div>
+        <div class="step-selection" id="sel-county">尚未選擇</div>
+      </div>
+      <div class="county-grid" id="county-grid"></div>
+    </div>
+
+    <!-- Step 3: Township -->
+    <div class="step-card disabled" id="step3">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div class="step-label">選擇鄉鎮市區</div>
+        <div class="step-selection" id="sel-township">尚未選擇</div>
+      </div>
+      <div class="township-grid" id="township-grid"></div>
+    </div>
+
+  </div>
+
+  <!-- Result -->
+  <div id="result-card">
+    <div class="result-inner">
+      <div class="result-location" id="result-location"></div>
+      <div>
+        <span class="result-speed" id="result-speed"></span>
+        <span class="result-unit">m/s</span>
+      </div>
+      <div class="result-zone" id="result-zone"></div>
+      <div class="result-bar-wrap">
+        <div class="result-bar-label">
+          <span>22.5 m/s</span>
+          <span>設計風速範圍</span>
+          <span>65.0 m/s</span>
+        </div>
+        <div class="result-bar-bg">
+          <div class="result-bar-fill" id="result-bar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="result-note">※ 本資料依據建築技術規則建築構造編第 32 條</div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  資料來源：建築技術規則建築構造編附表（1947–1991 年颱風統計）・本工具僅供參考，設計時請以原始規範為準
+</footer>
+
+<script src="../shared/db/wind-speed.js"></script>
+<script>
+// 風速資料庫 — 由 shared/db/wind-speed.js 提供
+
+let selectedIsland = null;
+let selectedCounty = null;
+let selectedTownship = null;
+
+// Sort counties by stroke count (approximate by unicode order for CJK)
+const COUNTY_ORDER_MAINLAND = [
+  '基隆市','臺北市','新北市','桃園縣','新竹市','新竹縣','苗栗縣',
+  '臺中市','彰化縣','南投縣','雲林縣','嘉義市','嘉義縣','臺南市',
+  '高雄市','屏東縣','宜蘭縣','花蓮縣','臺東縣'
+];
+
+function selectIsland(type) {
+  selectedIsland = type;
+  selectedCounty = null;
+  selectedTownship = null;
+
+  // Update step 1 UI
+  document.querySelectorAll('#step1 .btn').forEach(b => {
+    b.classList.toggle('selected', b.textContent.includes(type === '本島' ? '本島' : '外島'));
+  });
+  document.getElementById('sel-island').textContent = type;
+  document.getElementById('sel-island').className = 'step-selection chosen';
+  document.getElementById('sel-county').textContent = '尚未選擇';
+  document.getElementById('sel-county').className = 'step-selection';
+  document.getElementById('sel-township').textContent = '尚未選擇';
+  document.getElementById('sel-township').className = 'step-selection';
+
+  // Build county grid
+  const grid = document.getElementById('county-grid');
+  grid.innerHTML = '';
+  let counties = Object.keys(DB[type]);
+  if (type === '本島') {
+    counties = COUNTY_ORDER_MAINLAND.filter(c => counties.includes(c));
+  }
+
+  counties.forEach(county => {
+    const btn = document.createElement('button');
+    btn.className = 'county-btn';
+    btn.textContent = county;
+    btn.onclick = () => selectCounty(county);
+    grid.appendChild(btn);
+  });
+
+  // Show/enable step 2, disable step 3
+  document.getElementById('step2').classList.remove('disabled');
+  document.getElementById('step2').classList.add('active');
+  document.getElementById('step3').classList.add('disabled');
+  document.getElementById('step3').classList.remove('active');
+  document.getElementById('township-grid').innerHTML = '';
+  document.getElementById('result-card').style.display = 'none';
+
+  // Scroll to step 2
+  setTimeout(() => document.getElementById('step2').scrollIntoView({behavior:'smooth', block:'nearest'}), 100);
+}
+
+function selectCounty(county) {
+  selectedCounty = county;
+  selectedTownship = null;
+
+  document.querySelectorAll('.county-btn').forEach(b => {
+    b.classList.toggle('selected', b.textContent === county);
+  });
+  document.getElementById('sel-county').textContent = county;
+  document.getElementById('sel-county').className = 'step-selection chosen';
+  document.getElementById('sel-township').textContent = '尚未選擇';
+  document.getElementById('sel-township').className = 'step-selection';
+
+  // Build township grid
+  const grid = document.getElementById('township-grid');
+  grid.innerHTML = '';
+  const townships = DB[selectedIsland][county];
+  const sorted = Object.entries(townships).sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+  sorted.forEach(([township, speed]) => {
+    const btn = document.createElement('button');
+    btn.className = 'township-btn';
+    btn.innerHTML = `${township}<span class="speed-badge">${speed} m/s</span>`;
+    btn.onclick = () => selectTownship(township, speed);
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('step3').classList.remove('disabled');
+  document.getElementById('step3').classList.add('active');
+  document.getElementById('result-card').style.display = 'none';
+
+  setTimeout(() => document.getElementById('step3').scrollIntoView({behavior:'smooth', block:'nearest'}), 100);
+}
+
+function selectTownship(township, speed) {
+  selectedTownship = township;
+
+  document.querySelectorAll('.township-btn').forEach(b => {
+    const nameEl = b.cloneNode(true);
+    nameEl.querySelectorAll('.speed-badge').forEach(el => el.remove());
+    b.classList.toggle('selected', nameEl.textContent.trim() === township);
+  });
+  document.getElementById('sel-township').textContent = township;
+  document.getElementById('sel-township').className = 'step-selection chosen';
+
+  // Show result
+  const zoneLabel = `每秒 ${speed} 公尺區`;
+  document.getElementById('result-location').innerHTML =
+    `<span>${selectedIsland}</span> ／ <span>${selectedCounty}</span> ／ <span>${township}</span>`;
+  document.getElementById('result-speed').textContent = speed.toFixed(1);
+  document.getElementById('result-zone').textContent = zoneLabel;
+
+  // Bar: range 22.5 to 65.0
+  const pct = ((speed - 22.5) / (65.0 - 22.5) * 100).toFixed(1);
+  document.getElementById('result-bar').style.width = pct + '%';
+
+  const card = document.getElementById('result-card');
+  card.style.display = 'block';
+  setTimeout(() => card.scrollIntoView({behavior:'smooth', block:'nearest'}), 100);
+
+  // 回傳結果至整合式父頁面
+  const result = {
+    source: 'wind_speed_query',
+    island: selectedIsland,
+    county: selectedCounty,
+    township: township,
+    speed: speed,
+    zone: zoneLabel,
+    timestamp: new Date().toISOString()
+  };
+  if (window.parent !== window) {
+    window.parent.postMessage(result, '*');
+  }
+}
+</script>
+</body>
+</html>

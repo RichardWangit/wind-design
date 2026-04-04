@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>陣風反應因子計算器｜2.7節</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* 書卷基底 */
+    --paper:      #f5f0e8;
+    --paper-warm: #ede8dc;
+    --card-bg:    #fdfaf4;
+    --card-alt:   #f7f2e9;
+
+    /* 墨色文字 */
+    --ink:        #1a1a2e;
+    --ink2:       #3a3a52;
+    --ink3:       #6b6b88;
+    --ink4:       #a0a0b8;
+
+    /* 深墨導覽帶 */
+    --navy:       #12122a;
+    --navy2:      #1e1e3a;
+
+    /* 強調色系：鐵鏽硃砂 */
+    --rust:       #8b3a2a;
+    --rust-light: #b85a40;
+    --rust-bg:    rgba(139,58,42,0.07);
+    --rust-border:rgba(139,58,42,0.25);
+
+    /* 功能色：青銅綠（數值結果）*/
+    --bronze:     #2d6a4a;
+    --bronze-bg:  rgba(45,106,74,0.07);
+
+    /* 功能色：典籍藍（公式）*/
+    --cobalt:     #1e4d8c;
+    --cobalt-bg:  rgba(30,77,140,0.06);
+    --cobalt-border: rgba(30,77,140,0.18);
+
+    /* 邊框層次 */
+    --rule-dark:  #c2b9a8;
+    --rule-mid:   #d8d0c0;
+    --rule-light: #e8e2d8;
+
+    /* 模組識別色帶 */
+    --mod-param:  #2d4a6e;   /* 深靛藍 — 參數表 */
+    --mod-input:  #3a5a3a;   /* 林木綠 — 輸入區 */
+    --mod-result: #6b3020;   /* 深硃砂 — 計算結果 */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-weight: 400;
+    min-height: 100vh;
+    padding: 0 0 80px;
+  }
+
+  /* ── 頂部深色導覽帶 ── */
+  .masthead {
+    background: var(--navy);
+    border-bottom: 3px solid var(--rust);
+    padding: 28px 40px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .masthead::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 39px,
+      rgba(255,255,255,0.02) 39px,
+      rgba(255,255,255,0.02) 40px
+    );
+    pointer-events: none;
+  }
+  .masthead-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative; z-index: 1;
+  }
+  .masthead .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--rust-light);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    opacity: 0.9;
+  }
+  .masthead h1 {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #f0ebe0;
+    margin-bottom: 6px;
+  }
+  .masthead .sub {
+    font-size: 12px;
+    color: rgba(240,235,224,0.45);
+    letter-spacing: 1px;
+  }
+
+  /* ── 主體容器 ── */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 36px 24px 0;
+  }
+
+  /* ── 模組色帶區塊 ── */
+  .module {
+    margin-bottom: 32px;
+    border-radius: 2px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(26,26,46,0.06), 0 4px 12px rgba(26,26,46,0.04);
+  }
+  .module-tab {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #f0ebe0;
+  }
+  .module-tab .tab-num {
+    font-size: 9px;
+    opacity: 0.6;
+    border: 1px solid rgba(240,235,224,0.3);
+    padding: 1px 5px;
+    border-radius: 2px;
+    letter-spacing: 0;
+  }
+  .module-tab::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(240,235,224,0.15);
+  }
+  .module-body {
+    background: var(--card-bg);
+    border: 1px solid var(--rule-mid);
+    border-top: none;
+    padding: 20px 20px 16px;
+  }
+
+  /* 模組色帶顏色 */
+  .mod-param > .module-tab  { background: var(--mod-param); }
+  .mod-input > .module-tab  { background: var(--mod-input); }
+  .mod-result > .module-tab { background: var(--mod-result); }
+
+  /* ── 參數表 ── */
+  .param-table {
+    border: 1px solid var(--rule-mid);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .param-table-header {
+    display: grid;
+    grid-template-columns: 72px 110px 1fr;
+    background: var(--navy2);
+    padding: 9px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: rgba(240,235,224,0.6);
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .param-row {
+    display: grid;
+    grid-template-columns: 72px 110px 1fr;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--rule-light);
+    align-items: center;
+    transition: background 0.12s;
+    background: var(--card-bg);
+  }
+  .param-row:nth-child(even) { background: var(--card-alt); }
+  .param-row:last-child { border-bottom: none; }
+  .param-row:hover { background: rgba(45,74,110,0.06); }
+  .param-sym {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--mod-param);
+    font-weight: 700;
+  }
+  .param-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--bronze);
+    font-weight: 600;
+  }
+  .param-desc {
+    font-size: 12px;
+    color: var(--ink3);
+    line-height: 1.55;
+  }
+
+  /* ── 切換按鈕 ── */
+  .toggle-group {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--rule-dark);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 22px;
+    max-width: 520px;
+    box-shadow: inset 0 1px 3px rgba(26,26,46,0.06);
+  }
+  .toggle-btn {
+    flex: 1;
+    padding: 13px 20px;
+    background: var(--paper-warm);
+    border: none;
+    color: var(--ink3);
+    cursor: pointer;
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    transition: all 0.18s;
+    border-right: 1px solid var(--rule-dark);
+    text-align: left;
+    line-height: 1.5;
+  }
+  .toggle-btn:last-child { border-right: none; }
+  .toggle-btn.active {
+    background: var(--navy);
+    color: #f0ebe0;
+    font-weight: 500;
+  }
+  .toggle-btn.active .toggle-sub { color: rgba(240,235,224,0.5); }
+  .toggle-btn:hover:not(.active) { background: var(--card-bg); color: var(--ink); }
+  .toggle-sub { display: block; font-size: 10px; color: var(--ink4); margin-top: 2px; }
+
+  /* ── 表單 ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: 11.5px;
+    color: var(--ink2);
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 500;
+  }
+  .field label .sym {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--card-bg);
+    background: var(--mod-input);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .field input {
+    background: #fff;
+    border: 1px solid var(--rule-dark);
+    border-radius: 2px;
+    padding: 9px 12px;
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-shadow: inset 0 1px 2px rgba(26,26,46,0.05);
+  }
+  .field input:focus {
+    border-color: var(--mod-input);
+    box-shadow: 0 0 0 2px rgba(58,90,58,0.12), inset 0 1px 2px rgba(26,26,46,0.05);
+  }
+  .field .hint { font-size: 10.5px; color: var(--ink4); }
+
+  /* ── 計算按鈕 ── */
+  .calc-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--navy);
+    border: none;
+    border-radius: 2px;
+    color: #f0ebe0;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.18s;
+    margin-top: 4px;
+    border-bottom: 3px solid var(--rust);
+    position: relative;
+    overflow: hidden;
+  }
+  .calc-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.4s;
+  }
+  .calc-btn:hover { background: var(--navy2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(18,18,42,0.25); }
+  .calc-btn:hover::before { transform: translateX(100%); }
+  .calc-btn:active { transform: translateY(0); border-bottom-width: 1px; }
+
+  /* ── 結果卡片 ── */
+  #results { display: none; margin-top: 36px; }
+
+  .result-card {
+    background: var(--card-bg);
+    border: 1px solid var(--rule-mid);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(26,26,46,0.05);
+  }
+  .result-card-header {
+    background: var(--navy2);
+    border-bottom: 2px solid var(--rust);
+    padding: 9px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: rgba(240,235,224,0.8);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .result-card-header .step-badge {
+    background: var(--rust);
+    color: #f0ebe0;
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 1px;
+    letter-spacing: 0;
+    font-weight: 700;
+  }
+  .result-card-body { padding: 14px 16px; }
+
+  .calc-step {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--rule-light);
+  }
+  .calc-step:last-child { border-bottom: none; }
+  .step-label {
+    font-size: 10.5px;
+    color: var(--ink4);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+  }
+  .step-formula {
+    font-size: 13px;
+    color: var(--ink2);
+    line-height: 1.7;
+  }
+  .step-result {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    color: var(--bronze);
+    font-weight: 600;
+    padding: 3px 0 0 2px;
+    border-left: 2px solid var(--bronze);
+    padding-left: 8px;
+    margin-top: 2px;
+  }
+
+  /* ── 公式方塊 ── */
+  .formula-block {
+    background: var(--cobalt-bg);
+    border-left: 3px solid var(--cobalt);
+    border-radius: 0 2px 2px 0;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--cobalt);
+    line-height: 2;
+    margin: 8px 0;
+  }
+
+  /* ── 最終結果 ── */
+  .final-result {
+    background: var(--navy);
+    border: none;
+    border-radius: 2px;
+    border-left: 4px solid var(--rust);
+    padding: 24px 32px;
+    text-align: center;
+    margin-top: 20px;
+    box-shadow: 0 4px 20px rgba(18,18,42,0.18);
+  }
+  .final-result .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: rgba(240,235,224,0.5);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .final-result .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 52px;
+    font-weight: 600;
+    color: #f0ebe0;
+    letter-spacing: 3px;
+    line-height: 1;
+  }
+  .final-result .desc {
+    font-size: 11px;
+    color: rgba(240,235,224,0.35);
+    margin-top: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── 附注 ── */
+  .note {
+    font-size: 11.5px;
+    color: var(--ink3);
+    line-height: 1.75;
+    padding: 10px 14px;
+    border-left: 3px solid var(--rule-dark);
+    background: var(--card-alt);
+    margin-top: 10px;
+  }
+
+  /* ── 錯誤 ── */
+  .error-box {
+    background: rgba(139,58,42,0.07);
+    border: 1px solid var(--rust);
+    border-radius: 2px;
+    padding: 11px 16px;
+    color: var(--rust);
+    font-size: 13px;
+    display: none;
+    margin-top: 12px;
+  }
+
+</style>
+</head>
+<body>
+<div class="masthead">
+  <div class="masthead-inner">
+    <div class="eyebrow">§ 2.7 建築物設計風力規範 ／ 臺灣建築物耐風設計規範</div>
+    <h1>陣風反應因子計算器</h1>
+    <div class="sub">Gust Response Factor Calculator — 依第二章第七節公式逐步求解</div>
+  </div>
+</div>
+<div class="container">
+
+  <!-- 模組一：地況基本參數（由C區帶入）-->
+  <div class="module mod-param" id="module-terrain">
+    <div class="module-tab">
+      <span class="tab-num">01</span>
+      <span id="tab-terrain-title">地況基本參數（表 2.2）</span>
+    </div>
+    <div class="module-body">
+      <div id="terrain-empty-hint" style="font-size:12px;color:#8b6a4a;background:rgba(139,106,74,0.08);border:1px dashed rgba(139,106,74,0.3);border-radius:4px;padding:10px 14px;line-height:1.7;">
+        ⬅ 請先在 <strong>C 區</strong>選擇地況種類，系統將自動帶入對應之 7 項地況基本參數。
+      </div>
+      <div id="terrain-param-table" style="display:none;">
+      <div class="param-table">
+        <div class="param-table-header">
+          <span>參數</span>
+          <span id="terrain-col-header">地況值</span>
+          <span>說明</span>
+        </div>
+        <div class="param-row">
+          <span class="param-sym">α</span>
+          <span class="param-val" id="tv-alpha">—</span>
+          <span class="param-desc">風速剖面指數（用於風速壓地況係數 K(z) 計算）</span>
+        </div>
+        <div class="param-row">
+          <span class="param-sym">z<sub>g</sub></span>
+          <span class="param-val" id="tv-zg">—</span>
+          <span class="param-desc">梯度高度（大氣邊界層頂端高度）</span>
+        </div>
+        <div class="param-row">
+          <span class="param-sym">b</span>
+          <span class="param-val" id="tv-b">—</span>
+          <span class="param-desc">式(2.19)所用係數，計算高度 z 處每小時平均風速</span>
+        </div>
+        <div class="param-row">
+          <span class="param-sym">c</span>
+          <span class="param-val" id="tv-c">—</span>
+          <span class="param-desc">紊流強度係數（式 2.10：Iz = c(10/z)^1/6）</span>
+        </div>
+        <div class="param-row">
+          <span class="param-sym">ℓ</span>
+          <span class="param-val" id="tv-l">—</span>
+          <span class="param-desc">紊流積分尺度係數（式 2.12：Lz = ℓ(z/10)^ε）</span>
+        </div>
+        <div class="param-row">
+          <span class="param-sym">ε</span>
+          <span class="param-val" id="tv-eps">—</span>
+          <span class="param-desc">紊流積分尺度指數（式 2.12）</span>
+        </div>
+        <div class="param-row">
+          <span class="param-sym">z<sub>min</sub></span>
+          <span class="param-val" id="tv-zmin">—</span>
+          <span class="param-desc">等效結構高度 z 之最小值（z = max(0.6h, z_min)）</span>
+        </div>
+      </div>
+      <div class="note" id="terrain-note" style="margin-top:8px;">
+        以上 7 項參數依規範表 2.2 取用，計算時無需使用者輸入。
+      </div>
+      </div><!-- /terrain-param-table -->
+    </div><!-- /module-body -->
+  </div><!-- /module-terrain -->
+
+  <!-- 模組二：基本設計風速 -->
+  <div class="module mod-param" id="module-v10">
+    <div class="module-tab">
+      <span class="tab-num">02</span>
+      基本設計風速
+    </div>
+    <div class="module-body">
+      <div id="v10-empty-hint" style="font-size:12px;color:#8b6a4a;background:rgba(139,106,74,0.08);border:1px dashed rgba(139,106,74,0.3);border-radius:4px;padding:10px 14px;margin-bottom:12px;line-height:1.7;">
+        ⬅ 請先在 <strong>A 區</strong>查詢基本設計風速，系統將自動帶入並鎖定。
+      </div>
+      <div class="form-grid" style="max-width:480px;">
+        <div class="field">
+          <label><span class="sym" style="background:var(--mod-param);">V<sub>10</sub></span>10 分鐘平均基本設計風速</label>
+          <input type="number" id="inp-V10" value="" min="1" step="0.5" placeholder="—" readonly style="background:#f0f0e8;color:#888;cursor:not-allowed;">
+          <div class="hint" id="v10-hint">單位：m/s，離地 10 m 高處（由 A 區自動帶入）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模組三：建築物類型 & 輸入參數 -->
+  <div class="module mod-input">
+    <div class="module-tab">
+      <span class="tab-num" id="tab-num-input">03</span>
+      建築物類型 ＆ 輸入參數
+    </div>
+    <div class="module-body">
+
+    <div class="toggle-group">
+      <button class="toggle-btn active" id="btn-ordinary" onclick="setType('ordinary')">
+        普通建築物<span class="toggle-sub">基本自然頻率 fn &gt; 1 Hz</span>
+      </button>
+      <button class="toggle-btn" id="btn-flexible" onclick="setType('flexible')">
+        柔性建築物<span class="toggle-sub">基本自然頻率 fn ≤ 1 Hz</span>
+      </button>
+    </div>
+
+    <!-- 共同參數 -->
+    <div class="form-grid">
+      <div class="field">
+        <label><span class="sym">h</span>建築物高度</label>
+        <input type="number" id="inp-h" value="40" min="1" step="0.5" placeholder="例：40">
+        <div class="hint" id="hint-h">單位：m（不含屋頂突出物）</div>
+      </div>
+      <div class="field">
+        <label><span class="sym">B</span>垂直風向之建築物寬度</label>
+        <input type="number" id="inp-B" value="20" min="1" step="0.5" placeholder="例：20">
+        <div class="hint">單位：m</div>
+      </div>
+      <div class="field">
+        <label><span class="sym">L</span>平行風向之建築物深度</label>
+        <input type="number" id="inp-L" value="20" min="1" step="0.5" placeholder="例：20">
+        <div class="hint">單位：m</div>
+      </div>
+    </div>
+
+    <!-- 柔性建築物額外參數 -->
+    <div id="flexible-fields" style="display:none;">
+      <div class="form-grid" style="max-width:480px;">
+        <div class="field">
+          <label><span class="sym">β</span>結構阻尼比</label>
+          <select id="inp-beta" style="background:#fff;border:1px solid var(--rule-dark);border-radius:2px;padding:9px 12px;color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-size:13px;outline:none;box-shadow:inset 0 1px 2px rgba(26,26,46,0.05);cursor:pointer;">
+            <option value="0.01">鋼構造建築物，β = 0.01</option>
+            <option value="0.02" selected>混凝土構造建築物或鋼骨鋼筋混凝土構造建築物，β = 0.02</option>
+          </select>
+          <div class="hint">依結構材料選擇</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="error-box" id="error-box"></div>
+
+    <button class="calc-btn" onclick="calculate()" id="calc-btn" disabled style="opacity:0.4;cursor:not-allowed;">▶ 計算陣風反應因子</button>
+    </div><!-- /module-body -->
+  </div><!-- /module mod-input -->
+
+  <!-- 模組四：計算結果 -->
+  <div id="results">
+  <div class="module mod-result">
+    <div class="module-tab">
+      <span class="tab-num">04</span>
+      計算過程與結果
+    </div>
+    <div class="module-body">
+
+    <!-- 步驟1：等效結構高度 -->
+    <div class="result-card">
+      <div class="result-card-header"><span class="step-badge">S1</span>等效結構高度 z</div>
+      <div class="result-card-body" id="step1-body"></div>
+    </div>
+
+    <!-- 步驟2：紊流強度 Iz -->
+    <div class="result-card">
+      <div class="result-card-header"><span class="step-badge">S2</span>紊流強度 <span style="display:inline-flex;align-items:baseline;gap:0;">I<span style="font-size:8px;line-height:1;vertical-align:sub;font-family:'JetBrains Mono',monospace;">z</span></span>（式 2.10）</div>
+      <div class="result-card-body" id="step2-body"></div>
+    </div>
+
+    <!-- 步驟3：紊流積分尺度 Lz -->
+    <div class="result-card">
+      <div class="result-card-header"><span class="step-badge">S3</span>紊流積分尺度 Lz（式 2.12）</div>
+      <div class="result-card-body" id="step3-body"></div>
+    </div>
+
+    <!-- 步驟4：背景反應 Q -->
+    <div class="result-card">
+      <div class="result-card-header"><span class="step-badge">S4</span>背景反應因子 Q（式 2.11）</div>
+      <div class="result-card-body" id="step4-body"></div>
+    </div>
+
+    <!-- 步驟5 for ordinary -->
+    <div class="result-card" id="step5-ordinary">
+      <div class="result-card-header"><span class="step-badge">S5</span>陣風反應因子 G（式 2.9）</div>
+      <div class="result-card-body" id="step5-ordinary-body"></div>
+    </div>
+
+    <!-- 步驟5~10 for flexible -->
+    <div id="flexible-steps" style="display:none;">
+      <div class="result-card">
+        <div class="result-card-header"><span class="step-badge">S5</span>高度 z 處每小時平均風速 Vz（式 2.19）</div>
+        <div class="result-card-body" id="step5-flex-body"></div>
+      </div>
+      <div class="result-card">
+        <div class="result-card-header"><span class="step-badge">S6</span>建築物順風向基本自然頻率 <span style="display:inline-flex;align-items:baseline;gap:0;">f<span style="font-size:8px;line-height:1;vertical-align:sub;font-family:'JetBrains Mono',monospace;">n</span></span></div>
+        <div class="result-card-body" id="step6-flex-body"></div>
+      </div>
+      <div class="result-card">
+        <div class="result-card-header"><span class="step-badge">S7</span>無因次頻率 <span style="display:inline-flex;align-items:baseline;gap:0;">N<span style="font-size:8px;line-height:1;vertical-align:sub;font-family:'JetBrains Mono',monospace;">1</span></span>（式 2.17）及風速頻譜因子 <span style="display:inline-flex;align-items:baseline;gap:0;">R<span style="font-size:8px;line-height:1;vertical-align:sub;font-family:'JetBrains Mono',monospace;">n</span></span>（式 2.16）</div>
+        <div class="result-card-body" id="step7-flex-body"></div>
+      </div>
+      <div class="result-card">
+        <div class="result-card-header"><span class="step-badge">S8</span>計算 <span style="display:inline-flex;align-items:baseline;gap:0;">R<span style="font-size:8px;line-height:1;vertical-align:sub;font-family:'JetBrains Mono',monospace;">h</span></span>、<span style="display:inline-flex;align-items:baseline;gap:0;">R<span style="font-size:8px;line-height:1;vertical-align:sub;font-family:'JetBrains Mono',monospace;">B</span></span>、<span style="display:inline-flex;align-items:baseline;gap:0;">R<span style="font-size:8px;line-height:1;vertical-align:sub;font-family:'JetBrains Mono',monospace;">L</span></span>（式 2.18）</div>
+        <div class="result-card-body" id="step8-flex-body"></div>
+      </div>
+      <div class="result-card">
+        <div class="result-card-header"><span class="step-badge">S9</span>共振反應因子 R²（式 2.15）</div>
+        <div class="result-card-body" id="step9-flex-body"></div>
+      </div>
+      <div class="result-card">
+        <div class="result-card-header"><span class="step-badge">S10</span>共振尖峰因子 gR（式 2.14）及陣風反應因子 Gf（式 2.13）</div>
+        <div class="result-card-body" id="step10-flex-body"></div>
+      </div>
+    </div>
+
+    <div class="final-result">
+      <div class="label" id="final-label">陣風反應因子 G</div>
+      <div class="value" id="final-value">—</div>
+      <div class="desc" id="final-desc"></div>
+    </div>
+
+    </div><!-- /module-body -->
+  </div><!-- /module mod-result -->
+  </div><!-- /results -->
+
+</div><!-- /container -->
+
+<script>
+let buildingType = 'ordinary';
+
+function setType(t) {
+  buildingType = t;
+  document.getElementById('btn-ordinary').classList.toggle('active', t === 'ordinary');
+  document.getElementById('btn-flexible').classList.toggle('active', t === 'flexible');
+  document.getElementById('flexible-fields').style.display = t === 'flexible' ? 'block' : 'none';
+  // h hint
+  const hintH = document.getElementById('hint-h');
+  hintH.innerHTML = t === 'flexible'
+    ? '單位：m（不含屋頂突出物）<br><span style="color:var(--rust);font-weight:500;">柔性建築物適用範圍：22.86 m ≦ h ≦ 122 m</span>'
+    : '單位：m（不含屋頂突出物）';
+  document.getElementById('results').style.display = 'none';
+  updateCalcBtn();
+}
+
+// 地況C固定參數
+// 地況參數 – 由 postMessage 動態設定
+const TERRAIN_PARAMS = {
+  'A': { alpha:0.32, zg:500, b:0.45, c:0.45, l:55,  eps:0.5,  zmin:18  },
+  'B': { alpha:0.25, zg:400, b:0.62, c:0.30, l:98,  eps:0.33, zmin:9   },
+  'C': { alpha:0.15, zg:300, b:0.94, c:0.20, l:152, eps:0.20, zmin:4.5 },
+};
+let C = null;           // 未選擇地況前為 null
+let terrainId = null;   // 'A' / 'B' / 'C'
+let V10_locked = null;  // 由 A 區帶入的風速值
+
+function fmt(x, d=4) {
+  if (Math.abs(x) >= 1000) return x.toFixed(1);
+  return parseFloat(x.toFixed(d)).toString();
+}
+
+function stepHtml(label, formula, result) {
+  return `<div class="calc-step">
+    <div class="step-label">${label}</div>
+    <div class="step-formula">${formula}</div>
+    <div class="step-result">= ${result}</div>
+  </div>`;
+}
+
+function Rj_func(eta) {
+  if (eta === 0) return 1;
+  return (1/(2*eta)) - (1/(2*eta*eta))*(1 - Math.exp(-2*eta));
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-box');
+  el.style.display = 'block';
+  el.textContent = '⚠ ' + msg;
+}
+function hideError() {
+  document.getElementById('error-box').style.display = 'none';
+}
+
+function calculate() {
+  hideError();
+
+  // Guard: require terrain (C) and wind speed for flexible
+  if (!C) { showError('請先在 C 區選擇地況種類，系統將自動帶入地況參數。'); return; }
+  if (buildingType === 'flexible' && !V10_locked) { showError('請先在 A 區查詢基本設計風速，系統將自動帶入並鎖定。'); return; }
+
+  const h = parseFloat(document.getElementById('inp-h').value);
+  const B = parseFloat(document.getElementById('inp-B').value);
+  const L = parseFloat(document.getElementById('inp-L').value);
+
+  if (isNaN(h)||isNaN(B)||isNaN(L)||h<=0||B<=0||L<=0) {
+    showError('請輸入有效的 h、B、L 值（需大於 0）'); return;
+  }
+
+  let beta, V10;
+  if (buildingType === 'flexible') {
+    // h 範圍檢查
+    if (h < 22.86 || h > 122) {
+      showError(`柔性建築物之建築物高度 h 須介於 22.86 m 至 122 m 之間（目前輸入 h = ${h} m），請修改後再計算。`); return;
+    }
+    beta = parseFloat(document.getElementById('inp-beta').value);
+    V10 = parseFloat(document.getElementById('inp-V10').value);
+    if (isNaN(V10)||V10<=0) {
+      showError('請輸入有效的 V₁₀ 值'); return;
+    }
+  }
+
+  const res = document.getElementById('results');
+  res.style.display = 'block';
+
+  // ---- STEP 1: 等效結構高度 ----
+  const z_raw = 0.6 * h;
+  const z = Math.max(z_raw, C.zmin);
+  let s1 = stepHtml(
+    '等效結構高度取 0.6h，但不小於 z_min',
+    `z = max(0.6 × h, z_min) = max(0.6 × ${h}, ${C.zmin})`,
+    `<b>z = ${fmt(z)} m</b>`
+  );
+  document.getElementById('step1-body').innerHTML = s1;
+
+  // ---- STEP 2: 紊流強度 Iz ----
+  const Iz = C.c * Math.pow(10/z, 1/6);
+  let s2 = stepHtml(
+    '式(2.10)：Iz = c × (10/z)^(1/6)',
+    `Iz = ${C.c} × (10 / ${fmt(z)})^(1/6) = ${C.c} × ${fmt(Math.pow(10/z,1/6))}`,
+    `<b>Iz = ${fmt(Iz)}</b>`
+  );
+  document.getElementById('step2-body').innerHTML = s2;
+
+  // ---- STEP 3: 紊流積分尺度 Lz ----
+  const Lz = C.l * Math.pow(z/10, C.eps);
+  let s3 = stepHtml(
+    '式(2.12)：Lz = ℓ × (z/10)^ε',
+    `Lz = ${C.l} × (${fmt(z)}/10)^${C.eps} = ${C.l} × ${fmt(Math.pow(z/10, C.eps))}`,
+    `<b>Lz = ${fmt(Lz)} m</b>`
+  );
+  document.getElementById('step3-body').innerHTML = s3;
+
+  // ---- STEP 4: 背景反應 Q ----
+  const BplusH = B + h;
+  const inner = 1 + 0.63 * Math.pow(BplusH / Lz, 0.63);
+  const Q = Math.sqrt(1 / inner);
+  let s4 = `<div class="formula-block">Q = sqrt( 1 / (1 + 0.63 × ((B+h)/Lz)^0.63) )</div>`;
+  s4 += stepHtml(
+    '式(2.11)：代入數值',
+    `(B+h)/Lz = (${B}+${h})/${fmt(Lz)} = ${fmt(BplusH/Lz)}<br>
+     inner = 1 + 0.63 × ${fmt(BplusH/Lz)}^0.63 = 1 + 0.63 × ${fmt(Math.pow(BplusH/Lz,0.63))} = ${fmt(inner)}<br>
+     Q = sqrt(1 / ${fmt(inner)})`,
+    `<b>Q = ${fmt(Q)}</b>`
+  );
+  document.getElementById('step4-body').innerHTML = s4;
+
+  const gQ = 3.4, gV = 3.4;
+
+  if (buildingType === 'ordinary') {
+    document.getElementById('step5-ordinary').style.display = 'block';
+    document.getElementById('flexible-steps').style.display = 'none';
+
+    // ---- STEP 5: G (ordinary) ----
+    const num = 1 + 1.7 * gQ * Iz * Q;
+    const den = 1 + 1.7 * gV * Iz;
+    const G = 1.927 * num / den;
+
+    let s5 = `<div class="formula-block">G = 1.927 × (1 + 1.7 × gQ × Iz × Q) / (1 + 1.7 × gV × Iz)</div>`;
+    s5 += stepHtml(
+      '式(2.9)：已知 gQ = gV = 3.4，代入各值',
+      `分子 = 1 + 1.7 × ${gQ} × ${fmt(Iz)} × ${fmt(Q)} = 1 + ${fmt(1.7*gQ*Iz*Q)} = ${fmt(num)}<br>
+       分母 = 1 + 1.7 × ${gV} × ${fmt(Iz)} = ${fmt(den)}<br>
+       G = 1.927 × ${fmt(num)} / ${fmt(den)}`,
+      `<b>G = ${fmt(G,4)}</b>`
+    );
+    document.getElementById('step5-ordinary-body').innerHTML = s5;
+
+    document.getElementById('final-label').textContent = '陣風反應因子 G（普通建築物）';
+    document.getElementById('final-value').textContent = fmt(G,4);
+    document.getElementById('final-desc').textContent = `依式(2.9) | 地況${terrainId} | h=${h}m, B=${B}m, L=${L}m`;
+
+  } else {
+    // Flexible building
+    document.getElementById('step5-ordinary').style.display = 'none';
+    document.getElementById('flexible-steps').style.display = 'block';
+
+    // ---- STEP 5: Vz ----
+    const Vz = C.b * Math.pow(z/10, C.alpha) * V10;
+    let s5 = `<div class="formula-block">Vz = b × (z/10)^α × V₁₀，地況${terrainId}：b = ${C.b}, α = ${C.alpha}</div>`;
+    s5 += stepHtml(
+      '式(2.19)：代入數值',
+      `Vz = ${C.b} × (${fmt(z)}/10)^${C.alpha} × ${V10} = ${C.b} × ${fmt(Math.pow(z/10,C.alpha))} × ${V10}`,
+      `<b>Vz = ${fmt(Vz)} m/s</b>`
+    );
+    document.getElementById('step5-flex-body').innerHTML = s5;
+
+    // ---- STEP 6: fn = 22.86 / h ----
+    const fn = 22.86 / h;
+    let s6 = `<div class="formula-block">fn = 22.86 / h（Hz）</div>`;
+    s6 += stepHtml(
+      '計算公式代入 h',
+      `fn = 22.86 / ${h}`,
+      `<b>fn = ${fmt(fn,4)} Hz</b>`
+    );
+    document.getElementById('step6-flex-body').innerHTML = s6;
+
+    // ---- STEP 7: N1, Rn ----
+    const N1 = fn * Lz / Vz;
+    const Rn_num = 7.47 * N1;
+    const Rn_den = Math.pow(1 + 10.3 * N1, 5/3);
+    const Rn = Rn_num / Rn_den;
+    let s7 = `<div class="formula-block">N₁ = fn × Lz / Vz；Rn = 7.47 N₁ / (1 + 10.3 N₁)^(5/3)</div>`;
+    s7 += stepHtml('式(2.17)：無因次頻率 N₁',
+      `N₁ = ${fmt(fn,4)} × ${fmt(Lz)} / ${fmt(Vz)} = ${fmt(fn*Lz)}/${fmt(Vz)}`,
+      `<b>N₁ = ${fmt(N1)}</b>`);
+    s7 += stepHtml('式(2.16)：風速頻譜因子 Rn',
+      `Rn = 7.47 × ${fmt(N1)} / (1 + 10.3 × ${fmt(N1)})^(5/3) = ${fmt(Rn_num)} / ${fmt(Rn_den)}`,
+      `<b>Rn = ${fmt(Rn)}</b>`);
+    document.getElementById('step7-flex-body').innerHTML = s7;
+
+    // ---- STEP 8: Rh, RB, RL ----
+    const eta_h = 4.6 * fn * h / Vz;
+    const eta_B = 4.6 * fn * B / Vz;
+    const eta_L = 15.4 * fn * L / Vz;
+    const Rh = Rj_func(eta_h);
+    const RB = Rj_func(eta_B);
+    const RL = Rj_func(eta_L);
+
+    function Rj_formula_str(label, coeff, dimName, dimVal, eta_val, Rval) {
+      return stepHtml(`η_${label} = ${coeff} × fn × ${dimName} / Vz，代入式(2.18a)`,
+        `η_${label} = ${coeff} × ${fmt(fn,4)} × ${dimVal} / ${fmt(Vz)} = ${fmt(eta_val)}<br>
+         R${label} = 1/(2η) - 1/(2η²)×(1−e^(−2η))`,
+        `<b>R${label} = ${fmt(Rval)}</b>`);
+    }
+
+    let s8 = `<div class="formula-block">Rj = 1/(2η) − 1/(2η²) × (1 − e^(−2η))，η > 0</div>`;
+    s8 += Rj_formula_str('h', 4.6, 'h', h, eta_h, Rh);
+    s8 += Rj_formula_str('B', 4.6, 'B', B, eta_B, RB);
+    s8 += Rj_formula_str('L', 15.4, 'L', L, eta_L, RL);
+    document.getElementById('step8-flex-body').innerHTML = s8;
+
+    // ---- STEP 9: R² ----
+    const R2 = (1/beta) * Rn * Rh * RB * (0.53 + 0.47*RL);
+    let s9 = `<div class="formula-block">R² = (1/β) × Rn × Rh × RB × (0.53 + 0.47 × RL)</div>`;
+    s9 += stepHtml('式(2.15)：代入數值',
+      `β = ${beta}（${beta===0.01?'鋼構造':'混凝土或SRC構造'}）<br>
+       R² = (1/${beta}) × ${fmt(Rn)} × ${fmt(Rh)} × ${fmt(RB)} × (0.53 + 0.47 × ${fmt(RL)})<br>
+       = ${fmt(1/beta)} × ${fmt(Rn)} × ${fmt(Rh)} × ${fmt(RB)} × ${fmt(0.53+0.47*RL)}`,
+      `<b>R² = ${fmt(R2)}</b>`);
+    document.getElementById('step9-flex-body').innerHTML = s9;
+
+    // ---- STEP 10: gR, Gf ----
+    const ln3600fn = Math.log(3600 * fn);
+    const gR = Math.sqrt(2 * ln3600fn) + 0.577 / Math.sqrt(2 * ln3600fn);
+    const num_f = 1 + 1.7 * Iz * Math.sqrt(gQ*gQ*Q*Q + gR*gR*R2);
+    const den_f = 1 + 1.7 * gV * Iz;
+    const Gf = 1.927 * num_f / den_f;
+
+    let s10 = `<div class="formula-block">gR = √(2 ln(3600 fn)) + 0.577/√(2 ln(3600 fn))</div>`;
+    s10 += stepHtml('式(2.14)：共振尖峰因子 gR',
+      `ln(3600×${fmt(fn,4)}) = ln(${fmt(3600*fn,2)}) = ${fmt(ln3600fn)}<br>
+       gR = √(2×${fmt(ln3600fn)}) + 0.577/√(2×${fmt(ln3600fn)}) = ${fmt(Math.sqrt(2*ln3600fn))} + ${fmt(0.577/Math.sqrt(2*ln3600fn))}`,
+      `<b>gR = ${fmt(gR)}</b>`);
+    s10 += `<div class="formula-block" style="margin-top:8px">Gf = 1.927 × (1 + 1.7 Iz √(gQ²Q² + gR²R²)) / (1 + 1.7 gV Iz)</div>`;
+    s10 += stepHtml('式(2.13)：柔性建築物陣風反應因子 Gf',
+      `gQ²Q² = ${gQ}²×${fmt(Q)}² = ${fmt(gQ*gQ*Q*Q)}<br>
+       gR²R² = ${fmt(gR)}²×${fmt(R2)} = ${fmt(gR*gR*R2)}<br>
+       √(gQ²Q² + gR²R²) = √(${fmt(gQ*gQ*Q*Q+gR*gR*R2)}) = ${fmt(Math.sqrt(gQ*gQ*Q*Q+gR*gR*R2))}<br>
+       分子 = 1 + 1.7 × ${fmt(Iz)} × ${fmt(Math.sqrt(gQ*gQ*Q*Q+gR*gR*R2))} = ${fmt(num_f)}<br>
+       分母 = 1 + 1.7 × ${gV} × ${fmt(Iz)} = ${fmt(den_f)}<br>
+       Gf = 1.927 × ${fmt(num_f)} / ${fmt(den_f)}`,
+      `<b>Gf = ${fmt(Gf,4)}</b>`);
+    document.getElementById('step10-flex-body').innerHTML = s10;
+
+    document.getElementById('final-label').textContent = '陣風反應因子 Gf（柔性建築物）';
+    document.getElementById('final-value').textContent = fmt(Gf,4);
+    document.getElementById('final-desc').textContent = `依式(2.13) | 地況${terrainId} | h=${h}m, B=${B}m, L=${L}m, fn=${fmt(fn,4)}Hz, β=${beta}`;
+  }
+
+  res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  sendToHub();
+}
+
+
+// ── 接收父框架傳來的 A 區 / C 區資料 ───────────────────────────────
+function applyTerrainData(terrId) {
+  const p = TERRAIN_PARAMS[terrId];
+  if (!p) return;
+  C = p;
+  terrainId = terrId;
+  // Fill display values
+  const fmt2 = v => typeof v === 'number' ? (v % 1 === 0 ? v.toString() : v.toString()) : v;
+  document.getElementById('tv-alpha').textContent = fmt2(p.alpha);
+  document.getElementById('tv-zg').textContent    = fmt2(p.zg) + ' m';
+  document.getElementById('tv-b').textContent     = fmt2(p.b);
+  document.getElementById('tv-c').textContent     = fmt2(p.c);
+  document.getElementById('tv-l').textContent     = fmt2(p.l) + ' m';
+  document.getElementById('tv-eps').textContent   = fmt2(p.eps);
+  document.getElementById('tv-zmin').textContent  = fmt2(p.zmin) + ' m';
+  // Update header
+  const names = { A:'地況 A', B:'地況 B', C:'地況 C' };
+  document.getElementById('tab-terrain-title').textContent = '地況基本參數（' + names[terrId] + '・表 2.2）';
+  document.getElementById('terrain-col-header').textContent = names[terrId] + ' 值';
+  document.getElementById('terrain-note').textContent =
+    '以上 7 項參數為地況 ' + terrId + ' 之固定值，依規範表 2.2 取用，計算時無需使用者輸入。';
+  document.getElementById('terrain-empty-hint').style.display = 'none';
+  document.getElementById('terrain-param-table').style.display = 'block';
+  updateCalcBtn();
+}
+
+function applyV10Data(speed) {
+  V10_locked = speed;
+  const inp = document.getElementById('inp-V10');
+  inp.value = speed;
+  inp.readOnly = true;
+  inp.style.background = '#e8f5e9';
+  inp.style.color = '#2d6a4a';
+  inp.style.cursor = 'not-allowed';
+  inp.style.borderColor = '#2d6a4a';
+  document.getElementById('v10-empty-hint').style.display = 'none';
+  document.getElementById('v10-hint').textContent = '單位：m/s・已由 A 區自動帶入，鎖定不可更改';
+  updateCalcBtn();
+}
+
+function updateCalcBtn() {
+  const btn = document.querySelector('.calc-btn');
+  if (!btn) return;
+  const ready = (C !== null) && (V10_locked !== null || buildingType === 'ordinary');
+  if (ready) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = '0.4';
+    btn.style.cursor = 'not-allowed';
+  }
+}
+
+window.addEventListener('message', function(ev) {
+  const d = ev.data;
+  if (!d || typeof d !== 'object') return;
+  if (d.source === 'hub_to_gust_terrain' && d.terrainId) {
+    applyTerrainData(d.terrainId);
+  }
+  if (d.source === 'hub_to_gust_wind' && d.speed) {
+    applyV10Data(d.speed);
+  }
+});
+
+// Init: disable calc btn until data arrives
+document.addEventListener('DOMContentLoaded', function() {
+  updateCalcBtn();
+});
+
+function sendToHub() {
+  var label = document.getElementById('final-label').textContent;
+  var value = document.getElementById('final-value').textContent;
+  var desc  = document.getElementById('final-desc').textContent;
+  if (!value || value === '—') return;
+  window.parent.postMessage({
+    source: 'gust_effect_factor',
+    label: label,
+    value: parseFloat(value),
+    valueStr: value,
+    desc: desc,
+    buildingType: buildingType,
+    timestamp: new Date().toISOString()
+  }, '*');
+}
+
+</script>
+</body>
+</html>
