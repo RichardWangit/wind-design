@@ -3,289 +3,394 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>地形係數 K<sub>zt</sub> 計算系統</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<title>地形係數 Kzt 計算</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Sans+TC:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --surface2: #21262d;
-    --border: #30363d;
-    --accent: #58a6ff;
-    --accent2: #f78166;
-    --accent3: #3fb950;
-    --accent4: #d2a8ff;
-    --text: #e6edf3;
-    --text-dim: #8b949e;
-    --text-dimmer: #484f58;
-    --gold: #e3b341;
-    --tag-bg: #1c2230;
+    --ink:         #1a1a2e;
+    --paper:       #f5f0e8;
+    --accent:      #1a6b8a;
+    --accent-light:#2d8ba8;
+    --gold:        #c9a84c;
+    --muted:       #7a7060;
+    --border:      #d4c9b0;
+    --card-bg:     #fdfaf4;
+    --shadow:      0 4px 24px rgba(26,26,46,0.10);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
+  html, body {
+    height: 100%;
     font-family: 'Noto Sans TC', sans-serif;
     font-size: 14px;
     line-height: 1.6;
-    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
   }
-  /* ---- header ---- */
+
+  /* ── Header ── */
   .header {
-    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
-    border-bottom: 1px solid var(--border);
-    padding: 24px 32px;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 20px 28px;
     display: flex; align-items: center; gap: 16px;
+    position: relative; overflow: hidden; flex-shrink: 0;
+    border-bottom: 3px solid var(--accent);
   }
-  .header-icon {
-    width: 44px; height: 44px;
-    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; flex-shrink: 0;
+  .header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg,
+      transparent, transparent 60px,
+      rgba(255,255,255,0.015) 60px, rgba(255,255,255,0.015) 61px);
+    pointer-events: none;
   }
-  .header-title { font-size: 20px; font-weight: 700; color: var(--text); }
-  .header-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .header-icon { font-size: 32px; line-height: 1; opacity: 0.9; flex-shrink: 0; }
+  .header-title {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 17px; font-weight: 700; letter-spacing: 0.08em;
+  }
+  .header-sub {
+    font-size: 10px; font-weight: 300; letter-spacing: 0.16em;
+    color: rgba(245,240,232,0.5); margin-top: 3px; text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+  }
   .badge {
     margin-left: auto;
-    background: var(--tag-bg);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 11px;
-    color: var(--accent);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 0.12em;
+    color: var(--gold); text-align: right; line-height: 1.7; opacity: 0.85;
   }
-  /* ---- layout ---- */
-  .main { display: grid; grid-template-columns: 420px 1fr; gap: 0; min-height: calc(100vh - 81px); }
+
+  /* ── Layout ── */
+  .main {
+    display: grid; grid-template-columns: 380px 1fr;
+    min-height: calc(100vh - 67px);
+  }
   .sidebar {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    padding: 24px;
+    background: var(--card-bg);
+    border-right: 2px solid var(--border);
+    padding: 20px 18px;
     overflow-y: auto;
   }
-  .content { padding: 24px; overflow-y: auto; }
-  /* ---- section titles ---- */
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .content { padding: 20px 22px; overflow-y: auto; background: var(--paper); }
+
+  /* ── Section titles ── */
   .section-title {
-    font-size: 11px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 1px; color: var(--text-dim); margin-bottom: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.18em; color: var(--muted); margin-bottom: 10px;
     display: flex; align-items: center; gap: 8px;
   }
   .section-title::after {
     content: ''; flex: 1; height: 1px; background: var(--border);
   }
-  /* ---- form ---- */
-  .form-group { margin-bottom: 16px; }
-  .form-group label {
-    display: block; font-size: 12px; color: var(--text-dim);
-    margin-bottom: 6px; font-weight: 500;
-  }
-  .form-group label span.param {
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--accent);
-    font-size: 13px;
-    font-style: italic;
-  }
-  .form-group label .unit {
-    color: var(--text-dimmer); font-size: 11px; margin-left: 4px;
-  }
-  select, input[type="number"] {
-    width: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    padding: 9px 12px;
-    font-size: 14px;
-    font-family: 'Noto Sans TC', sans-serif;
-    outline: none;
-    transition: border-color .2s;
-  }
-  select:focus, input[type="number"]:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(88,166,255,.12);
-  }
-  /* terrain selector cards */
-  .terrain-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+
+  /* ── Terrain cards ── */
+  .terrain-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; }
   .terrain-card {
-    background: var(--surface2);
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 6px;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    padding: 12px 8px;
     text-align: center;
     cursor: pointer;
-    transition: all .2s;
+    transition: all 0.2s;
+    box-shadow: var(--shadow);
   }
-  .terrain-card:hover { border-color: var(--accent); }
-  .terrain-card.active { border-color: var(--accent); background: rgba(88,166,255,.1); }
-  .terrain-card .tc-icon { font-size: 22px; margin-bottom: 4px; }
-  .terrain-card .tc-name { font-size: 12px; font-weight: 600; }
-  .terrain-card .tc-en { font-size: 10px; color: var(--text-dim); }
-  /* exposure selector */
+  .terrain-card:hover { border-color: var(--accent); background: rgba(26,107,138,0.04); }
+  .terrain-card.active {
+    border-color: var(--accent);
+    background: rgba(26,107,138,0.08);
+    box-shadow: 0 0 0 3px rgba(26,107,138,0.12);
+  }
+  .terrain-card .tc-icon { font-size: 22px; margin-bottom: 5px; }
+  .terrain-card .tc-name {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 13px; font-weight: 700; color: var(--ink);
+  }
+  .terrain-card .tc-en {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; color: var(--muted); margin-top: 2px;
+  }
+
+  /* ── Exposure cards ── */
   .exp-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
   .exp-card {
-    background: var(--surface2);
-    border: 2px solid var(--border);
-    border-radius: 8px;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
     padding: 10px 6px;
     text-align: center;
     cursor: pointer;
-    transition: all .2s;
+    transition: all 0.2s;
+    box-shadow: var(--shadow);
   }
-  .exp-card:hover { border-color: var(--gold); }
-  .exp-card.active { border-color: var(--gold); background: rgba(227,179,65,.1); }
-  .exp-card .ec-label { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--gold); }
-  .exp-card .ec-name { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
-  /* calc button */
+  .exp-card:hover { border-color: var(--gold); background: rgba(201,168,76,0.05); }
+  .exp-card.active {
+    border-color: var(--gold);
+    background: rgba(201,168,76,0.1);
+    box-shadow: 0 0 0 3px rgba(201,168,76,0.15);
+  }
+  .exp-card .ec-label {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 20px; font-weight: 900; color: var(--gold); line-height: 1;
+  }
+  .exp-card .ec-name {
+    font-size: 10px; color: var(--muted); margin-top: 4px; letter-spacing: 0.04em;
+  }
+
+  /* ── Form ── */
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block; font-size: 12px; color: var(--muted);
+    margin-bottom: 5px; font-weight: 500;
+  }
+  .form-group label span.param {
+    font-family: 'DM Mono', monospace;
+    color: var(--accent); font-size: 13px; font-style: italic;
+  }
+  .form-group label .unit { color: var(--muted); font-size: 11px; margin-left: 4px; }
+  input[type="number"] {
+    width: 100%;
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    color: var(--ink);
+    padding: 8px 11px;
+    font-size: 14px;
+    font-family: 'DM Mono', monospace;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input[type="number"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(26,107,138,0.12);
+  }
+  input[type="number"]:disabled {
+    background: var(--paper); opacity: 0.5;
+  }
+
+  /* ── Calc button ── */
   .calc-btn {
-    width: 100%; padding: 12px;
-    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    width: 100%; padding: 11px;
+    background: var(--ink);
     border: none; border-radius: 8px;
-    color: #fff; font-size: 15px; font-weight: 700;
-    cursor: pointer; transition: all .2s;
-    font-family: 'Noto Sans TC', sans-serif;
-    margin-top: 8px;
+    color: var(--paper); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+    font-family: 'Noto Serif TC', serif;
+    letter-spacing: 0.06em;
+    margin-top: 6px;
+    border-bottom: 3px solid var(--accent);
   }
-  .calc-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,.4); }
+  .calc-btn:hover { background: #2a2a40; transform: translateY(-1px); }
   .calc-btn:active { transform: translateY(0); }
-  /* divider */
-  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
-  /* ---- figure panel ---- */
-  .fig-panel { margin-bottom: 24px; }
-  .fig-panel h3 { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
+
+  /* ── Divider ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  /* ── Figure panel ── */
+  .fig-panel { margin-bottom: 22px; }
   .fig-svg-wrap {
     background: #fff;
     border-radius: 10px;
     padding: 16px;
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
+    box-shadow: var(--shadow);
   }
-  /* ---- formula card ---- */
+
+  /* ── Formula cards ── */
   .formula-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
     border-radius: 10px;
-    padding: 16px 20px;
-    margin-bottom: 16px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
   }
-  .formula-card .fc-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px; }
-  .formula-card .fc-eq { color: var(--accent); font-size: 15px; }
-  .formula-card .fc-desc { font-family: 'Noto Sans TC', sans-serif; font-size: 12px; color: var(--text-dim); margin-top: 8px; line-height: 1.7; }
-  .formula-card .fc-desc span.v { color: var(--accent4); font-family: 'JetBrains Mono', monospace; font-style: italic; }
-  /* ---- result panel ---- */
+  .formula-card .fc-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--muted); margin-bottom: 7px;
+  }
+  .formula-card .fc-eq {
+    font-family: 'DM Mono', monospace;
+    color: var(--accent); font-size: 15px; font-weight: 500;
+  }
+  .formula-card .fc-desc {
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.7;
+  }
+  .formula-card .fc-desc span.v {
+    color: var(--ink); font-family: 'DM Mono', monospace;
+    font-style: italic; font-weight: 500;
+  }
+
+  /* ── Result panel ── */
   .result-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: var(--card-bg);
+    border: 1.5px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
-    margin-bottom: 24px;
+    margin-bottom: 22px;
+    box-shadow: var(--shadow);
   }
   .result-header {
-    background: linear-gradient(135deg, #0f2746, #162032);
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
+    background: var(--ink);
+    padding: 14px 20px;
+    border-bottom: 2px solid var(--accent);
     display: flex; align-items: center; justify-content: space-between;
+    position: relative; overflow: hidden;
   }
-  .result-header h2 { font-size: 14px; color: var(--accent); font-weight: 600; }
-  .result-body { padding: 20px; }
-  .result-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+  .result-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg,
+      transparent, transparent 60px,
+      rgba(255,255,255,0.015) 60px, rgba(255,255,255,0.015) 61px);
+  }
+  .result-header h2 {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 14px; color: var(--paper); font-weight: 700; position: relative;
+  }
+  .result-body { padding: 18px 20px; }
+  .result-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
   .result-cell {
-    background: var(--surface2);
-    border: 1px solid var(--border);
+    background: #fff;
+    border: 1.5px solid var(--border);
     border-radius: 8px;
-    padding: 14px;
+    padding: 12px 10px;
     text-align: center;
+    box-shadow: var(--shadow);
   }
-  .result-cell .rc-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .result-cell .rc-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.04em; }
   .result-cell .rc-val {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'DM Mono', monospace;
     font-size: 22px; font-weight: 700;
-    color: var(--accent3);
+    color: var(--accent);
   }
   .result-cell .rc-val.k1c { color: var(--accent); }
-  .result-cell .rc-val.k2c { color: var(--accent4); }
+  .result-cell .rc-val.k2c { color: #2c7a4b; }
   .result-cell .rc-val.k3c { color: var(--gold); }
+
+  /* ── Kzt display ── */
   .kzt-display {
-    background: linear-gradient(135deg, #0a2a1a, #0d1f2d);
-    border: 2px solid var(--accent3);
+    background: var(--ink);
     border-radius: 10px;
     padding: 20px;
     text-align: center;
+    position: relative; overflow: hidden;
   }
-  .kzt-label { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+  .kzt-display::before {
+    content: 'Kzt';
+    position: absolute; right: -8px; bottom: -16px;
+    font-family: 'Noto Serif TC', serif; font-weight: 900;
+    font-size: 80px; opacity: 0.04; color: var(--paper);
+    pointer-events: none; line-height: 1;
+  }
+  .kzt-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; letter-spacing: 0.2em; color: var(--gold);
+    margin-bottom: 6px; text-transform: uppercase;
+  }
   .kzt-val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 42px; font-weight: 700;
-    color: var(--accent3);
-    text-shadow: 0 0 20px rgba(63,185,80,.4);
+    font-family: 'Noto Serif TC', serif;
+    font-size: 42px; font-weight: 900;
+    color: var(--paper); line-height: 1;
   }
-  .kzt-formula { font-size: 11px; color: var(--text-dim); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
-  /* step log */
+  .kzt-formula {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; color: rgba(245,240,232,0.5); margin-top: 8px;
+  }
+
+  /* ── Step log ── */
   .step-log {
-    background: var(--surface2);
-    border: 1px solid var(--border);
+    background: var(--paper);
+    border: 1.5px solid var(--border);
     border-radius: 8px;
     padding: 14px 16px;
-    margin-top: 16px;
+    margin-top: 14px;
   }
-  .step-log h4 { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-  .step-log .step { margin-bottom: 6px; font-size: 12px; color: var(--text-dim); }
-  .step-log .step span.ok { color: var(--accent3); }
-  .step-log .step span.hi { color: var(--accent); font-family: 'JetBrains Mono', monospace; }
-  .step-log .step span.warn { color: var(--gold); }
-  /* condition card */
+  .step-log h4 {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.15em; margin-bottom: 10px;
+  }
+  .step-log .step { margin-bottom: 5px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .step-log .step span.ok   { color: #2c7a4b; font-weight: 600; }
+  .step-log .step span.hi   { color: var(--accent); font-family: 'DM Mono', monospace; }
+  .step-log .step span.warn { color: #a06020; }
+
+  /* ── Condition card ── */
   .cond-card {
-    background: var(--surface2);
+    background: var(--card-bg);
     border-left: 3px solid var(--accent);
-    border-radius: 0 6px 6px 0;
-    padding: 10px 14px;
-    margin-bottom: 8px;
+    border-radius: 0 7px 7px 0;
+    padding: 8px 12px;
+    margin-bottom: 7px;
     font-size: 12px;
-    color: var(--text-dim);
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
   }
-  .cond-card.warn { border-color: var(--gold); }
-  /* error */
+  .cond-card.warn { border-left-color: #a06020; }
+
+  /* ── Error box ── */
   .error-box {
-    background: rgba(247,129,102,.1);
-    border: 1px solid var(--accent2);
+    background: rgba(192,57,43,0.06);
+    border: 1.5px solid rgba(192,57,43,0.4);
     border-radius: 8px;
-    padding: 14px 16px;
-    color: var(--accent2);
+    padding: 12px 16px;
+    color: #8b2500;
     font-size: 13px;
   }
-  /* table styles */
+
+  /* ── Tables ── */
   .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
   .data-table th {
-    background: var(--surface2);
+    background: var(--paper);
     border: 1px solid var(--border);
     padding: 6px 10px;
     text-align: center;
-    color: var(--text-dim);
-    font-weight: 600;
-    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; letter-spacing: 0.1em; font-weight: 500;
   }
   .data-table td {
     border: 1px solid var(--border);
     padding: 5px 10px;
     text-align: center;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'DM Mono', monospace;
     font-size: 11px;
-    color: var(--text-dim);
+    color: var(--muted);
   }
-  .data-table tr.highlight td { background: rgba(88,166,255,.12); color: var(--text); }
+  .data-table tr.highlight td {
+    background: rgba(26,107,138,0.08);
+    color: var(--ink); font-weight: 600;
+  }
+
+  /* ── Placeholder ── */
   .placeholder-msg {
-    text-align: center; padding: 48px; color: var(--text-dimmer); font-size: 13px;
+    text-align: center; padding: 48px 24px;
+    color: var(--muted); font-size: 13px;
+    font-family: 'Noto Serif TC', serif;
   }
-  .placeholder-msg .pm-icon { font-size: 40px; margin-bottom: 12px; opacity: .4; }
-  /* condition info */
+  .placeholder-msg .pm-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+
+  /* ── Info table ── */
   .info-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  .info-table td { padding: 4px 8px; color: var(--text-dim); vertical-align: top; }
-  .info-table td:first-child { color: var(--text); font-weight: 500; white-space: nowrap; }
+  .info-table td { padding: 4px 8px; color: var(--muted); vertical-align: top; }
+  .info-table td:first-child {
+    color: var(--ink); font-weight: 600; white-space: nowrap;
+    font-family: 'DM Mono', monospace;
+  }
   .scroll-table { overflow-x: auto; }
+
   @media (max-width: 900px) {
     .main { grid-template-columns: 1fr; }
-    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    .sidebar { border-right: none; border-bottom: 2px solid var(--border); }
   }
 </style>
 </head>
@@ -294,17 +399,17 @@
 <div class="header">
   <div class="header-icon">⛰️</div>
   <div>
-    <div class="header-title">地形係數 K<sub>zt</sub> 計算系統</div>
-    <div class="header-sub">依據《建築物耐風設計規範》第 2.6 節 — 表 2.3(a)(b)(c)</div>
+    <div class="header-title">地形係數 K<sub>zt</sub> 計算</div>
+    <div class="header-sub">§2.6 表 2.3(a)(b)(c) — 地形加速係數</div>
   </div>
-  <div class="badge">CNS / TW Wind Code</div>
+  <div class="badge">建築技術規則<br>風力設計</div>
 </div>
 
 <div class="main">
   <!-- ========= SIDEBAR ========= -->
   <div class="sidebar">
     <div class="section-title">地形類型</div>
-    <div class="terrain-grid" style="margin-bottom:20px;grid-template-columns:repeat(2,1fr)">
+    <div class="terrain-grid" style="margin-bottom:18px">
       <div class="terrain-card" onclick="setTerrain('山脊')" id="tc-山脊">
         <div class="tc-icon">🏔️</div>
         <div class="tc-name">山脊</div>
@@ -328,7 +433,7 @@
     </div>
 
     <div class="section-title">地況分類</div>
-    <div class="exp-grid" style="margin-bottom:20px">
+    <div class="exp-grid" style="margin-bottom:18px">
       <div class="exp-card" onclick="setExposure('A')" id="ec-A">
         <div class="ec-label">A</div>
         <div class="ec-name">市區/密集</div>
@@ -354,7 +459,7 @@
       <input type="number" id="inp-Lh" value="200" min="0.1" step="0.1" placeholder="輸入 Lh (m)">
     </div>
     <div class="form-group">
-      <label><span class="param">x</span> — 建物至頂點水平距離 <span class="unit">(m)，上風側為負</span></label>
+      <label><span class="param">x</span> — 建物至頂點水平距離 <span class="unit">(m，上風側為負)</span></label>
       <input type="number" id="inp-x" value="0" step="0.1" placeholder="輸入 x (m)">
     </div>
     <div class="form-group">
@@ -366,7 +471,7 @@
 
     <hr class="divider">
 
-    <div class="section-title">適用條件說明</div>
+    <div class="section-title">適用條件</div>
     <div class="cond-card">H &gt; 4.5 m（地況 C）或 H &gt; 18 m（地況 A 或 B）</div>
     <div class="cond-card">H/L<sub>h</sub> ≥ 0.20 且建議 H/L<sub>h</sub> ≤ 0.5</div>
     <div class="cond-card">上風側 3.22 km 內地形高超過 H 兩倍以上</div>
@@ -374,9 +479,9 @@
 
     <hr class="divider">
 
-    <div class="section-title">地況類型說明</div>
+    <div class="section-title">地況說明</div>
     <table class="info-table">
-      <tr><td>A</td><td>市區、密集建築物，地面粗糙度大，梯度高度 500 m</td></tr>
+      <tr><td>A</td><td>市區、密集建築物，梯度高度 500 m</td></tr>
       <tr><td>B</td><td>郊區、低矮建築物或稀疏林木，梯度高度 400 m</td></tr>
       <tr><td>C</td><td>開闊平坦地、海岸或草原，梯度高度 300 m</td></tr>
     </table>
@@ -385,48 +490,43 @@
   <!-- ========= CONTENT ========= -->
   <div class="content">
 
-    <!-- Figure 2.3(a) SVG -->
     <div class="fig-panel">
-      <div class="section-title">表 2.3(a) 示意圖 — 地形幾何參數定義</div>
-      <div class="fig-svg-wrap" id="fig-container">
-        <!-- SVG drawn by JS -->
-      </div>
+      <div class="section-title">表 2.3(a) — 地形幾何參數示意</div>
+      <div class="fig-svg-wrap" id="fig-container"></div>
     </div>
 
-    <!-- Formulas -->
     <div class="section-title">計算公式</div>
     <div class="formula-card">
-      <div class="fc-title">地形係數 — 主式 (2.8)</div>
+      <div class="fc-title">地形係數主式 (2.8)</div>
       <div class="fc-eq">K<sub>zt</sub> = ( 1 + K₁ · K₂ · K₃ )²</div>
       <div class="fc-desc">
-        <span class="v">K₁</span>：與地形特徵及最大頂端加速有關（表 2.3(a)，依 H/L<sub>h</sub> 查表）<br>
+        <span class="v">K₁</span>：頂端加速係數（表 2.3(a)，依 H/L<sub>h</sub> 查表）<br>
         <span class="v">K₂</span>：水平衰減係數（表 2.3(b)，依 x/L<sub>h</sub> 查表）<br>
         <span class="v">K₃</span>：垂直衰減係數（表 2.3(c)，依 z/L<sub>h</sub> 查表）
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-      <div class="formula-card">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="formula-card" style="margin-bottom:0">
         <div class="fc-title">K₂ 計算式 (C2.9)</div>
         <div class="fc-eq" style="font-size:13px">K₂ = (1 − |x|/μL<sub>h</sub>)</div>
-        <div class="fc-desc"><span class="v">μ</span>：水平衰減係數<br>山脊/山丘 上風=1.5，下風=1.5；懸崖 上風=1.5，下風=4</div>
+        <div class="fc-desc"><span class="v">μ</span>：水平衰減係數<br>山脊/山丘 上下風均=1.5；懸崖 上風=1.5，下風=4</div>
       </div>
-      <div class="formula-card">
+      <div class="formula-card" style="margin-bottom:0">
         <div class="fc-title">K₃ 計算式 (C2.10)</div>
         <div class="fc-eq" style="font-size:13px">K₃ = e<sup>−γz/L<sub>h</sub></sup></div>
         <div class="fc-desc"><span class="v">γ</span>：垂直衰減係數<br>山脊=3，懸崖=2.5，山丘=4</div>
       </div>
-      <div class="formula-card">
+      <div class="formula-card" style="margin-bottom:0">
         <div class="fc-title">K₁ 線性內插 (表 2.3(a))</div>
         <div class="fc-eq" style="font-size:13px">K₁ ∝ H/L<sub>h</sub></div>
-        <div class="fc-desc">若 H/L<sub>h</sub> &gt; 0.5 則取 H/L<sub>h</sub> = 0.5<br>若 H/L<sub>h</sub> &gt; 0.5 計算 K₂、K₃ 時取 L<sub>h</sub> = 2H</div>
+        <div class="fc-desc">若 H/L<sub>h</sub> &gt; 0.5 則取 0.5<br>計算 K₂、K₃ 時取 L<sub>h</sub> = 2H</div>
       </div>
     </div>
 
-    <!-- Result panel -->
     <div id="result-area">
       <div class="placeholder-msg">
         <div class="pm-icon">📐</div>
-        <div>輸入參數後按下「計算地形係數」按鈕<br>計算結果與查表過程將顯示於此</div>
+        <div>輸入參數後按下「計算地形係數」<br>計算結果與查表過程將顯示於此</div>
       </div>
     </div>
 
@@ -514,10 +614,10 @@ function setTerrain(t) {
   // Clear result area when switching to flat
   if (isFlat) {
     document.getElementById('result-area').innerHTML = `
-      <div class="cond-card" style="border-color:var(--accent3);background:rgba(63,185,80,.08);color:var(--text)">
+      <div class="cond-card" style="border-color:var(--accent);background:rgba(26,107,138,0.08);color:var(--ink)">
         ✅ 已選擇<b>平地</b>：地形平坦，無地形加速效應，地形係數
-        <span style="font-family:'JetBrains Mono',monospace;color:var(--accent3);font-size:15px"> K<sub>zt</sub> = 1.0000</span>
-        <br><span style="font-size:11px;color:var(--text-dim);margin-top:4px;display:block">按下計算按鈕以回傳結果至暫存區。</span>
+        <span style="font-family:'DM Mono',monospace;color:var(--accent);font-size:15px"> K<sub>zt</sub> = 1.0000</span>
+        <br><span style="font-size:11px;color:var(--muted);margin-top:4px;display:block">按下計算按鈕以回傳結果至暫存區。</span>
       </div>`;
   } else {
     document.getElementById('result-area').innerHTML = `
@@ -529,7 +629,7 @@ function setTerrain(t) {
 
   if (!isFlat) updateFigure();
   else document.getElementById('fig-container').innerHTML = `
-    <div style="text-align:center;padding:32px 16px;color:var(--text-dim);font-size:13px">
+    <div style="text-align:center;padding:32px 16px;color:var(--muted);font-size:13px">
       <div style="font-size:36px;margin-bottom:8px">🌾</div>
       平地地形無地形示意圖<br>K<sub>zt</sub> = 1.0
     </div>`;
@@ -563,7 +663,7 @@ function calculate() {
       <div class="result-panel">
         <div class="result-header">
           <h2>計算結果 — 平地（無地形加速效應）</h2>
-          <span style="font-size:11px;color:var(--text-dim)">地形平坦，K<sub>zt</sub> 直接取 1.0</span>
+          <span style="font-size:11px;color:rgba(245,240,232,0.6)">地形平坦，K<sub>zt</sub> 直接取 1.0</span>
         </div>
         <div class="result-body">
           <div class="kzt-display">
@@ -686,24 +786,24 @@ function calculate() {
     <div class="result-panel">
       <div class="result-header">
         <h2>計算結果 — ${terrain} / 地況 ${exposure}</h2>
-        <span style="font-size:11px;color:var(--text-dim)">H=${H}m, Lh=${Lh}m, x=${x}m, z=${z}m</span>
+        <span style="font-size:11px;color:rgba(245,240,232,0.6)">H=${H}m, Lh=${Lh}m, x=${x}m, z=${z}m</span>
       </div>
       <div class="result-body">
         <div class="result-grid">
           <div class="result-cell">
-            <div class="rc-label">K₁（頂端加速）</div>
+            <div class="rc-label" style="font-size:11px;color:var(--muted);margin-bottom:4px">K₁（頂端加速）</div>
             <div class="rc-val k1c">${K1.toFixed(4)}</div>
-            <div style="font-size:10px;color:var(--text-dimmer);margin-top:4px">H/Lh=${HLh_K1.toFixed(3)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">H/Lh=${HLh_K1.toFixed(3)}</div>
           </div>
           <div class="result-cell">
-            <div class="rc-label">K₂（水平衰減）</div>
+            <div class="rc-label" style="font-size:11px;color:var(--muted);margin-bottom:4px">K₂（水平衰減）</div>
             <div class="rc-val k2c">${K2.toFixed(4)}</div>
-            <div style="font-size:10px;color:var(--text-dimmer);margin-top:4px">x/Lh=${xLh.toFixed(3)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">x/Lh=${xLh.toFixed(3)}</div>
           </div>
           <div class="result-cell">
-            <div class="rc-label">K₃（垂直衰減）</div>
+            <div class="rc-label" style="font-size:11px;color:var(--muted);margin-bottom:4px">K₃（垂直衰減）</div>
             <div class="rc-val k3c">${K3.toFixed(4)}</div>
-            <div style="font-size:10px;color:var(--text-dimmer);margin-top:4px">z/Lh=${zLh.toFixed(3)}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px">z/Lh=${zLh.toFixed(3)}</div>
           </div>
         </div>
         <div class="kzt-display">
@@ -755,7 +855,7 @@ function renderK1Table(terrain, expGroup, targetHLh) {
     return `<tr class="${isClose?'highlight':''}"><td>${h.toFixed(2)}</td><td>${k.toFixed(2)}</td></tr>`;
   }).join('');
   return `<div>
-    <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">K₁ 表 — ${terrain} / ${expGroup}</div>
+    <div style="font-size:11px;color:rgba(245,240,232,0.6);margin-bottom:8px">K₁ 表 — ${terrain} / ${expGroup}</div>
     <div class="scroll-table"><table class="data-table">
       <tr><th>H/L<sub>h</sub></th><th>K₁</th></tr>${rows}
     </table></div></div>`;
@@ -767,7 +867,7 @@ function renderK2Table(k2Key, targetXLh) {
     return `<tr class="${isClose?'highlight':''}"><td>${x.toFixed(2)}</td><td>${k.toFixed(2)}</td></tr>`;
   }).join('');
   return `<div>
-    <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">K₂ 表 — ${k2Key}</div>
+    <div style="font-size:11px;color:rgba(245,240,232,0.6);margin-bottom:8px">K₂ 表 — ${k2Key}</div>
     <div class="scroll-table" style="max-height:260px;overflow-y:auto"><table class="data-table">
       <tr><th>x/L<sub>h</sub></th><th>K₂</th></tr>${rows}
     </table></div></div>`;
@@ -779,7 +879,7 @@ function renderK3Table(terrain, targetZLh) {
     return `<tr class="${isClose?'highlight':''}"><td>${z.toFixed(2)}</td><td>${k.toFixed(2)}</td></tr>`;
   }).join('');
   return `<div>
-    <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">K₃ 表 — ${terrain}</div>
+    <div style="font-size:11px;color:rgba(245,240,232,0.6);margin-bottom:8px">K₃ 表 — ${terrain}</div>
     <div class="scroll-table"><table class="data-table">
       <tr><th>z/L<sub>h</sub></th><th>K₃</th></tr>${rows}
     </table></div></div>`;
@@ -969,7 +1069,7 @@ function applyExposureFromHub(expId) {
   if (!document.getElementById('exp-lock-notice')) {
     const notice = document.createElement('div');
     notice.id = 'exp-lock-notice';
-    notice.style.cssText = 'font-size:11px;color:#2d6a4a;background:rgba(45,106,74,0.08);border:1px solid rgba(45,106,74,0.3);border-radius:4px;padding:6px 10px;margin-bottom:12px;';
+    notice.style.cssText = 'font-size:11px;color:var(--accent);background:rgba(26,107,138,0.08);border:1px solid rgba(26,107,138,0.3);border-radius:6px;padding:7px 12px;margin-top:8px;margin-bottom:8px;';
     notice.innerHTML = '🔒 地況 <strong>' + expId + '</strong> 已由 C 區自動帶入，鎖定不可手動更改。';
     const expGrid = document.querySelector('.exp-grid');
     if (expGrid && expGrid.parentNode) {
