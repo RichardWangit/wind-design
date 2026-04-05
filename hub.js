@@ -1,8 +1,8 @@
 const ALL = ['a','b','c','d','e','f','g','s','r'];
 let active = null;
 
-// ── 啟動：從 localStorage 還原上次狀態 ──────────────────────────────
-HubState.restore();
+// ── 啟動：清除上次狀態，確保每次開啟網頁從零開始 ────────────────────
+HubState.clear();
 
 // ── 依賴傳播訂閱（集中管理，取代各 addXxxResult 中的手動 postMessage）──
 HubState.subscribe('wind', function(type, data) {
