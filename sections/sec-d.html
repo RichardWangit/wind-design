@@ -467,7 +467,7 @@
       <input type="number" id="inp-z" value="10" min="0" step="0.1" placeholder="輸入 z (m)">
     </div>
 
-    <button class="calc-btn" onclick="calculate()">⚡ 計算地形係數 K<sub>zt</sub></button>
+    <button class="calc-btn" id="calc-btn" onclick="calculate()">⚡ 計算地形係數 K<sub>zt</sub></button>
 
     <hr class="divider">
 
@@ -597,13 +597,8 @@ function setTerrain(t) {
 
   const isFlat = (t === '平地');
 
-  // Lock / unlock 地況分類 (only when NOT locked by Zone C)
-  if (!exposureLockedByHub) {
-    document.querySelectorAll('.exp-card').forEach(c => {
-      c.style.opacity    = isFlat ? '0.35' : '';
-      c.style.pointerEvents = isFlat ? 'none' : '';
-    });
-  }
+  // 地況分類永久鎖定，不隨地形類型變動；僅更新計算按鈕可用狀態
+  updateCalcBtn();
 
   // Lock / unlock 輸入參數
   const inputIds = ['inp-H', 'inp-Lh', 'inp-x', 'inp-z'];
@@ -1051,6 +1046,34 @@ function drawRidgeHillSVG(type) {
 // init
 updateFigure();
 
+// ── 初始化：永久鎖定地況分類、顯示等待提示、禁用計算按鈕 ────────────
+document.querySelectorAll('.exp-card').forEach(c => {
+  c.style.pointerEvents = 'none';
+  c.style.cursor        = 'not-allowed';
+  c.style.opacity       = '0.35';
+});
+(function () {
+  const notice = document.createElement('div');
+  notice.id = 'exp-lock-notice';
+  notice.style.cssText = 'font-size:11px;color:var(--muted);background:rgba(120,120,120,0.08);border:1px solid rgba(120,120,120,0.25);border-radius:6px;padding:7px 12px;margin-top:8px;margin-bottom:8px;';
+  notice.innerHTML = '⏳ 請先在 C 區選擇地況種類，地況分類將自動帶入並鎖定。';
+  const expGrid = document.querySelector('.exp-grid');
+  if (expGrid && expGrid.parentNode) {
+    expGrid.parentNode.insertBefore(notice, expGrid.nextSibling);
+  }
+})();
+updateCalcBtn();
+
+// ── 更新計算按鈕可用狀態 ─────────────────────────────────────────────
+function updateCalcBtn() {
+  const btn = document.getElementById('calc-btn');
+  if (!btn) return;
+  const canCalc = terrain === '平地' || exposureLockedByHub;
+  btn.disabled = !canCalc;
+  btn.style.opacity = canCalc ? '' : '0.45';
+  btn.style.cursor  = canCalc ? '' : 'not-allowed';
+}
+
 // ── 接收父框架傳來的 C 區地況資料，自動帶入並鎖定地況分類 ────────────
 function applyExposureFromHub(expId) {
   // Set the exposure variable
@@ -1083,6 +1106,7 @@ function applyExposureFromHub(expId) {
     document.getElementById('exp-lock-notice').innerHTML =
       '🔒 地況 <strong>' + expId + '</strong> 已由 C 區自動帶入，鎖定不可手動更改。';
   }
+  updateCalcBtn();
 }
 
 window.addEventListener('message', function(ev) {
