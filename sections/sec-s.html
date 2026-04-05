@@ -72,6 +72,10 @@ function getActiveFormula() {
   if (!fd || !fd.formulas) return null;
   const mainFormulas = fd.formulas.filter(f => !f.isExtra);
   if (!mainFormulas.length) return null;
+  if (fd.selectedFormulaCode) {
+    const match = mainFormulas.find(f => f.code === fd.selectedFormulaCode);
+    if (match) return match;
+  }
   return mainFormulas[0];
 }
 
@@ -146,19 +150,6 @@ const FORMULA_CONFIGS = {
     hasCp: false, hasGCpi: false,
   },
 };
-
-// ── 取得目前 F 區公式 ─────────────────────────────────────────────
-function getActiveFormula() {
-  const wr = results.find(r => r.type === 'formula');
-  if (!wr) return null;
-  const mainFormulas = wr.data.formulas.filter(f => !f.isExtra);
-  if (!mainFormulas.length) return null;
-  return mainFormulas[0]; // 取第一條主要公式
-}
-
-function getResultByType(type) {
-  return results.find(r => r.type === type)?.data || null;
-}
 
 // ── 建立參數格子 ──────────────────────────────────────────────────
 function buildParamGrid() {
