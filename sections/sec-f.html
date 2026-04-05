@@ -245,9 +245,14 @@
     border-radius: 10px;
     overflow: hidden;
     box-shadow: var(--shadow);
-    transition: box-shadow 0.2s;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    cursor: pointer;
   }
   .formula-card:hover { box-shadow: var(--shadow-lg); }
+  .formula-card.selected {
+    border: 2px solid var(--accent7, #4a7c2a);
+    background: rgba(45, 80, 22, 0.04);
+  }
 
   .formula-card-header {
     background: var(--ink);
@@ -512,7 +517,7 @@ const subcatMap = {};
 DB.subcategories.forEach(s => { subcatMap[s.id] = s; });
 
 // State
-const sel = { building: null, enclosure: null, system: null, subcat: null };
+const sel = { building: null, enclosure: null, system: null, subcat: null, formulaCode: null };
 
 // Icons
 const btIcons = { ordinary: '🏢', flexible: '🏙️' };
@@ -639,6 +644,39 @@ function queryFormulas() {
   });
 }
 
+function sendFormulaToHub() {
+  if (window.parent === window) return;
+  const formulas = queryFormulas();
+  const bt = DB.building_types.find(x => x.id === sel.building);
+  const et = DB.enclosure_types.find(x => x.id === sel.enclosure);
+  const ds = DB.design_systems.find(x => x.id === sel.system);
+  const sc = DB.subcategories.find(x => x.id === sel.subcat);
+  window.parent.postMessage({
+    source: 'wind_pressure_formula',
+    buildingType:  bt ? bt.name : '',
+    enclosureType: et ? et.name : '',
+    designSystem:  ds ? ds.name : '',
+    subcategory:   sc ? sc.name : '',
+    selectedFormulaCode: sel.formulaCode,
+    formulas: formulas.map(f => ({
+      code:    f.formula_code,
+      name:    f.formula_name,
+      display: f.formula_display,
+      condition: f.applicable_condition || '',
+      isExtra: false
+    })),
+    timestamp: new Date().toISOString()
+  }, '*');
+}
+
+function selectFormula(code) {
+  sel.formulaCode = code;
+  document.querySelectorAll('.formula-card').forEach(card => {
+    card.classList.toggle('selected', card.dataset.code === code);
+  });
+  sendFormulaToHub();
+}
+
 function showFormulas() {
   const formulas = queryFormulas();
   const area = document.getElementById('result-area');
@@ -646,6 +684,8 @@ function showFormulas() {
     area.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><h3>查無符合的計算式</h3><p>此條件組合目前資料庫中無對應公式，請嘗試其他組合</p></div>`;
     return;
   }
+  // Reset selection when criteria change
+  sel.formulaCode = null;
   area.innerHTML = `<div class="formula-result"><div class="formula-list">${formulas.map(f => renderFormula(f)).join('')}</div></div>`;
   // Typeset MathJax
   if (window.MathJax) {
@@ -656,32 +696,11 @@ function showFormulas() {
       document.querySelectorAll('.mjx-container').forEach(el => el.style.display = 'none');
     });
   }
-
-  // 回傳結果至整合式父頁面
-  if (window.parent !== window) {
-    const bt = DB.building_types.find(x => x.id === sel.building);
-    const et = DB.enclosure_types.find(x => x.id === sel.enclosure);
-    const ds = DB.design_systems.find(x => x.id === sel.system);
-    const sc = DB.subcategories.find(x => x.id === sel.subcat);
-
-
-    const allFormulas = [...formulas];
-
-    window.parent.postMessage({
-      source: 'wind_pressure_formula',
-      buildingType:  bt ? bt.name  : '',
-      enclosureType: et ? et.name  : '',
-      designSystem:  ds ? ds.name  : '',
-      subcategory:   sc ? sc.name  : '',
-      formulas: allFormulas.map(f => ({
-        code:    f.formula_code,
-        name:    f.formula_name,
-        display: f.formula_display,
-        condition: f.applicable_condition || '',
-        isExtra: false
-      })),
-      timestamp: new Date().toISOString()
-    }, '*');
+  // Auto-select when only one formula matches
+  if (formulas.length === 1) {
+    selectFormula(formulas[0].formula_code);
+  } else {
+    sendFormulaToHub();
   }
 }
 
@@ -699,7 +718,7 @@ function renderFormula(f) {
     </tr>`).join('');
 
   return `
-  <div class="formula-card">
+  <div class="formula-card" data-code="${f.formula_code}" onclick="selectFormula('${f.formula_code}')">
     <div class="formula-card-header">
       <span class="formula-badge">公式 ${f.formula_code}</span>
       <span class="formula-card-title">${f.formula_name}</span>
