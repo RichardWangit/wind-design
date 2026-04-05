@@ -588,6 +588,7 @@ function interp(table, val) {
 // State
 let terrain = null;
 let exposure = null;
+let exposureLockedByHub = false;
 
 function setTerrain(t) {
   terrain = t;
@@ -596,11 +597,13 @@ function setTerrain(t) {
 
   const isFlat = (t === '平地');
 
-  // Lock / unlock 地況分類
-  document.querySelectorAll('.exp-card').forEach(c => {
-    c.style.opacity    = isFlat ? '0.35' : '';
-    c.style.pointerEvents = isFlat ? 'none' : '';
-  });
+  // Lock / unlock 地況分類 (only when NOT locked by Zone C)
+  if (!exposureLockedByHub) {
+    document.querySelectorAll('.exp-card').forEach(c => {
+      c.style.opacity    = isFlat ? '0.35' : '';
+      c.style.pointerEvents = isFlat ? 'none' : '';
+    });
+  }
 
   // Lock / unlock 輸入參數
   const inputIds = ['inp-H', 'inp-Lh', 'inp-x', 'inp-z'];
@@ -1052,6 +1055,7 @@ updateFigure();
 function applyExposureFromHub(expId) {
   // Set the exposure variable
   exposure = expId;
+  exposureLockedByHub = true;
 
   // Visually select the card
   document.querySelectorAll('.exp-card').forEach(c => c.classList.remove('active'));
