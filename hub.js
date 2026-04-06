@@ -48,7 +48,7 @@ function openPanel(which) {
   }
   if (cphTitle && title) cphTitle.textContent = title.textContent.trim();
   const accentMap = {a:'var(--accent)',b:'var(--accent2)',c:'var(--accent3)',
-    d:'var(--accent5)',e:'var(--accent6)',f:'var(--accent7)',g:'#1a7a6a',
+    d:'var(--accent5)',e:'var(--accent6)',f:'var(--accent7)',g:'var(--accent-g)',
     s:'var(--accent8,#5a2d82)',r:'var(--gold)'};
   const cph = document.getElementById('cph');
   if (cph) cph.style.borderBottomColor = accentMap[which] || 'var(--accent)';
@@ -285,7 +285,7 @@ function addGustResult(data) {
     <div class="rc-loc"><strong>${data.label}</strong></div>
     <div class="rc-value">
       <span class="rc-unit" style="font-size:12px;color:var(--muted)">${symbol} =</span>
-      <span class="rc-num" style="color:#1a7a6a">${data.valueStr}</span>
+      <span class="rc-num" style="color:var(--accent-g)">${data.valueStr}</span>
     </div>
     <div class="rc-zone">${data.desc}</div>
     <div class="rc-time">${formatTime(data.timestamp)}</div>`;
