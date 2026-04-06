@@ -1,19 +1,28 @@
+/* ═══════════════════════════════════════════════════════════════
+   典籍書卷設計系統  ·  Classic Manuscript Design System
+   建築風力設計查詢整合系統  ·  Wind Design Integration Hub
+   ═══════════════════════════════════════════════════════════════ */
 :root {
-  --ink: #1a1a2e;
-  --paper: #f5f0e8;
-  --accent:  #c0392b;
-  --accent2: #1a5276;
-  --accent3: #2c7a4b;
-  --accent4: #4a235a;
-  --accent5: #1a6b8a;
-  --accent6: #7b3f00;
-  --accent7: #2d5016;
-  --accent8: #5a2d82;
-  --gold: #c9a84c;
-  --muted: #7a7060;
-  --border: #d4c9b0;
-  --card-bg: #fdfaf4;
-  --shadow: 0 4px 24px rgba(26,26,46,0.10);
+  /* ── 基本墨紙色 (Ink & Paper) ── */
+  --ink:     #1c1410;   /* 濃墨  — 純墨黑，去除現代海軍藍調    */
+  --paper:   #f2ead6;   /* 宣紙  — 泛黃舊紙，典籍書卷底色      */
+  --card-bg: #faf5e9;   /* 書頁  — 略亮的書頁底色              */
+  --border:  #d4c9b0;   /* 界格  — 傳統界格線色                */
+  --muted:   #7a7060;   /* 淡墨  — 淡墨書寫，次要文字色        */
+  --gold:    #b8860b;   /* 暗金  — 金葉裝飾色                  */
+
+  /* ── 章節色（傳統礦物色）── */
+  --accent:  #c0392b;   /* 硃砂紅  — 朱批硃砂（A 節）          */
+  --accent2: #2e4f7a;   /* 青花藍  — 青花瓷藍（B 節）          */
+  --accent3: #3a6b45;   /* 石綠    — 礦物石綠（C 節）          */
+  --accent4: #5c3370;   /* 紫藤色  — 紫藤深紫（R 節）          */
+  --accent5: #2e7a8a;   /* 青瓷色  — 青瓷釉色（D 節）          */
+  --accent6: #7a4419;   /* 赭石    — 赭石土棕（E 節）          */
+  --accent7: #4a6741;   /* 墨綠    — 墨染草綠（F 節）          */
+  --accent8: #52347a;   /* 深紫    — 古典深紫（S 節）          */
+  --accent-g:#2e7a6a;   /* 青綠    — 青玉翠綠（G 節）          */
+
+  --shadow: 0 4px 24px rgba(28,20,16,0.12);
   --header-h: 42px;
 }
 
@@ -59,7 +68,7 @@ html, body {
 .section:last-child{border-bottom:none;}
 
 .sec-header{height:var(--header-h);display:flex;align-items:center;gap:7px;padding:0 10px;background:var(--card-bg);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:background .2s;position:relative;z-index:2;overflow:hidden;}
-.sec-header:hover{background:#f0ece2;}
+.sec-header:hover{background:#ece3cb;}
 .section.expanded .sec-header{background:var(--ink);border-left:3px solid var(--accent);border-bottom:none;}
 .section.expanded .sec-title{color:var(--paper);}
 .section.expanded .sec-desc{color:rgba(245,240,232,0.5);}
@@ -69,7 +78,7 @@ html, body {
 #sec-d.expanded .sec-header { border-bottom-color: var(--accent5); }
 #sec-e.expanded .sec-header { border-bottom-color: var(--accent6); }
 #sec-f.expanded .sec-header { border-bottom-color: var(--accent7); }
-#sec-g.expanded .sec-header { border-bottom-color: #1a7a6a; }
+#sec-g.expanded .sec-header { border-bottom-color: var(--accent-g); }
 #sec-s.expanded .sec-header { border-bottom-color: var(--accent8); }
 #sec-r.expanded .sec-header { border-bottom-color: var(--gold); }
 
@@ -87,7 +96,7 @@ html, body {
 .sec-badge.d { background: var(--accent5); }
 .sec-badge.e { background: var(--accent6); }
 .sec-badge.f { background: var(--accent7); }
-.sec-badge.g { background: #1a7a6a; }
+.sec-badge.g { background: var(--accent-g); }
 .sec-badge.s { background: var(--accent8); }
 .section.expanded .sec-badge { transform: scale(1.1); }
 
@@ -113,7 +122,7 @@ html, body {
 .status-pill.d { background: var(--accent5); }
 .status-pill.e { background: var(--accent6); }
 .status-pill.f { background: var(--accent7); }
-.status-pill.g { background: #1a7a6a; }
+.status-pill.g { background: var(--accent-g); }
 .status-pill.s { background: var(--accent8); }
 @keyframes pillIn { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
 
@@ -179,8 +188,8 @@ iframe{width:100%;height:100%;border:none;background:#fff;display:block;}
 .result-card.type-wind  .rc-type { color: var(--accent6); }
 .result-card.type-formula::before { background: var(--accent7); }
 .result-card.type-formula .rc-type { color: var(--accent7); }
-.result-card.type-gust::before { background: #1a7a6a; }
-.result-card.type-gust .rc-type { color: #1a7a6a; }
+.result-card.type-gust::before { background: var(--accent-g); }
+.result-card.type-gust .rc-type { color: var(--accent-g); }
 
 .rc-loc { font-size: 12px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink); line-height: 1.5; }
 .rc-loc .slash { color: var(--border); margin: 0 2px; }
@@ -208,7 +217,7 @@ iframe{width:100%;height:100%;border:none;background:#fff;display:block;}
 .rc-section-badge.s-d { background: var(--accent5); }
 .rc-section-badge.s-e { background: var(--accent6); }
 .rc-section-badge.s-f { background: var(--accent7); }
-.rc-section-badge.s-g { background: #1a7a6a; }
+.rc-section-badge.s-g { background: var(--accent-g); }
 .rc-close {
   position: absolute; top: 6px; right: 8px;
   background: none; border: none; color: var(--border);
