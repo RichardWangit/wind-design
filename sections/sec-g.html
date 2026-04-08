@@ -1006,7 +1006,50 @@ window.addEventListener('message', function(ev) {
   if (d.source === 'hub_to_gust_wind' && d.speed) {
     applyV10Data(d.speed);
   }
+  if (d.source === 'hub_to_g_zone0') {
+    applyZone0ToG(d);
+  }
 });
+
+function applyZone0ToG(d) {
+  // 建築物類型
+  if (d.buildingType) {
+    setType(d.buildingType);
+    // 鎖定切換按鈕
+    const btnOrd = document.getElementById('btn-ordinary');
+    const btnFlex = document.getElementById('btn-flexible');
+    if (btnOrd) {
+      btnOrd.disabled = true;
+      btnOrd.style.cursor = 'not-allowed';
+      btnOrd.title = '由 0 區自動帶入並鎖定';
+    }
+    if (btnFlex) {
+      btnFlex.disabled = true;
+      btnFlex.style.cursor = 'not-allowed';
+      btnFlex.title = '由 0 區自動帶入並鎖定';
+    }
+    // 在模組 03 標頭顯示鎖定說明
+    const tab = document.getElementById('tab-num-input');
+    if (tab && tab.parentElement && !tab.parentElement.querySelector('.zone0-lock-tag')) {
+      tab.parentElement.insertAdjacentHTML('beforeend',
+        '<span class="zone0-lock-tag" style="font-size:9px;opacity:0.75;margin-left:8px;font-family:\'JetBrains Mono\',monospace;">🔒 0區帶入</span>');
+    }
+  }
+  // h / B / L 輸入格
+  const fieldMap = { 'inp-h': d.h, 'inp-B': d.B, 'inp-L': d.L };
+  for (const [id, val] of Object.entries(fieldMap)) {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== '') {
+      el.value = val;
+      el.readOnly = true;
+      el.style.background = '#f0ece0';
+      el.style.color = '#888070';
+      el.style.cursor = 'not-allowed';
+      el.title = '由 0 區自動帶入並鎖定';
+    }
+  }
+  updateCalcBtn();
+}
 
 // Init: disable calc btn until data arrives
 document.addEventListener('DOMContentLoaded', function() {

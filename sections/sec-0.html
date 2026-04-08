@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>建築物基本設定</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+TC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:          #1c1410;
+    --ink-mid:      #3a2e20;
+    --ink-light:    #5a4e3a;
+    --accent0:      #6b4c11;
+    --accent0-dark: #4e370c;
+    --accent0-glow: rgba(107,76,17,0.13);
+    --surface:      #f4f0e6;
+    --surface-card: #faf7f0;
+    --surface-dark: #ede8da;
+    --border:       rgba(107,76,17,0.18);
+    --border-soft:  rgba(107,76,17,0.10);
+    --muted:        #7a6a50;
+    --shadow:       0 2px 16px rgba(28,20,16,0.10);
+    --shadow-lg:    0 8px 40px rgba(28,20,16,0.16);
+    --radius:       6px;
+    --locked-bg:    #f0ece0;
+    --locked-color: #888070;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* ── 頂部標題帶 ── */
+  .header {
+    background: var(--ink);
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      90deg, transparent, transparent 60px,
+      rgba(107,76,17,0.04) 60px, rgba(107,76,17,0.04) 61px
+    );
+    pointer-events: none;
+  }
+  .header-inner {
+    padding: 28px 32px 22px;
+    position: relative;
+    display: flex; align-items: flex-start; gap: 18px;
+  }
+  .header-icon {
+    font-size: 36px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 3px;
+    opacity: 0.9;
+  }
+  .header-text { flex: 1; }
+  .header-badge {
+    display: inline-block;
+    background: var(--accent0-glow);
+    border: 1px solid rgba(107,76,17,0.4);
+    color: var(--accent0);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 2px;
+    margin-bottom: 10px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .header h1 {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #f5f0e8;
+    letter-spacing: 0.04em;
+    line-height: 1.35;
+    margin-bottom: 6px;
+  }
+  .header p {
+    color: rgba(245,240,232,0.45);
+    font-size: 11.5px;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+  }
+  .header-deco {
+    position: absolute;
+    right: 28px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 72px;
+    opacity: 0.05;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent0);
+    pointer-events: none;
+    line-height: 1;
+  }
+
+  /* ── 主體容器 ── */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 28px 40px;
+  }
+
+  /* ── 通知帶 ── */
+  .sync-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--accent0-glow);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent0);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    margin-bottom: 22px;
+    font-size: 12px;
+    color: var(--ink-light);
+  }
+  .sync-notice .notice-icon { font-size: 16px; flex-shrink: 0; }
+  .sync-notice strong { color: var(--accent0); }
+  .sync-tags {
+    display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px;
+  }
+  .sync-tag {
+    background: rgba(107,76,17,0.10);
+    border: 1px solid rgba(107,76,17,0.25);
+    color: var(--accent0-dark);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+
+  /* ── 卡片 ── */
+  .card {
+    background: var(--surface-card);
+    border: 1.5px solid var(--border-soft);
+    border-left: 4px solid var(--accent0);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 24px 20px;
+    margin-bottom: 18px;
+  }
+  .card-title {
+    font-family: 'Noto Serif TC', serif;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--accent0);
+    letter-spacing: 0.03em;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::before {
+    content: '';
+    display: inline-block;
+    width: 4px; height: 16px;
+    background: var(--accent0);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── 表單元素 ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 20px;
+  }
+  .form-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px 20px;
+  }
+  @media (max-width: 640px) {
+    .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
+  }
+  .field { display: flex; flex-direction: column; }
+  .field label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .field label .sym {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    background: var(--accent0);
+    color: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    width: 22px; height: 22px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .field select,
+  .field input[type="number"] {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border-soft);
+    border-radius: 5px;
+    font-size: 13px;
+    font-family: 'Noto Sans TC', sans-serif;
+    background: #fff;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: auto;
+  }
+  .field select:focus,
+  .field input[type="number"]:focus {
+    border-color: var(--accent0);
+    box-shadow: 0 0 0 3px var(--accent0-glow);
+  }
+  .field select:not(:valid),
+  .field select option[value=""] {
+    color: var(--muted);
+  }
+  .field .hint {
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+  }
+
+  /* ── 尺寸區卡片：圖示說明 ── */
+  .dim-desc {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: rgba(107,76,17,0.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    font-size: 11.5px;
+    color: var(--ink-light);
+    line-height: 1.65;
+  }
+  .dim-desc svg { flex-shrink: 0; margin-top: 2px; opacity: 0.5; }
+
+  /* ── 狀態指示器 ── */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(107,76,17,0.06);
+    border: 1px dashed rgba(107,76,17,0.22);
+    border-radius: 4px;
+    padding: 8px 14px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #ccc;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-dot.active { background: #2e9e5a; }
+  .status-text { flex: 1; letter-spacing: 0.03em; }
+
+  /* ── 分隔線 ── */
+  .section-sep {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 4px 0 20px;
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+  }
+  .section-sep::before, .section-sep::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- 頂部標題帶 -->
+<div class="header">
+  <div class="header-inner">
+    <div class="header-icon">⚙️</div>
+    <div class="header-text">
+      <div class="header-badge">Zone 0 · Global Settings</div>
+      <h1>建築物基本設定</h1>
+      <p>建築物類型、開口形式、設計系統及屋頂尺寸 — 設定後自動同步至 E、F、G 區</p>
+    </div>
+  </div>
+  <div class="header-deco">0</div>
+</div>
+
+<div class="container">
+
+  <!-- 同步通知帶 -->
+  <div class="sync-notice">
+    <div class="notice-icon">🔗</div>
+    <div>
+      此區設定為<strong>全域狀態</strong>，變更後將自動帶入並鎖定下列各區的對應欄位：
+      <div class="sync-tags">
+        <span class="sync-tag">E 區 · 風壓係數</span>
+        <span class="sync-tag">F 區 · 設計風壓計算式</span>
+        <span class="sync-tag">G 區 · 陣風反應因子</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 卡片一：設計參數選單 -->
+  <div class="card">
+    <div class="card-title">設計參數選擇</div>
+
+    <div class="form-grid" style="margin-bottom:18px;">
+
+      <!-- 建築物類型 -->
+      <div class="field">
+        <label>建築物類型</label>
+        <select id="sel-buildingType" onchange="sendZone0()">
+          <option value="">— 請選擇 —</option>
+          <option value="ordinary">普通建築物</option>
+          <option value="flexible">柔性建築物</option>
+        </select>
+        <div class="hint">fn &gt; 1 Hz → 普通；fn ≤ 1 Hz → 柔性</div>
+      </div>
+
+      <!-- 建築物形式 -->
+      <div class="field">
+        <label>建築物形式（依開口率分類）</label>
+        <select id="sel-buildingForm" onchange="sendZone0()">
+          <option value="">— 請選擇 —</option>
+          <option value="enclosed">封閉式建築物（開口率 &lt; 20%）</option>
+          <option value="partial">部分封閉式建築物（開口率 20%~80%）</option>
+          <option value="open">開放式建築物（開口率 &gt; 80%）</option>
+        </select>
+        <div class="hint">依各面牆開口比例判定封閉分類</div>
+      </div>
+
+    </div>
+
+    <!-- 設計系統（全寬） -->
+    <div class="field" style="max-width:480px;">
+      <label>設計系統</label>
+      <select id="sel-designSystem" onchange="sendZone0()">
+        <option value="">— 請選擇 —</option>
+        <option value="mwfrs">主要風力抵抗系統 (MWFRS)</option>
+        <option value="cc">局部構材及外部被覆物 (C&amp;C)</option>
+      </select>
+      <div class="hint">MWFRS → 整體結構系統；C&amp;C → 局部構材與外部被覆</div>
+    </div>
+
+  </div>
+
+  <!-- 卡片二：屋頂尺寸輸入 -->
+  <div class="card">
+    <div class="card-title">屋頂尺寸輸入</div>
+
+    <div class="dim-desc">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#6b4c11" stroke-width="1.5">
+        <rect x="4" y="16" width="32" height="18" rx="1"/>
+        <polyline points="4,16 20,5 36,16"/>
+        <line x1="4" y1="34" x2="4" y2="38"/><line x1="36" y1="34" x2="36" y2="38"/>
+        <line x1="4" y1="36" x2="36" y2="36"/>
+        <line x1="20" y1="5" x2="20" y2="2"/>
+        <line x1="4" y1="16" x2="4" y2="13"/>
+        <line x1="4" y1="14.5" x2="20" y2="14.5"/>
+      </svg>
+      <div>
+        <strong style="color:var(--ink-mid)">尺寸定義（依風向）</strong><br>
+        <strong>L</strong>：順風向屋頂尺寸（平行於風向的水平長度）<br>
+        <strong>B</strong>：垂直風向屋頂尺寸（垂直於風向的水平寬度）<br>
+        <strong>h</strong>：平均屋頂高度（不含屋頂突出物）
+      </div>
+    </div>
+
+    <div class="form-grid-3">
+
+      <div class="field">
+        <label><span class="sym">L</span>順風向屋頂尺寸</label>
+        <input type="number" id="inp-L" min="0.1" step="0.1" placeholder="例：30.0" oninput="sendZone0()">
+        <div class="hint">單位：m　平行風向</div>
+      </div>
+
+      <div class="field">
+        <label><span class="sym">B</span>垂直風向屋頂尺寸</label>
+        <input type="number" id="inp-B" min="0.1" step="0.1" placeholder="例：20.0" oninput="sendZone0()">
+        <div class="hint">單位：m　垂直風向</div>
+      </div>
+
+      <div class="field">
+        <label><span class="sym">h</span>平均屋頂高度</label>
+        <input type="number" id="inp-h" min="0.1" step="0.1" placeholder="例：40.0" oninput="sendZone0()">
+        <div class="hint">單位：m　不含突出物</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 狀態列 -->
+  <div class="status-bar" id="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <div class="status-text" id="status-text">尚未設定 — 請選擇上方選項並輸入尺寸</div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+let lastData = null;
+
+function getVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+function getNum(id) {
+  const el = document.getElementById(id);
+  if (!el || el.value === '') return '';
+  const v = parseFloat(el.value);
+  return isNaN(v) ? '' : v;
+}
+
+function sendZone0() {
+  const buildingType  = getVal('sel-buildingType');
+  const buildingForm  = getVal('sel-buildingForm');
+  const designSystem  = getVal('sel-designSystem');
+  const L = getNum('inp-L');
+  const B = getNum('inp-B');
+  const h = getNum('inp-h');
+
+  // 只要有選擇/輸入就傳送（允許部分填寫）
+  const hasAny = buildingType || buildingForm || designSystem || L !== '' || B !== '' || h !== '';
+  if (!hasAny) return;
+
+  const data = {
+    source: 'zone_0_params',
+    buildingType,
+    buildingForm,
+    designSystem,
+    L,
+    B,
+    h,
+    timestamp: new Date().toISOString()
+  };
+  lastData = data;
+  window.parent.postMessage(data, '*');
+  updateStatus(data);
+}
+
+const btLabel  = { ordinary:'普通建築物', flexible:'柔性建築物' };
+const bfLabel  = { enclosed:'封閉式', partial:'部分封閉式', open:'開放式' };
+const dsLabel  = { mwfrs:'MWFRS', cc:'C&C' };
+
+function updateStatus(d) {
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  const parts = [];
+  if (d.buildingType)  parts.push(btLabel[d.buildingType]  || d.buildingType);
+  if (d.buildingForm)  parts.push(bfLabel[d.buildingForm]  || d.buildingForm);
+  if (d.designSystem)  parts.push(dsLabel[d.designSystem]  || d.designSystem);
+  if (d.h !== '')      parts.push('h=' + d.h + 'm');
+  if (d.L !== '')      parts.push('L=' + d.L + 'm');
+  if (d.B !== '')      parts.push('B=' + d.B + 'm');
+
+  const allFilled = d.buildingType && d.buildingForm && d.designSystem
+                 && d.h !== '' && d.L !== '' && d.B !== '';
+
+  dot.className  = 'status-dot' + (allFilled ? ' active' : '');
+  text.textContent = parts.length ? '已設定：' + parts.join(' · ') : '尚未設定';
+}
+</script>
+</body>
+</html>

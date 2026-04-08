@@ -21,6 +21,7 @@
   --accent7: #4a6741;   /* 墨綠    — 墨染草綠（F 節）          */
   --accent8: #52347a;   /* 深紫    — 古典深紫（S 節）          */
   --accent-g:#2e7a6a;   /* 青綠    — 青玉翠綠（G 節）          */
+  --accent0: #6b4c11;   /* 古銅琥珀 — 典籍銅金（0 節）          */
 
   --shadow: 0 4px 24px rgba(28,20,16,0.12);
   --header-h: 42px;
@@ -73,6 +74,7 @@ html, body {
 .section.expanded .sec-title{color:var(--paper);}
 .section.expanded .sec-desc{color:rgba(245,240,232,0.5);}
 
+#sec-0.expanded .sec-header { border-bottom-color: var(--accent0); }
 #sec-b.expanded .sec-header { border-bottom-color: var(--accent2); }
 #sec-c.expanded .sec-header { border-bottom-color: var(--accent3); }
 #sec-d.expanded .sec-header { border-bottom-color: var(--accent5); }
@@ -89,6 +91,7 @@ html, body {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   transition: background 0.3s, transform 0.3s;
 }
+.sec-badge.zero { background: var(--accent0); }
 .sec-badge.a { background: var(--accent); }
 .sec-badge.b { background: var(--accent2); }
 .sec-badge.c { background: var(--accent3); }
@@ -116,6 +119,7 @@ html, body {
   animation: pillIn 0.2s ease; white-space: nowrap; color: white;
   flex-shrink:0; max-width:60px; overflow:hidden; text-overflow:ellipsis;
 }
+.status-pill.zero { background: var(--accent0); }
 .status-pill.a { background: var(--accent); }
 .status-pill.b { background: var(--accent2); }
 .status-pill.c { background: var(--accent3); }

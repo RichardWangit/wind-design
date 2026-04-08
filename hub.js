@@ -1,4 +1,4 @@
-const ALL = ['a','b','c','d','e','f','g','s','r'];
+const ALL = ['0','a','b','c','d','e','f','g','s','r'];
 let active = null;
 
 // ── 啟動：清除上次狀態，確保每次開啟網頁從零開始 ────────────────────
@@ -47,7 +47,7 @@ function openPanel(which) {
     cphBadge.style.background = window.getComputedStyle(badge).background;
   }
   if (cphTitle && title) cphTitle.textContent = title.textContent.trim();
-  const accentMap = {a:'var(--accent)',b:'var(--accent2)',c:'var(--accent3)',
+  const accentMap = {'0':'var(--accent0)',a:'var(--accent)',b:'var(--accent2)',c:'var(--accent3)',
     d:'var(--accent5)',e:'var(--accent6)',f:'var(--accent7)',g:'var(--accent-g)',
     s:'var(--accent8,#5a2d82)',r:'var(--gold)'};
   const cph = document.getElementById('cph');
@@ -71,6 +71,11 @@ function openPanel(which) {
       const wc = HubState.get('terr');
       if (wc) setTimeout(() => df.contentWindow.postMessage({ source:'hub_to_kzt_exposure', terrainId: wc.terrainId }, '*'), 300);
     }
+  }
+  // Re-send cached zone0 data to E/F/G on panel open
+  if (which === 'e' || which === 'f' || which === 'g') {
+    const z0 = HubState.get('zone0');
+    if (z0) setTimeout(() => propagateZone0ToFrames(z0), 350);
   }
 }
 function closePanel() {
@@ -99,7 +104,8 @@ function autoCollapse(which) { openPanel('r'); }
 window.addEventListener('message', function(event) {
   const data = event.data;
   if (!data || typeof data !== 'object') return;
-  if      (data.source === 'wind_speed_query')    { addWindResult(data);      if (active==='a') setTimeout(()=>autoCollapse('a'),700); }
+  if      (data.source === 'zone_0_params')        { handleZone0(data); }
+  else if (data.source === 'wind_speed_query')    { addWindResult(data);      if (active==='a') setTimeout(()=>autoCollapse('a'),700); }
   else if (data.source === 'occupancy_query')     { addOccResult(data);       if (active==='b') setTimeout(()=>autoCollapse('b'),700); }
   else if (data.source === 'terrain_query')       { addTerrainResult(data);   if (active==='c') setTimeout(()=>autoCollapse('c'),700); }
   else if (data.source === 'kzt_calculator')      { addKztResult(data);       if (active==='d') setTimeout(()=>autoCollapse('d'),700); }
@@ -426,4 +432,28 @@ function formatTime(iso){
   try{ const d=new Date(iso),p=n=>String(n).padStart(2,'0');
     return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   }catch{return '';}
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  0 區（全域基本設定）處理與傳播
+// ══════════════════════════════════════════════════════════════════
+function handleZone0(data) {
+  HubState.set('zone0', data);
+  const btLabel = { ordinary:'普通', flexible:'柔性' };
+  const dsLabel = { mwfrs:'MWFRS', cc:'C&C' };
+  const parts = [];
+  if (data.buildingType) parts.push(btLabel[data.buildingType] || data.buildingType);
+  if (data.designSystem)  parts.push(dsLabel[data.designSystem]  || data.designSystem);
+  if (data.h !== '') parts.push('h=' + data.h + 'm');
+  setPill('0', parts.join(' · ') || '已設定');
+  propagateZone0ToFrames(data);
+}
+
+function propagateZone0ToFrames(data) {
+  const ef = document.getElementById('frame-e');
+  if (ef && ef.contentWindow) ef.contentWindow.postMessage(Object.assign({}, data, { source:'hub_to_e_zone0' }), '*');
+  const ff = document.getElementById('frame-f');
+  if (ff && ff.contentWindow) ff.contentWindow.postMessage(Object.assign({}, data, { source:'hub_to_f_zone0' }), '*');
+  const gf = document.getElementById('frame-g');
+  if (gf && gf.contentWindow) gf.contentWindow.postMessage(Object.assign({}, data, { source:'hub_to_g_zone0' }), '*');
 }

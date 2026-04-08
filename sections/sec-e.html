@@ -137,6 +137,9 @@ select[id^="cc_zone"]{margin-top:6px}
   </div>
   <div class="note-box" id="buildingNote" style="display:none"></div>
   <div class="diagram-wrap" id="buildingDiag" style="display:none"></div>
+  <div id="zone0-lock-badge" style="display:none;margin-top:12px;padding:7px 12px;background:rgba(107,76,17,0.08);border:1px solid rgba(107,76,17,0.25);border-radius:5px;font-size:11px;color:#6b4c11;font-family:'DM Mono',monospace;letter-spacing:.04em;">
+    🔒 查詢系統類型及建築物形式由 <strong>0 區</strong> 自動帶入並鎖定
+  </div>
 </div>
 
 <!-- Step 2: Component type -->
@@ -178,6 +181,9 @@ select[id^="cc_zone"]{margin-top:6px}
 </div><!-- container -->
 
 <script>
+// ========== ZONE 0 全域同步 ==========
+let zone0Data = null;
+
 // ========== EMBEDDED DATABASE DATA ==========
 const DB = {
   table_2_4_wall: {
@@ -441,6 +447,7 @@ function renderParamForm(){
     case 'cc_fig33a': renderCC_Fig33a(pa,pd); break;
     case 'cc_fig33b': renderCC_Fig33b(pa,pd); break;
   }
+  if (zone0Data) applyZone0Inputs();
 }
 
 // ===== CC GCp lookup functions =====
@@ -3553,17 +3560,82 @@ function calcInternal(){
 }
 
 function resetAll(){
-  document.getElementById('systemType').value='';
-  document.getElementById('buildingTypeWrap').style.display='none';
-  document.getElementById('buildingType').value='';
+  // 若 zone0 鎖定中，不清除 systemType/buildingType，只重置後續步驟
+  if (!zone0Data) {
+    document.getElementById('systemType').value='';
+    document.getElementById('buildingTypeWrap').style.display='none';
+    document.getElementById('buildingType').value='';
+    currentBuilding=''; currentComponent=''; currentSystemType='';
+  } else {
+    // 保留 zone0 帶入的值，只清除構件選擇與結果
+    currentComponent='';
+  }
   document.getElementById('buildingNote').style.display='none';
   document.getElementById('buildingDiag').style.display='none';
   document.getElementById('card2').style.display='none';
   document.getElementById('card3').style.display='none';
   document.getElementById('resultCard').classList.remove('show');
-  currentBuilding=''; currentComponent=''; currentSystemType='';
   setStep(1);
+  // 若 zone0 仍有效，重新套用
+  if (zone0Data) applyZone0ToE(zone0Data);
 }
+
+// ── Zone 0 鎖定函數 ──────────────────────────────────────────────
+function applyZone0ToE(d) {
+  zone0Data = d;
+  if (!d.designSystem && !d.buildingForm) return;
+
+  const st = document.getElementById('systemType');
+  if (d.designSystem) {
+    st.value = d.designSystem;
+    st.disabled = true;
+    st.style.background = '#f0ece0';
+    st.style.color = '#888070';
+    st.title = '由 0 區自動帶入並鎖定';
+    // 觸發 UI 更新（顯示 buildingTypeWrap，不重置 buildingType）
+    currentSystemType = d.designSystem;
+    document.getElementById('buildingTypeWrap').style.display = 'block';
+    document.getElementById('card2').style.display = 'none';
+    document.getElementById('card3').style.display = 'none';
+    document.getElementById('resultCard').classList.remove('show');
+  }
+
+  const bt = document.getElementById('buildingType');
+  if (d.buildingForm) {
+    bt.value = d.buildingForm;
+    bt.disabled = true;
+    bt.style.background = '#f0ece0';
+    bt.style.color = '#888070';
+    bt.title = '由 0 區自動帶入並鎖定';
+    // 觸發 buildingType 變更
+    onBuildingTypeChange();
+  }
+
+  document.getElementById('zone0-lock-badge').style.display = 'block';
+}
+
+function applyZone0Inputs() {
+  if (!zone0Data) return;
+  const map = { inp_h: zone0Data.h, inp_L: zone0Data.L, inp_B: zone0Data.B };
+  for (const [id, val] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== '') {
+      el.value = val;
+      el.readOnly = true;
+      el.style.background = '#f0ece0';
+      el.style.color = '#888070';
+      el.style.cursor = 'not-allowed';
+      el.title = '由 0 區自動帶入並鎖定';
+    }
+  }
+}
+
+// ── Zone 0 postMessage 監聽 ──────────────────────────────────────
+window.addEventListener('message', function(ev) {
+  const d = ev.data;
+  if (!d || typeof d !== 'object') return;
+  if (d.source === 'hub_to_e_zone0') applyZone0ToE(d);
+});
 </script>
 </body>
 </html>
