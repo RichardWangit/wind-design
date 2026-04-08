@@ -121,15 +121,17 @@ select[id^="cc_zone"]{margin-top:6px}
     第一步：選擇建築物形式
   </div>
   <label>查詢系統類型</label>
-  <select id="systemType" onchange="onSystemTypeChange()">
-    <option value="">-- 請選擇 --</option>
+  <select id="systemType" disabled
+    style="background:#f0ece0;color:#888070;cursor:not-allowed;" title="由 0 區自動帶入並鎖定">
+    <option value="">-- 請先在 0 區設定 --</option>
     <option value="mwfrs">主要風力抵抗系統</option>
     <option value="cc">局部構件及外部被覆物</option>
   </select>
   <div id="buildingTypeWrap" style="display:none">
     <label>建築物形式（依開口率分類）</label>
-    <select id="buildingType" onchange="onBuildingTypeChange()">
-      <option value="">-- 請選擇 --</option>
+    <select id="buildingType" disabled
+      style="background:#f0ece0;color:#888070;cursor:not-allowed;" title="由 0 區自動帶入並鎖定">
+      <option value="">-- 請先在 0 區設定 --</option>
       <option value="enclosed">封閉式建築物（開口率 &lt; 20%）</option>
       <option value="partial">部分封閉式建築物（開口率 20%~80%）</option>
       <option value="open">開放式建築物（開口率 ≧ 80%）</option>
@@ -137,8 +139,8 @@ select[id^="cc_zone"]{margin-top:6px}
   </div>
   <div class="note-box" id="buildingNote" style="display:none"></div>
   <div class="diagram-wrap" id="buildingDiag" style="display:none"></div>
-  <div id="zone0-lock-badge" style="display:none;margin-top:12px;padding:7px 12px;background:rgba(107,76,17,0.08);border:1px solid rgba(107,76,17,0.25);border-radius:5px;font-size:11px;color:#6b4c11;font-family:'DM Mono',monospace;letter-spacing:.04em;">
-    🔒 查詢系統類型及建築物形式由 <strong>0 區</strong> 自動帶入並鎖定
+  <div id="zone0-lock-badge" style="margin-top:12px;padding:8px 14px;background:rgba(107,76,17,0.08);border:1px solid rgba(107,76,17,0.25);border-left:3px solid #6b4c11;border-radius:5px;font-size:11.5px;color:#6b4c11;font-family:'DM Mono',monospace;letter-spacing:.04em;line-height:1.6;">
+    🔒 查詢系統類型及建築物形式由 <strong>0 區</strong> 自動帶入並鎖定。
   </div>
 </div>
 
@@ -3560,23 +3562,15 @@ function calcInternal(){
 }
 
 function resetAll(){
-  // 若 zone0 鎖定中，不清除 systemType/buildingType，只重置後續步驟
-  if (!zone0Data) {
-    document.getElementById('systemType').value='';
-    document.getElementById('buildingTypeWrap').style.display='none';
-    document.getElementById('buildingType').value='';
-    currentBuilding=''; currentComponent=''; currentSystemType='';
-  } else {
-    // 保留 zone0 帶入的值，只清除構件選擇與結果
-    currentComponent='';
-  }
+  // systemType/buildingType 由 0 區永久鎖定，重置只清除後續步驟
+  currentComponent='';
   document.getElementById('buildingNote').style.display='none';
   document.getElementById('buildingDiag').style.display='none';
   document.getElementById('card2').style.display='none';
   document.getElementById('card3').style.display='none';
   document.getElementById('resultCard').classList.remove('show');
   setStep(1);
-  // 若 zone0 仍有效，重新套用
+  // 若 zone0 已有資料，重新套用 buildingType UI
   if (zone0Data) applyZone0ToE(zone0Data);
 }
 
@@ -3585,14 +3579,10 @@ function applyZone0ToE(d) {
   zone0Data = d;
   if (!d.designSystem && !d.buildingForm) return;
 
+  // 填入值（select 已在 HTML 中永久 disabled）
   const st = document.getElementById('systemType');
   if (d.designSystem) {
     st.value = d.designSystem;
-    st.disabled = true;
-    st.style.background = '#f0ece0';
-    st.style.color = '#888070';
-    st.title = '由 0 區自動帶入並鎖定';
-    // 觸發 UI 更新（顯示 buildingTypeWrap，不重置 buildingType）
     currentSystemType = d.designSystem;
     document.getElementById('buildingTypeWrap').style.display = 'block';
     document.getElementById('card2').style.display = 'none';
@@ -3603,15 +3593,8 @@ function applyZone0ToE(d) {
   const bt = document.getElementById('buildingType');
   if (d.buildingForm) {
     bt.value = d.buildingForm;
-    bt.disabled = true;
-    bt.style.background = '#f0ece0';
-    bt.style.color = '#888070';
-    bt.title = '由 0 區自動帶入並鎖定';
-    // 觸發 buildingType 變更
     onBuildingTypeChange();
   }
-
-  document.getElementById('zone0-lock-badge').style.display = 'block';
 }
 
 function applyZone0Inputs() {

@@ -127,7 +127,20 @@
   .step-card.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow); }
   .step-card.completed { opacity: 0.7; }
   .step-card.locked { opacity: 0.4; pointer-events: none; }
-  .step-card.zone0-locked .step-header { cursor: default; }
+  .step-card.zone0-locked .step-header { cursor: default; pointer-events: none; }
+  .step-card.zone0-locked .step-num { background: #6b4c11; }
+  .step-card.zone0-locked .step-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: #6b4c11;
+    background: rgba(107,76,17,0.10);
+    border: 1px solid rgba(107,76,17,0.30);
+    padding: 4px 12px;
+    border-radius: 4px;
+    max-width: none;
+    text-align: left;
+    letter-spacing: 0.02em;
+  }
   .step-card.zone0-locked .option-btn:disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; }
   .lock-badge {
     font-size: 9px;
@@ -141,6 +154,18 @@
     font-family: 'JetBrains Mono', monospace;
     letter-spacing: 0.04em;
     font-weight: 600;
+  }
+  .zone0-notice {
+    font-size: 11px;
+    color: #6b4c11;
+    background: rgba(107,76,17,0.07);
+    border: 1px solid rgba(107,76,17,0.20);
+    border-left: 3px solid #6b4c11;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    line-height: 1.65;
+    font-family: 'Noto Sans TC', sans-serif;
   }
 
   .step-header {
@@ -464,34 +489,38 @@
       <span class="schema-tag">formula_parameter</span>
     </div>
 
-    <!-- Step 1 -->
-    <div class="step-card active" id="step1-card">
-      <div class="step-header" onclick="toggleStep(1)">
+    <div class="zone0-notice">
+      🔒 建築物類型、封閉類型及設計系統由 <strong>0 區</strong> 自動帶入並鎖定。
+    </div>
+
+    <!-- Step 1（永久鎖定：由 0 區帶入） -->
+    <div class="step-card active zone0-locked" id="step1-card">
+      <div class="step-header">
         <div class="step-num">1</div>
         <div class="step-title">建築物類型</div>
-        <div class="step-value" id="step1-val">—</div>
+        <div class="step-value" id="step1-val">— 待 0 區帶入 —</div>
       </div>
       <div class="step-options" id="step1-opts">
         <!-- injected -->
       </div>
     </div>
 
-    <!-- Step 2 -->
-    <div class="step-card locked" id="step2-card">
-      <div class="step-header" onclick="toggleStep(2)">
+    <!-- Step 2（永久鎖定：由 0 區帶入） -->
+    <div class="step-card locked zone0-locked" id="step2-card">
+      <div class="step-header">
         <div class="step-num">2</div>
         <div class="step-title">封閉類型</div>
-        <div class="step-value" id="step2-val">—</div>
+        <div class="step-value" id="step2-val">— 待 0 區帶入 —</div>
       </div>
       <div class="step-options" id="step2-opts"></div>
     </div>
 
-    <!-- Step 3 -->
-    <div class="step-card locked" id="step3-card">
-      <div class="step-header" onclick="toggleStep(3)">
+    <!-- Step 3（永久鎖定：由 0 區帶入） -->
+    <div class="step-card locked zone0-locked" id="step3-card">
+      <div class="step-header">
         <div class="step-num">3</div>
         <div class="step-title">設計系統</div>
-        <div class="step-value" id="step3-val">—</div>
+        <div class="step-value" id="step3-val">— 待 0 區帶入 —</div>
       </div>
       <div class="step-options" id="step3-opts"></div>
     </div>
@@ -828,31 +857,17 @@ function applyZone0ToF(d) {
   const dsId = dsMap[d.designSystem];
   if (!btId || !etId || !dsId) return;
 
-  // 先移除既有鎖定狀態（允許重新帶入）
-  [1, 2, 3].forEach(n => {
-    const card = document.getElementById('step' + n + '-card');
-    if (card) card.classList.remove('zone0-locked');
-    const val = document.getElementById('step' + n + '-val');
-    if (val) { const b = val.querySelector('.lock-badge'); if (b) b.remove(); }
-  });
-
-  // 依序自動選擇（函數內部會更新 sel 狀態並渲染下一步選項）
+  // 依序自動選擇（函數內部會更新 sel 狀態、渲染選項並更新 step-value）
   initStep1();
   selectBuilding(btId);
   selectEnclosure(etId);
   selectSystem(dsId);
 
-  // 鎖定步驟 1~3：option-btn 設為 disabled
+  // 步驟 1~3 已在 HTML 中永久鎖定（zone0-locked class），
+  // 僅需確保 option-btn 為 disabled 狀態
   [1, 2, 3].forEach(n => {
-    const card = document.getElementById('step' + n + '-card');
-    if (card) card.classList.add('zone0-locked');
     const opts = document.getElementById('step' + n + '-opts');
     if (opts) opts.querySelectorAll('.option-btn').forEach(btn => { btn.disabled = true; });
-    // 在 step-value 後加鎖定標記
-    const valEl = document.getElementById('step' + n + '-val');
-    if (valEl && !valEl.querySelector('.lock-badge')) {
-      valEl.insertAdjacentHTML('beforeend', '<span class="lock-badge">🔒 0區</span>');
-    }
   });
 }
 

@@ -559,11 +559,17 @@
     </div>
     <div class="module-body">
 
+    <div id="zone0-empty-hint" style="font-size:12px;color:#8b6a4a;background:rgba(139,106,74,0.08);border:1px dashed rgba(139,106,74,0.3);border-radius:4px;padding:10px 14px;margin-bottom:12px;line-height:1.7;">
+      ⬅ 請先在 <strong>0 區</strong> 輸入 建築物類型 ＆ 輸入參數，系統將自動帶入並鎖定。
+    </div>
+
     <div class="toggle-group">
-      <button class="toggle-btn active" id="btn-ordinary" onclick="setType('ordinary')">
+      <button class="toggle-btn active" id="btn-ordinary" disabled
+        style="cursor:not-allowed;opacity:0.75;" title="由 0 區自動帶入並鎖定">
         普通建築物<span class="toggle-sub">基本自然頻率 fn &gt; 1 Hz</span>
       </button>
-      <button class="toggle-btn" id="btn-flexible" onclick="setType('flexible')">
+      <button class="toggle-btn" id="btn-flexible" disabled
+        style="cursor:not-allowed;opacity:0.75;" title="由 0 區自動帶入並鎖定">
         柔性建築物<span class="toggle-sub">基本自然頻率 fn ≤ 1 Hz</span>
       </button>
     </div>
@@ -572,18 +578,21 @@
     <div class="form-grid">
       <div class="field">
         <label><span class="sym">h</span>建築物高度</label>
-        <input type="number" id="inp-h" value="40" min="1" step="0.5" placeholder="例：40">
-        <div class="hint" id="hint-h">單位：m（不含屋頂突出物）</div>
+        <input type="number" id="inp-h" min="1" step="0.5" placeholder="—"
+          readonly style="background:#f0f0e8;color:#888;cursor:not-allowed;" title="由 0 區自動帶入並鎖定">
+        <div class="hint" id="hint-h">單位：m（不含屋頂突出物）（由 0 區自動帶入）</div>
       </div>
       <div class="field">
         <label><span class="sym">B</span>垂直風向之建築物寬度</label>
-        <input type="number" id="inp-B" value="20" min="1" step="0.5" placeholder="例：20">
-        <div class="hint">單位：m</div>
+        <input type="number" id="inp-B" min="1" step="0.5" placeholder="—"
+          readonly style="background:#f0f0e8;color:#888;cursor:not-allowed;" title="由 0 區自動帶入並鎖定">
+        <div class="hint">單位：m（由 0 區自動帶入）</div>
       </div>
       <div class="field">
         <label><span class="sym">L</span>平行風向之建築物深度</label>
-        <input type="number" id="inp-L" value="20" min="1" step="0.5" placeholder="例：20">
-        <div class="hint">單位：m</div>
+        <input type="number" id="inp-L" min="1" step="0.5" placeholder="—"
+          readonly style="background:#f0f0e8;color:#888;cursor:not-allowed;" title="由 0 區自動帶入並鎖定">
+        <div class="hint">單位：m（由 0 區自動帶入）</div>
       </div>
     </div>
 
@@ -1012,42 +1021,21 @@ window.addEventListener('message', function(ev) {
 });
 
 function applyZone0ToG(d) {
-  // 建築物類型
+  // 建築物類型（按鈕已在 HTML 中永久 disabled，只需更新外觀狀態）
   if (d.buildingType) {
     setType(d.buildingType);
-    // 鎖定切換按鈕
-    const btnOrd = document.getElementById('btn-ordinary');
-    const btnFlex = document.getElementById('btn-flexible');
-    if (btnOrd) {
-      btnOrd.disabled = true;
-      btnOrd.style.cursor = 'not-allowed';
-      btnOrd.title = '由 0 區自動帶入並鎖定';
-    }
-    if (btnFlex) {
-      btnFlex.disabled = true;
-      btnFlex.style.cursor = 'not-allowed';
-      btnFlex.title = '由 0 區自動帶入並鎖定';
-    }
-    // 在模組 03 標頭顯示鎖定說明
-    const tab = document.getElementById('tab-num-input');
-    if (tab && tab.parentElement && !tab.parentElement.querySelector('.zone0-lock-tag')) {
-      tab.parentElement.insertAdjacentHTML('beforeend',
-        '<span class="zone0-lock-tag" style="font-size:9px;opacity:0.75;margin-left:8px;font-family:\'JetBrains Mono\',monospace;">🔒 0區帶入</span>');
-    }
   }
-  // h / B / L 輸入格
+  // h / B / L 輸入格（已在 HTML 中永久 readonly，只需填入數值）
   const fieldMap = { 'inp-h': d.h, 'inp-B': d.B, 'inp-L': d.L };
   for (const [id, val] of Object.entries(fieldMap)) {
     const el = document.getElementById(id);
     if (el && val !== undefined && val !== '') {
       el.value = val;
-      el.readOnly = true;
-      el.style.background = '#f0ece0';
-      el.style.color = '#888070';
-      el.style.cursor = 'not-allowed';
-      el.title = '由 0 區自動帶入並鎖定';
     }
   }
+  // 隱藏初始提示（資料已由 0 區帶入）
+  const hint = document.getElementById('zone0-empty-hint');
+  if (hint) hint.style.display = 'none';
   updateCalcBtn();
 }
 
