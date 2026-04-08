@@ -26,7 +26,7 @@ header::before{content:'';position:absolute;inset:0;background:repeating-linear-
 header h1{font-size:1.35rem;font-weight:700;letter-spacing:.5px;font-family:'Noto Serif TC',serif;position:relative}
 header p{font-size:.82rem;opacity:.6;margin-top:4px;position:relative;color:var(--paper)}
 .container{max-width:1100px;margin:0 auto;padding:20px}
-.card{background:var(--card-bg);border-radius:var(--radius);box-shadow:0 1px 3px rgba(28,20,16,0.05),0 4px 12px rgba(28,20,16,0.08),0 8px 28px rgba(28,20,16,0.10);padding:20px;margin-bottom:18px;border:1.5px solid var(--border)}
+.card{background:var(--card-bg);border-radius:var(--radius);box-shadow:0 1px 3px rgba(28,20,16,0.05),0 4px 12px rgba(28,20,16,0.08),0 8px 28px rgba(28,20,16,0.10);padding:20px;margin-bottom:18px;border:1.5px solid var(--border);border-left:4px solid var(--accent6)}
 #resultCard{position:relative;overflow:hidden;box-shadow:0 0 0 3px rgba(122,68,25,0.10),0 4px 20px rgba(28,20,16,0.12)}
 #resultCard::before{content:'Cp';position:absolute;right:-10px;bottom:-30px;font-family:'Noto Serif TC',serif;font-size:160px;font-weight:900;color:var(--ink);opacity:0.03;pointer-events:none;line-height:1;z-index:0}
 #resultCard>*{position:relative;z-index:1}
@@ -34,7 +34,7 @@ header p{font-size:.82rem;opacity:.6;margin-top:4px;position:relative;color:var(
 .card-title svg{width:18px;height:18px}
 label{font-size:.85rem;font-weight:600;color:var(--muted);display:block;margin-bottom:5px;margin-top:12px}
 label:first-child{margin-top:0}
-select,input[type=number]{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;outline:none;transition:.2s;background:var(--card-bg);color:var(--ink)}
+select,input[type=number]{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;outline:none;transition:.2s;background:#fff;color:var(--ink)}
 select:focus,input:focus{border-color:var(--accent6);box-shadow:0 0 0 3px rgba(122,68,25,0.12);background:#fff}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 24px;background:var(--ink);color:var(--paper);border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;transition:.2s;border-bottom:3px solid var(--accent6)}
 .btn:hover{background:#2a201a;transform:translateY(-1px)}
@@ -62,7 +62,7 @@ select:focus,input:focus{border-color:var(--accent6);box-shadow:0 0 0 3px rgba(1
 .note-box{background:#faf0d7;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 0;font-size:.82rem;color:#5c3d10}
 .note-box b{color:var(--accent6)}
 /* SVG diagrams */
-.diagram-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin:12px 0;overflow-x:auto}
+.diagram-wrap{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;margin:12px 0;overflow-x:auto}
 .diagram-wrap svg{display:block;margin:0 auto}
 /* Tag pills */
 .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.75rem;font-weight:700;margin:2px}
