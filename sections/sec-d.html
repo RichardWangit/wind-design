@@ -905,7 +905,7 @@ function drawCliffSVG() {
   //   Top plateau extends right from x=300
   //   H/2 level : y=125  → on slope, x = 300-(125-65) = 240
   //   Lh arrow at y=125 : from x=300 (crest) left to x=240 (on slope face)
-  return `<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
+  return `<svg viewBox="0 0 700 265" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
   <defs>
     <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
       <line x1="0" y1="0" x2="0" y2="6" stroke="#aaa" stroke-width="1"/>
@@ -922,11 +922,18 @@ function drawCliffSVG() {
     <marker id="redarr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
       <path d="M0,0 L6,3 L0,6 Z" fill="#c0392b"/>
     </marker>
-    <marker id="lharr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-      <path d="M0,0 L6,3 L0,6 Z" fill="#2980b9"/>
+    <marker id="lharr" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <polyline points="2,1 6,4 2,7" fill="none" stroke="#2980b9" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
     </marker>
-    <marker id="lharr2" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
-      <path d="M0,0 L6,3 L0,6 Z" fill="#2980b9"/>
+    <marker id="lharr2" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto-start-reverse">
+      <polyline points="2,1 6,4 2,7" fill="none" stroke="#2980b9" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    </marker>
+    <!-- grey chevron markers for x<0 / x>0 horizontal arrows -->
+    <marker id="cliffGreyEnd" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#888"/>
+    </marker>
+    <marker id="cliffGreyStart" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#888"/>
     </marker>
   </defs>
 
@@ -941,25 +948,33 @@ function drawCliffSVG() {
   <!-- bottom hatch strip under slope body -->
   <rect x="180" y="185" width="500" height="20" fill="url(#hatch)" stroke="#555" stroke-width="1"/>
 
-  <!-- x=0 vertical dashed line at crest x=300 -->
-  <line x1="300" y1="32" x2="300" y2="215" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <!-- x=0 vertical dashed line at crest x=300, extended to y=243 (arrow line 238 + 5) -->
+  <line x1="300" y1="32" x2="300" y2="243" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="5,3"/>
   <text x="304" y="44" font-size="11" fill="#e74c3c">x = 0</text>
 
-  <!-- H double-arrow: moved right to x=510 to avoid overlap with H/2 label -->
+  <!-- H double-arrow: x=510, y=65..185 -->
   <line x1="510" y1="65" x2="510" y2="185" stroke="#333" stroke-width="1.5" marker-end="url(#arr)" marker-start="url(#arr2)"/>
   <text x="518" y="132" font-size="15" fill="#333" font-style="italic">H</text>
 
   <!-- H/2 dashed line at y=125 -->
-  <line x1="80" y1="125" x2="460" y2="125" stroke="#777" stroke-width="1" stroke-dasharray="3,3"/>
-  <text x="465" y="129" font-size="11" fill="#555">H/2</text>
+  <line x1="80" y1="125" x2="500" y2="125" stroke="#777" stroke-width="1" stroke-dasharray="3,3"/>
 
-  <!-- Lh arrow at y=125: from crest x=300 left to slope face x=240 (300-(125-65)=240) -->
-  <line x1="300" y1="125" x2="240" y2="125" stroke="#2980b9" stroke-width="1.8" marker-end="url(#lharr)" marker-start="url(#lharr2)"/>
+  <!-- H/2 vertical double-arrow: x=500, y=125..185; label at left -->
+  <line x1="500" y1="125" x2="500" y2="185" stroke="#333" stroke-width="1.5" marker-end="url(#arr)" marker-start="url(#arr2)"/>
+  <text x="466" y="158" font-size="13" fill="#333" font-style="italic">H/2</text>
+
+  <!-- Lh arrow at y=125: from crest x=300 left to slope face x=240 -->
+  <!-- Lh arrow at y=125: from slope face x=240 to crest x=298 (chevron tip touches x=300) -->
+  <line x1="245" y1="125" x2="298" y2="125" stroke="#2980b9" stroke-width="1.8" marker-start="url(#lharr2)" marker-end="url(#lharr)"/>
   <text x="270" y="116" font-size="13" fill="#2980b9" font-style="italic" text-anchor="middle">L<tspan baseline-shift="sub" font-size="10">h</tspan></text>
 
-  <!-- x<0 x>0 labels -->
-  <text x="150" y="205" font-size="11" fill="#666" text-anchor="middle">x &lt; 0（上風側）</text>
-  <text x="490" y="55" font-size="11" fill="#666" text-anchor="middle">x &gt; 0（下風側）</text>
+  <!-- x<0 label moved down to y=228, arrow at y=238 pointing left to x=80 -->
+  <text x="150" y="228" font-size="11" fill="#666" text-anchor="middle">x &lt; 0（上風側）</text>
+  <line x1="300" y1="238" x2="83" y2="238" stroke="#888" stroke-width="1.3" marker-end="url(#cliffGreyStart)"/>
+
+  <!-- x>0 label moved down to y=228, arrow at y=238 pointing right to x=520 (below V(z) right label) -->
+  <text x="430" y="228" font-size="11" fill="#666" text-anchor="middle">x &gt; 0（下風側）</text>
+  <line x1="300" y1="238" x2="520" y2="238" stroke="#888" stroke-width="1.3" marker-end="url(#cliffGreyEnd)"/>
 
   <!-- V(z) arrows left (approaching wind) -->
   <text x="25" y="88" font-size="13" fill="#1a5276" font-style="italic">V(z)</text>
@@ -975,14 +990,21 @@ function drawCliffSVG() {
   <path d="M355,52  Q422,46 476,42"  stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr)"/>
 
   <!-- labels -->
-  <text x="80" y="180" font-size="12" fill="#777">平地</text>
-  <text x="350" y="250" font-size="13" fill="#333" text-anchor="middle" font-weight="bold">懸崖（Cliff）</text>
+  <text x="80" y="180" font-size="12" fill="#777" text-anchor="middle">平地</text>
+  <text x="350" y="258" font-size="13" fill="#333" text-anchor="middle" font-weight="bold">懸崖（Cliff）</text>
 </svg>`;
 }
 
 function drawRidgeHillSVG(type) {
   const typeLabel = type === '山脊' ? '山脊（Ridge）' : '山丘（Hill）';
-  return `<svg viewBox="0 0 700 270" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
+  // Key coords: peak x=350, y=55; ground y=195; x=0 line x=350
+  // H/2 at y=125; left flatland label anchor x=80; right flatland label anchor x=580
+  // H arrow: x=610, y=55..195; horizontal dashed line from peak to x=620
+  // Lh: right end at x=350 (x=0 line), left end at x=305, y=125
+  // x<0 label: x=200, y=233; arrow from x=350 left to x=80, y=241
+  // x>0 label: x=500, y=233; arrow from x=350 right to x=580, y=241
+  // H/2 vert arrow: x=590 (left of H label), y=125..195; label at x=573
+  return `<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
   <defs>
     <pattern id="hatch2" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
       <line x1="0" y1="0" x2="0" y2="6" stroke="#aaa" stroke-width="1"/>
@@ -999,47 +1021,83 @@ function drawRidgeHillSVG(type) {
     <marker id="redarr2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
       <path d="M0,0 L6,3 L0,6 Z" fill="#c0392b"/>
     </marker>
-    <marker id="lharr3" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-      <path d="M0,0 L6,3 L0,6 Z" fill="#2980b9"/>
+    <!-- grey arrow markers for x<0 / x>0 horizontal arrows -->
+    <!-- greyarrEnd: normal arrowhead pointing in line direction (right) -->
+    <marker id="greyarrEnd" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#888"/>
     </marker>
-    <marker id="lharr3r" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
-      <path d="M0,0 L6,3 L0,6 Z" fill="#2980b9"/>
+    <!-- greyarrStart: reversed arrowhead for start (points left) -->
+    <marker id="greyarrStart" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#888"/>
+    </marker>
+    <!-- ㄑ-shaped open chevron markers for Lh double arrow -->
+    <marker id="lhchevR" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <polyline points="2,1 6,4 2,7" fill="none" stroke="#2980b9" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    </marker>
+    <marker id="lhchevL" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto-start-reverse">
+      <polyline points="2,1 6,4 2,7" fill="none" stroke="#2980b9" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
     </marker>
   </defs>
+
   <!-- ground base -->
   <rect x="20" y="195" width="660" height="15" fill="url(#hatch2)" stroke="#555" stroke-width="1"/>
   <!-- hill/ridge shape -->
   <path d="M20,195 Q140,195 260,195 Q310,60 350,55 Q390,60 440,195 Q560,195 680,195"
         fill="#ddd" stroke="#333" stroke-width="2"/>
-  <!-- x=0 at peak -->
-  <line x1="350" y1="25" x2="350" y2="220" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+  <!-- x=0 at peak: extend down to 248 (243 arrow line + 5) -->
+  <line x1="350" y1="25" x2="350" y2="248" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="5,3"/>
   <text x="355" y="40" font-size="11" fill="#e74c3c">x = 0</text>
-  <!-- H arrow -->
-  <line x1="600" y1="55" x2="600" y2="195" stroke="#333" stroke-width="1.5" marker-end="url(#arr3)" marker-start="url(#arr3r)"/>
-  <text x="610" y="132" font-size="15" fill="#333" font-style="italic">H</text>
-  <!-- H/2 dashed line: peak y=55, base y=195, so H/2 at y=125 -->
-  <line x1="170" y1="125" x2="620" y2="125" stroke="#777" stroke-width="1" stroke-dasharray="3,3"/>
-  <text x="156" y="129" font-size="11" fill="#555">H/2</text>
-  <!-- Lh arrow: at H/2 level (y=125), from x=305 (within slope) to x=350 (peak vertical) -->
-  <line x1="350" y1="125" x2="305" y2="125" stroke="#2980b9" stroke-width="1.8" marker-end="url(#lharr3)" marker-start="url(#lharr3r)"/>
-  <text x="327" y="116" font-size="13" fill="#2980b9" font-style="italic" text-anchor="middle">L<tspan baseline-shift="sub" font-size="10">h</tspan></text>
-  <!-- x<0 x>0 -->
-  <text x="200" y="215" font-size="11" fill="#666" text-anchor="middle">x &lt; 0（上風側）</text>
-  <text x="500" y="215" font-size="11" fill="#666" text-anchor="middle">x &gt; 0（下風側）</text>
+
+  <!-- Horizontal dashed line from peak (350,55) to x=620 (right of H arrow) -->
+  <line x1="350" y1="55" x2="620" y2="55" stroke="#777" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- H double-arrow: x=610, y=55 (peak) to y=195 (ground) -->
+  <line x1="610" y1="55" x2="610" y2="195" stroke="#333" stroke-width="1.5" marker-end="url(#arr3)" marker-start="url(#arr3r)"/>
+  <text x="618" y="132" font-size="15" fill="#333" font-style="italic">H</text>
+
+  <!-- H/2 dashed line at y=125 -->
+  <line x1="170" y1="125" x2="600" y2="125" stroke="#777" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- H/2 vertical double-arrow: x=590, y=125 to y=195; label at left -->
+  <line x1="590" y1="125" x2="590" y2="195" stroke="#333" stroke-width="1.5" marker-end="url(#arr3)" marker-start="url(#arr3r)"/>
+  <text x="558" y="163" font-size="13" fill="#333" font-style="italic">H/2</text>
+
+  <!-- Lh: line with ㄑ-shaped open chevron arrowheads, right end at x=350 (x=0 line) -->
+  <line x1="300" y1="125" x2="350" y2="125" stroke="#2980b9" stroke-width="1.8"
+        marker-start="url(#lhchevL)" marker-end="url(#lhchevR)"/>
+  <text x="325" y="116" font-size="13" fill="#2980b9" font-style="italic" text-anchor="middle">L<tspan baseline-shift="sub" font-size="10">h</tspan></text>
+
+  <!-- x<0 label moved down, then horizontal arrow line pointing left -->
+  <!-- Label at y=233 centered at x=200 -->
+  <text x="200" y="233" font-size="11" fill="#666" text-anchor="middle">x &lt; 0（上風側）</text>
+  <!-- Arrow: from x=350 (x=0 line) left to x=80 (above left 平地 label), y=243 -->
+  <line x1="350" y1="243" x2="85" y2="243" stroke="#888" stroke-width="1.3" marker-end="url(#greyarrStart)" stroke-dasharray="none"/>
+  <!-- left arrowhead points left: use auto-start-reverse on start marker -->
+
+  <!-- x>0 label moved down -->
+  <text x="510" y="233" font-size="11" fill="#666" text-anchor="middle">x &gt; 0（下風側）</text>
+  <!-- Arrow: from x=350 (x=0 line) right to x=582 (above right 平地 label), y=243 -->
+  <line x1="350" y1="243" x2="582" y2="243" stroke="#888" stroke-width="1.3" marker-end="url(#greyarrEnd)"/>
+
   <!-- V(z) left -->
   <text x="30" y="85" font-size="13" fill="#1a5276" font-style="italic">V(z)</text>
   <path d="M30 130 Q80 122 130 118" stroke="#1a5276" stroke-width="2" fill="none" marker-end="url(#bluearr2)"/>
   <path d="M30 148 Q85 140 138 136" stroke="#1a5276" stroke-width="2" fill="none" marker-end="url(#bluearr2)"/>
   <path d="M30 163 Q90 156 145 152" stroke="#1a5276" stroke-width="2" fill="none" marker-end="url(#bluearr2)"/>
+
   <!-- V(z) right (accelerated) -->
-  <text x="480" y="72" font-size="13" fill="#c0392b" font-style="italic">V(z)</text>
-  <text x="560" y="72" font-size="11" fill="#c0392b">局部加速</text>
-  <path d="M460 102 Q510 92 560 86" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr2)"/>
-  <path d="M460 115 Q515 104 568 98" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr2)"/>
-  <path d="M460 128 Q518 117 572 111" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr2)"/>
-  <text x="80" y="190" font-size="12" fill="#777">平地</text>
-  <text x="580" y="190" font-size="12" fill="#777">平地</text>
-  <text x="350" y="258" font-size="13" fill="#333" text-anchor="middle" font-weight="bold">${typeLabel}</text>
+  <text x="410" y="72" font-size="13" fill="#c0392b" font-style="italic">V(z)</text>
+  <text x="452" y="72" font-size="11" fill="#c0392b">局部加速</text>
+  <path d="M460 102 Q490 92 530 86" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr2)"/>
+  <path d="M460 115 Q493 104 536 98" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr2)"/>
+  <path d="M460 128 Q496 117 540 111" stroke="#c0392b" stroke-width="2.5" fill="none" marker-end="url(#redarr2)"/>
+
+  <!-- flatland labels -->
+  <text x="80" y="190" font-size="12" fill="#777" text-anchor="middle">平地</text>
+  <text x="582" y="190" font-size="12" fill="#777" text-anchor="middle">平地</text>
+
+  <text x="350" y="270" font-size="13" fill="#333" text-anchor="middle" font-weight="bold">${typeLabel}</text>
 </svg>`;
 }
 
