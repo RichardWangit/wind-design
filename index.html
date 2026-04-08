@@ -22,6 +22,19 @@
   <div class="sections-rail">
 
 
+  <!-- SECTION 0 -->
+  <div class="section" id="sec-0">
+    <div class="sec-header" onclick="toggleSection('0')">
+      <div class="sec-badge zero">0</div>
+      <div class="sec-text">
+        <div class="sec-title">建築物基本設定</div>
+        <div class="sec-desc">建築物類型、形式、設計系統與屋頂尺寸（全域同步至 E/F/G 區）</div>
+      </div>
+      <span class="status-pill zero" id="pill-0"></span>
+      <div class="expand-ind"><span id="ind-0" class="ind-text">點擊展開</span><span class="expand-arrow">▼</span></div>
+    </div>
+  </div>
+
   <!-- SECTION A -->
   <div class="section" id="sec-a">
     <div class="sec-header" onclick="toggleSection('a')">
@@ -203,6 +216,11 @@
     </div>
 <div class="sec-body" id="body-s" style="display:none;flex:1;min-height:0;overflow:hidden;overflow-y:auto;flex-direction:column;background:var(--paper);">
   <iframe id="frame-s" src="sections/sec-s.html" style="width:100%;height:100%;border:none;background:var(--paper);display:block;"></iframe>
+</div>
+
+
+<div class="sec-body" id="body-0" style="display:none;flex:1;min-height:0;overflow:hidden;flex-direction:column;">
+  <iframe id="frame-0" src="sections/sec-0.html" title="建築物基本設定"></iframe>
 </div>
 
     </div>
