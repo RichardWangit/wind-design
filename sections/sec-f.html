@@ -848,6 +848,21 @@ initStep1();
 
 // ── Zone 0 全域同步 ─────────────────────────────────────────────
 let _z0Applied = { btId: null, etId: null, dsId: null };
+let fZone0H = null;
+
+function applyHLimitToFStep4() {
+  if (fZone0H === null || isNaN(fZone0H)) return;
+  const step4El = document.getElementById('step4-opts');
+  if (!step4El) return;
+  const isLow = fZone0H <= 18;
+  step4El.querySelectorAll('.option-btn').forEach(function(btn) {
+    const id = parseInt(btn.getAttribute('data-id'));
+    // h ≦ 18：停用「局部構材設計風壓（高度 > 18m）」(id=8)
+    if (id === 8 && isLow) btn.disabled = true;
+    // h > 18：停用「局部構材設計風壓（高度 ≤ 18m）」(id=7)
+    if (id === 7 && !isLow) btn.disabled = true;
+  });
+}
 
 function applyZone0ToF(d) {
   const btMap = { ordinary: 1, flexible: 2 };
@@ -858,6 +873,9 @@ function applyZone0ToF(d) {
   const etId = bfMap[d.buildingForm];
   const dsId = dsMap[d.designSystem];
   if (!btId || !etId || !dsId) return;
+
+  // 儲存 h 值
+  fZone0H = (d.h !== undefined && d.h !== '') ? parseFloat(d.h) : null;
 
   // 步驟 1~3 永久鎖定
   const lockSteps = () => {
@@ -870,6 +888,7 @@ function applyZone0ToF(d) {
   // 若三個值均未改變，跳過重新初始化以保留步驟 4 的選擇
   if (_z0Applied.btId === btId && _z0Applied.etId === etId && _z0Applied.dsId === dsId) {
     lockSteps();
+    applyHLimitToFStep4();
     return;
   }
 
@@ -882,6 +901,7 @@ function applyZone0ToF(d) {
   selectSystem(dsId);
 
   lockSteps();
+  applyHLimitToFStep4();
 }
 
 window.addEventListener('message', function(ev) {
