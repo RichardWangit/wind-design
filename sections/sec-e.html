@@ -3582,6 +3582,9 @@ function applyZone0ToE(d) {
   zone0Data = d;
   if (!d.designSystem && !d.buildingForm) return;
 
+  const systemChanged = d.designSystem !== prevSystem;
+  const formChanged   = d.buildingForm !== prevForm;
+
   // 填入值（select 已在 HTML 中永久 disabled）
   const st = document.getElementById('systemType');
   if (d.designSystem) {
@@ -3589,7 +3592,7 @@ function applyZone0ToE(d) {
     currentSystemType = d.designSystem;
     document.getElementById('buildingTypeWrap').style.display = 'block';
     // 只有在首次套用或設計系統真正改變時，才重設後續步驟
-    if (isFirstApply || d.designSystem !== prevSystem) {
+    if (isFirstApply || systemChanged) {
       document.getElementById('card2').style.display = 'none';
       document.getElementById('card3').style.display = 'none';
       document.getElementById('resultCard').classList.remove('show');
@@ -3599,8 +3602,11 @@ function applyZone0ToE(d) {
   const bt = document.getElementById('buildingType');
   if (d.buildingForm) {
     bt.value = d.buildingForm;
-    // 只有在首次套用或建築物形式真正改變時，才呼叫 onBuildingTypeChange（會重設 card3/result）
-    if (isFirstApply || d.buildingForm !== prevForm) {
+    // 呼叫 onBuildingTypeChange 的條件：
+    // - 首次套用、buildingForm 改變、或 designSystem 改變（導致 card2 被隱藏）
+    // - 或 card2 目前為隱藏狀態（例如 resetAll() 之後）
+    const card2Hidden = document.getElementById('card2').style.display === 'none';
+    if (isFirstApply || formChanged || systemChanged || card2Hidden) {
       onBuildingTypeChange();
     }
   }
