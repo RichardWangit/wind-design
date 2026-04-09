@@ -28,7 +28,6 @@ header p{font-size:.82rem;opacity:.6;margin-top:4px;position:relative;color:var(
 .container{max-width:1100px;margin:0 auto;padding:20px}
 .card{background:var(--card-bg);border-radius:var(--radius);box-shadow:0 1px 3px rgba(28,20,16,0.05),0 4px 12px rgba(28,20,16,0.08),0 8px 28px rgba(28,20,16,0.10);padding:20px;margin-bottom:18px;border:1.5px solid var(--border);border-left:4px solid var(--accent6)}
 #resultCard{position:relative;overflow:hidden;box-shadow:0 0 0 3px rgba(122,68,25,0.10),0 4px 20px rgba(28,20,16,0.12)}
-#resultCard::before{content:'Cp';position:absolute;right:-10px;bottom:-30px;font-family:'Noto Serif TC',serif;font-size:160px;font-weight:900;color:var(--ink);opacity:0.03;pointer-events:none;line-height:1;z-index:0}
 #resultCard>*{position:relative;z-index:1}
 .card-title{font-size:1rem;font-weight:700;color:var(--accent6);margin-bottom:14px;display:flex;align-items:center;gap:8px;font-family:'Noto Serif TC',serif}
 .card-title svg{width:18px;height:18px}
@@ -334,7 +333,7 @@ function onBuildingTypeChange(){
   sel.innerHTML='<option value="">-- 請選擇構件 --</option>';
   if(currentSystemType==='cc'){
     getCC_Components(currentBuilding).forEach(c=>{
-      sel.innerHTML+=`<option value="${c.value}">${c.label}</option>`;
+      sel.innerHTML+=`<option value="${c.value}"${c.disabled?' disabled':''}>${c.label}</option>`;
     });
   } else {
     (COMPONENTS[currentBuilding]||[]).forEach(c=>{
@@ -348,13 +347,16 @@ function onBuildingTypeChange(){
 }
 
 function getCC_Components(buildingType){
+  const hVal = (zone0Data && zone0Data.h !== undefined && zone0Data.h !== '')
+    ? parseFloat(zone0Data.h) : NaN;
+  const hKnown = !isNaN(hVal);
   if(buildingType==='enclosed'||buildingType==='partial'){
     return [
-      {value:'cc_fig31a',label:'圖3.1(a)：外牆（h ≦ 18 m）',desc:'封閉/部分封閉式建築物外牆外風壓係數 (GCp)，h ≦ 18 m'},
-      {value:'cc_fig31b',label:'圖3.1(b)：θ ≦ 7° 屋頂（h ≦ 18 m）',desc:'平屋頂或坡度≦7°之屋頂外風壓係數 (GCp)，h ≦ 18 m'},
-      {value:'cc_fig31c',label:'圖3.1(c)：7° < θ ≦ 27° 屋頂（h ≦ 18 m）',desc:'坡度7°~27°之屋頂外風壓係數 (GCp)，h ≦ 18 m'},
-      {value:'cc_fig31d',label:'圖3.1(d)：27° < θ ≦ 45° 屋頂（h ≦ 18 m）',desc:'坡度27°~45°之屋頂外風壓係數 (GCp)，h ≦ 18 m'},
-      {value:'cc_fig32', label:'圖3.2：外牆與屋頂（h > 18 m）',desc:'封閉/部分封閉式建築物外牆與屋頂外風壓係數 (GCp)，h > 18 m'},
+      {value:'cc_fig31a',label:'圖3.1(a)：外牆（h ≦ 18 m）',desc:'封閉/部分封閉式建築物外牆外風壓係數 (GCp)，h ≦ 18 m',disabled:hKnown&&hVal>18},
+      {value:'cc_fig31b',label:'圖3.1(b)：θ ≦ 7° 屋頂（h ≦ 18 m）',desc:'平屋頂或坡度≦7°之屋頂外風壓係數 (GCp)，h ≦ 18 m',disabled:hKnown&&hVal>18},
+      {value:'cc_fig31c',label:'圖3.1(c)：7° < θ ≦ 27° 屋頂（h ≦ 18 m）',desc:'坡度7°~27°之屋頂外風壓係數 (GCp)，h ≦ 18 m',disabled:hKnown&&hVal>18},
+      {value:'cc_fig31d',label:'圖3.1(d)：27° < θ ≦ 45° 屋頂（h ≦ 18 m）',desc:'坡度27°~45°之屋頂外風壓係數 (GCp)，h ≦ 18 m',disabled:hKnown&&hVal>18},
+      {value:'cc_fig32', label:'圖3.2：外牆與屋頂（h > 18 m）',desc:'封閉/部分封閉式建築物外牆與屋頂外風壓係數 (GCp)，h > 18 m',disabled:hKnown&&hVal<=18},
     ];
   } else if(buildingType==='open'){
     return [
@@ -3608,22 +3610,97 @@ function applyZone0ToE(d) {
     const card2Hidden = document.getElementById('card2').style.display === 'none';
     if (isFirstApply || formChanged || systemChanged || card2Hidden) {
       onBuildingTypeChange();
+    } else {
+      // 僅 h 改變（form/system 未變），直接刷新構件下拉選單的 disabled 狀態
+      applyHLimitToCC();
     }
+  }
+
+  // 若第三步目前可見，重新套用 zone0 輸入（h/L/B 可能已更新）
+  if (document.getElementById('card3').style.display !== 'none') {
+    applyZone0Inputs();
+  }
+}
+
+// ── CC 構件選單 h 限制刷新 ───────────────────────────────────────
+function applyHLimitToCC() {
+  if (!zone0Data || currentSystemType !== 'cc') return;
+  const compSel = document.getElementById('componentType');
+  if (!compSel) return;
+  const hVal = parseFloat(zone0Data.h);
+  const hKnown = !isNaN(hVal);
+  Array.from(compSel.options).forEach(function(opt) {
+    if (opt.value === 'cc_fig32')
+      opt.disabled = hKnown && hVal <= 18;
+    if (['cc_fig31a','cc_fig31b','cc_fig31c','cc_fig31d'].includes(opt.value))
+      opt.disabled = hKnown && hVal > 18;
+  });
+  // 若當前選中的 option 被 disabled，重置選擇
+  const curOpt = compSel.options[compSel.selectedIndex];
+  if (curOpt && curOpt.value && curOpt.disabled) {
+    compSel.value = '';
+    currentComponent = '';
+    document.getElementById('card3').style.display = 'none';
+    document.getElementById('resultCard').classList.remove('show');
+    document.getElementById('componentDesc').innerHTML = '';
   }
 }
 
 function applyZone0Inputs() {
   if (!zone0Data) return;
+
+  function lockEl(el) {
+    el.readOnly = true;
+    el.style.background = '#f0ece0';
+    el.style.color = '#888070';
+    el.style.cursor = 'not-allowed';
+    el.title = '由 0 區自動帶入並鎖定';
+  }
+
+  // 計算最小寬度 min(L, B)
+  const minLB = (zone0Data.L !== undefined && zone0Data.L !== '' &&
+                 zone0Data.B !== undefined && zone0Data.B !== '')
+    ? Math.min(parseFloat(zone0Data.L), parseFloat(zone0Data.B))
+    : undefined;
+
+  // MWFRS 欄位（inp_h, inp_L, inp_B）— 鎖定
   const map = { inp_h: zone0Data.h, inp_L: zone0Data.L, inp_B: zone0Data.B };
   for (const [id, val] of Object.entries(map)) {
     const el = document.getElementById(id);
     if (el && val !== undefined && val !== '') {
       el.value = val;
-      el.readOnly = true;
-      el.style.background = '#f0ece0';
-      el.style.color = '#888070';
-      el.style.cursor = 'not-allowed';
-      el.title = '由 0 區自動帶入並鎖定';
+      lockEl(el);
+    }
+  }
+
+  // CC 圖3.1(a/b/c/d) 和 圖3.2：cc_h 鎖定，cc_minW 帶入但不鎖定
+  if (['cc_fig31a','cc_fig31b','cc_fig31c','cc_fig31d','cc_fig32'].includes(currentComponent)) {
+    const ccH = document.getElementById('cc_h');
+    if (ccH && zone0Data.h !== undefined && zone0Data.h !== '') {
+      ccH.value = zone0Data.h;
+      lockEl(ccH);
+    }
+    const ccMinW = document.getElementById('cc_minW');
+    if (ccMinW && minLB !== undefined && !isNaN(minLB)) {
+      ccMinW.value = minLB;
+    }
+  }
+
+  // CC 圖3.3(a/b)：cc33_h 鎖定、cc33_L 鎖定，cc33_minW 帶入但不鎖定
+  if (['cc_fig33a','cc_fig33b'].includes(currentComponent)) {
+    const cc33H = document.getElementById('cc33_h');
+    if (cc33H && zone0Data.h !== undefined && zone0Data.h !== '') {
+      cc33H.value = zone0Data.h;
+      lockEl(cc33H);
+    }
+    const cc33L = document.getElementById('cc33_L');
+    if (cc33L && zone0Data.L !== undefined && zone0Data.L !== '') {
+      cc33L.value = zone0Data.L;
+      lockEl(cc33L);
+    }
+    const cc33MinW = document.getElementById('cc33_minW');
+    if (cc33MinW && minLB !== undefined && !isNaN(minLB)) {
+      cc33MinW.value = minLB;
     }
   }
 }
