@@ -3576,6 +3576,9 @@ function resetAll(){
 
 // ── Zone 0 鎖定函數 ──────────────────────────────────────────────
 function applyZone0ToE(d) {
+  const isFirstApply = (zone0Data === null);
+  const prevSystem = zone0Data ? zone0Data.designSystem : null;
+  const prevForm   = zone0Data ? zone0Data.buildingForm  : null;
   zone0Data = d;
   if (!d.designSystem && !d.buildingForm) return;
 
@@ -3585,15 +3588,21 @@ function applyZone0ToE(d) {
     st.value = d.designSystem;
     currentSystemType = d.designSystem;
     document.getElementById('buildingTypeWrap').style.display = 'block';
-    document.getElementById('card2').style.display = 'none';
-    document.getElementById('card3').style.display = 'none';
-    document.getElementById('resultCard').classList.remove('show');
+    // 只有在首次套用或設計系統真正改變時，才重設後續步驟
+    if (isFirstApply || d.designSystem !== prevSystem) {
+      document.getElementById('card2').style.display = 'none';
+      document.getElementById('card3').style.display = 'none';
+      document.getElementById('resultCard').classList.remove('show');
+    }
   }
 
   const bt = document.getElementById('buildingType');
   if (d.buildingForm) {
     bt.value = d.buildingForm;
-    onBuildingTypeChange();
+    // 只有在首次套用或建築物形式真正改變時，才呼叫 onBuildingTypeChange（會重設 card3/result）
+    if (isFirstApply || d.buildingForm !== prevForm) {
+      onBuildingTypeChange();
+    }
   }
 }
 

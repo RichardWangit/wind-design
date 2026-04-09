@@ -699,6 +699,7 @@
 let buildingType = 'ordinary';
 
 function setType(t) {
+  const typeChanged = (t !== buildingType);
   buildingType = t;
   document.getElementById('btn-ordinary').classList.toggle('active', t === 'ordinary');
   document.getElementById('btn-flexible').classList.toggle('active', t === 'flexible');
@@ -708,7 +709,10 @@ function setType(t) {
   hintH.innerHTML = t === 'flexible'
     ? '單位：m（不含屋頂突出物）<br><span style="color:var(--rust);font-weight:500;">柔性建築物適用範圍：22.86 m ≦ h ≦ 122 m</span>'
     : '單位：m（不含屋頂突出物）';
-  document.getElementById('results').style.display = 'none';
+  // 只有在類型真正改變時才隱藏計算結果，避免切換回 G 區時結果消失
+  if (typeChanged) {
+    document.getElementById('results').style.display = 'none';
+  }
   updateCalcBtn();
 }
 

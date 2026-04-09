@@ -45,6 +45,7 @@ body { background: var(--paper); color: var(--ink); font-family: 'Noto Sans TC',
 <script>
 // ── Hub results cache (populated via postMessage from hub) ────────
 let _hubResults = {};
+let _lastBuiltFormulaCode = null;
 
 // ── postMessage bridge ────────────────────────────────────────────
 window.addEventListener('message', function(e) {
@@ -173,10 +174,17 @@ function buildParamGrid() {
     noticeText.textContent = '請先在 F 區選擇設計公式，S 區將依所選公式自動調整計算參數。';
   }
 
+  const newFormulaCode = formula ? formula.code : null;
+
   const grid = document.getElementById('param-grid');
   if (!grid) return;
   grid.innerHTML = '';
-  document.getElementById('calc-result').innerHTML = '';
+
+  // 只在公式改變時清除計算結果；公式相同則保留，避免切換回 S 區時結果消失
+  if (newFormulaCode !== _lastBuiltFormulaCode) {
+    document.getElementById('calc-result').innerHTML = '';
+    _lastBuiltFormulaCode = newFormulaCode;
+  }
 
   // Gather base values from other sections
   const wa = getResultByType('wind');
