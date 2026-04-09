@@ -142,6 +142,7 @@
     letter-spacing: 0.02em;
   }
   .step-card.zone0-locked .option-btn:disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; }
+  #step4-opts .option-btn:disabled { opacity: 0.38; cursor: not-allowed; background: var(--surface-dark) !important; color: var(--ink-light) !important; border-color: var(--border) !important; }
   .lock-badge {
     font-size: 9px;
     background: rgba(107,76,17,0.10);
@@ -851,16 +852,33 @@ let _z0Applied = { btId: null, etId: null, dsId: null };
 let fZone0H = null;
 
 function applyHLimitToFStep4() {
-  if (fZone0H === null || isNaN(fZone0H)) return;
   const step4El = document.getElementById('step4-opts');
   if (!step4El) return;
+
+  // 先重置 id=7 與 id=8 的停用狀態（避免 h 改變後兩者都殘留 disabled）
+  step4El.querySelectorAll('.option-btn').forEach(function(btn) {
+    const id = parseInt(btn.getAttribute('data-id'));
+    if (id === 7 || id === 8) {
+      btn.disabled = false;
+      btn.title = '';
+    }
+  });
+
+  if (fZone0H === null || isNaN(fZone0H)) return;
+
   const isLow = fZone0H <= 18;
   step4El.querySelectorAll('.option-btn').forEach(function(btn) {
     const id = parseInt(btn.getAttribute('data-id'));
     // h ≦ 18：停用「局部構材設計風壓（高度 > 18m）」(id=8)
-    if (id === 8 && isLow) btn.disabled = true;
+    if (id === 8 && isLow) {
+      btn.disabled = true;
+      btn.title = '0 區平均屋頂高度 h ≦ 18 m，此選項僅適用於 h > 18 m 之建築物';
+    }
     // h > 18：停用「局部構材設計風壓（高度 ≤ 18m）」(id=7)
-    if (id === 7 && !isLow) btn.disabled = true;
+    if (id === 7 && !isLow) {
+      btn.disabled = true;
+      btn.title = '0 區平均屋頂高度 h > 18 m，此選項僅適用於 h ≦ 18 m 之建築物';
+    }
   });
 }
 
