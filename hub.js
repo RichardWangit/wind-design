@@ -105,13 +105,13 @@ window.addEventListener('message', function(event) {
   const data = event.data;
   if (!data || typeof data !== 'object') return;
   if      (data.source === 'zone_0_params')        { handleZone0(data); }
-  else if (data.source === 'wind_speed_query')    { addWindResult(data);      if (active==='a') setTimeout(()=>autoCollapse('a'),700); }
-  else if (data.source === 'occupancy_query')     { addOccResult(data);       if (active==='b') setTimeout(()=>autoCollapse('b'),700); }
-  else if (data.source === 'terrain_query')       { addTerrainResult(data);   if (active==='c') setTimeout(()=>autoCollapse('c'),700); }
-  else if (data.source === 'kzt_calculator')      { addKztResult(data);       if (active==='d') setTimeout(()=>autoCollapse('d'),700); }
-  else if (data.source === 'wind_pressure_query') { addWindPressResult(data); if (active==='e') setTimeout(()=>autoCollapse('e'),700); }
-  else if (data.source === 'wind_pressure_formula'){ addFormulaResult(data);  if (active==='f') setTimeout(()=>autoCollapse('f'),700); }
-  else if (data.source === 'gust_effect_factor')  { addGustResult(data);      if (active==='g') setTimeout(()=>autoCollapse('g'),700); }
+  else if (data.source === 'wind_speed_query')    { addWindResult(data); }
+  else if (data.source === 'occupancy_query')     { addOccResult(data); }
+  else if (data.source === 'terrain_query')       { addTerrainResult(data); }
+  else if (data.source === 'kzt_calculator')      { addKztResult(data); }
+  else if (data.source === 'wind_pressure_query') { addWindPressResult(data); }
+  else if (data.source === 'wind_pressure_formula'){ addFormulaResult(data); }
+  else if (data.source === 'gust_effect_factor')  { addGustResult(data); }
 });
 
 function addWindResult(data) {
