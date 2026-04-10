@@ -65,11 +65,13 @@ function openPanel(which) {
     }
   }
   if (which === 'd') {
-    // Re-send cached C result to frame-d on panel open
+    // Re-send cached C result and zone0 to frame-d on panel open
     const df = document.getElementById('frame-d');
     if (df && df.contentWindow) {
       const wc = HubState.get('terr');
       if (wc) setTimeout(() => df.contentWindow.postMessage({ source:'hub_to_kzt_exposure', terrainId: wc.terrainId }, '*'), 300);
+      const z0 = HubState.get('zone0');
+      if (z0) setTimeout(() => df.contentWindow.postMessage(Object.assign({}, z0, { source:'hub_to_d_zone0' }), '*'), 350);
     }
   }
   // Re-send cached zone0 data to E/F/G on panel open
@@ -185,7 +187,6 @@ function addKztResult(data) {
   const id = 'r_'+Date.now();
   HubState.set('kzt', data);
   hideEmpty();
-  setPill('d', data.terrain+' / 地況'+data.exposure+' · Kzt = '+data.results.Kzt);
   const r = data.results;
   const i = data.inputs;
   const card = document.createElement('div');
@@ -193,6 +194,13 @@ function addKztResult(data) {
   card.style.width='100%';
   card.dataset.section='d';
   card.dataset.type='kzt';
+  const zRange = (i.z_min !== undefined && i.z_max !== undefined)
+    ? `z: ${i.z_min}~${i.z_max}m`
+    : (i.z !== undefined ? `z=${i.z}m` : '');
+  const kztSummary = (r.kztTable && r.kztTable.length > 1)
+    ? `Kzt: ${r.kztTable[0].Kzt.toFixed(4)}~${r.kztTable[r.kztTable.length-1].Kzt.toFixed(4)}`
+    : `Kzt = ${r.Kzt}`;
+  setPill('d', data.terrain+' / 地況'+data.exposure+' · '+kztSummary);
   card.innerHTML=`
     <div class="rc-section-badge s-d">D</div>
     <button class="rc-close" onclick="removeCard('${id}','kzt')">✕</button>
@@ -203,8 +211,9 @@ function addKztResult(data) {
       <span class="rc-param-chip" style="background:rgba(26,107,138,0.1);color:var(--accent5)">K₁ = ${r.K1}</span>
       <span class="rc-param-chip" style="background:rgba(26,107,138,0.1);color:var(--accent5)">K₂ = ${r.K2}</span>
       <span class="rc-param-chip" style="background:rgba(26,107,138,0.1);color:var(--accent5)">K₃ = ${r.K3}</span>
+      ${r.kztTable && r.kztTable.length > 1 ? `<span class="rc-param-chip" style="background:rgba(26,107,138,0.1);color:var(--accent5)">${r.kztTable.length} 高度</span>` : ''}
     </div>
-    <div class="rc-zone">H=${i.H}m　Lh=${i.Lh}m　x=${i.x}m　z=${i.z}m</div>
+    <div class="rc-zone">H=${i.H}m　Lh=${i.Lh}m　x=${i.x}m　${zRange}</div>
     <div class="rc-time">${formatTime(data.timestamp)}</div>`;
   replaceCard('d', card);
 }
@@ -374,7 +383,7 @@ function replaceCard(section, card) {
   if (prev) prev.remove();
 
   // Insert in A→F order: find the first existing card whose section > current section
-  const order = ['a','b','c','d','e','f','g','s','r'];
+  const order = ['0','a','b','c','d','e','f','g','s','r'];
   const body = document.getElementById('results-body');
   const currentRank = order.indexOf(section);
   let insertBefore = null;
@@ -446,7 +455,38 @@ function handleZone0(data) {
   if (data.designSystem)  parts.push(dsLabel[data.designSystem]  || data.designSystem);
   if (data.h !== '') parts.push('h=' + data.h + 'm');
   setPill('0', parts.join(' · ') || '已設定');
+  addZone0Result(data);
   propagateZone0ToFrames(data);
+}
+
+function addZone0Result(data) {
+  const id = 'r_' + Date.now();
+  hideEmpty();
+  const btLabel  = { ordinary:'普通建築物', flexible:'柔性建築物' };
+  const bfLabel  = { enclosed:'封閉式', partial:'部分封閉式', open:'開放式' };
+  const dsLabel  = { mwfrs:'MWFRS', cc:'C&C' };
+  const chips = [
+    data.buildingType ? `<span class="rc-param-chip" style="background:rgba(107,76,17,.12);color:var(--accent0)">${btLabel[data.buildingType]||data.buildingType}</span>` : '',
+    data.buildingForm ? `<span class="rc-param-chip" style="background:rgba(107,76,17,.12);color:var(--accent0)">${bfLabel[data.buildingForm]||data.buildingForm}</span>` : '',
+    data.designSystem ? `<span class="rc-param-chip" style="background:rgba(107,76,17,.12);color:var(--accent0)">${dsLabel[data.designSystem]||data.designSystem}</span>` : '',
+    data.L !== '' ? `<span class="rc-param-chip" style="background:rgba(107,76,17,.08);color:var(--accent0)">L = ${data.L} m</span>` : '',
+    data.B !== '' ? `<span class="rc-param-chip" style="background:rgba(107,76,17,.08);color:var(--accent0)">B = ${data.B} m</span>` : '',
+    data.h !== '' ? `<span class="rc-param-chip" style="background:rgba(107,76,17,.08);color:var(--accent0)">h = ${data.h} m</span>` : '',
+    data.z_min !== undefined && data.z_min !== '' ? `<span class="rc-param-chip" style="background:rgba(107,76,17,.08);color:var(--accent0)">z: ${data.z_min}~${data.z_max} m</span>` : '',
+  ].filter(Boolean).join('');
+  const card = document.createElement('div');
+  card.className = 'result-card'; card.id = id;
+  card.style.width = '100%';
+  card.dataset.section = '0';
+  card.dataset.type = 'zone0';
+  card.innerHTML = `
+    <div class="rc-section-badge" style="background:var(--accent0,#6b4c11);color:#f5f0e8">0</div>
+    <button class="rc-close" onclick="removeCard('${id}','zone0')">✕</button>
+    <div class="rc-type">⚙️ 建築物基本設定</div>
+    <div class="rc-loc"><strong>全域參數</strong></div>
+    <div class="rc-params" style="margin-top:6px">${chips}</div>
+    <div class="rc-time">${formatTime(data.timestamp)}</div>`;
+  replaceCard('0', card);
 }
 
 function propagateZone0ToFrames(data) {
@@ -456,4 +496,6 @@ function propagateZone0ToFrames(data) {
   if (ff && ff.contentWindow) ff.contentWindow.postMessage(Object.assign({}, data, { source:'hub_to_f_zone0' }), '*');
   const gf = document.getElementById('frame-g');
   if (gf && gf.contentWindow) gf.contentWindow.postMessage(Object.assign({}, data, { source:'hub_to_g_zone0' }), '*');
+  const df = document.getElementById('frame-d');
+  if (df && df.contentWindow) df.contentWindow.postMessage(Object.assign({}, data, { source:'hub_to_d_zone0' }), '*');
 }

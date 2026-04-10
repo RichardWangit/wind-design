@@ -463,8 +463,12 @@
       <input type="number" id="inp-x" value="0" step="0.1" placeholder="輸入 x (m)">
     </div>
     <div class="form-group">
-      <label><span class="param">z</span> — 建物計算高度 <span class="unit">(m)</span></label>
-      <input type="number" id="inp-z" value="10" min="0" step="0.1" placeholder="輸入 z (m)">
+      <label><span class="param">z<sub>min</sub></span> — 最低計算高度 <span class="unit">(m)</span></label>
+      <input type="number" id="inp-z-min" value="0" min="0" step="0.1" placeholder="輸入 z_min (m)">
+    </div>
+    <div class="form-group">
+      <label><span class="param">z<sub>max</sub></span> — 最高計算高度 <span class="unit">(m)</span></label>
+      <input type="number" id="inp-z-max" value="10" min="0" step="0.1" placeholder="輸入 z_max (m)">
     </div>
 
     <button class="calc-btn" id="calc-btn" onclick="calculate()">⚡ 計算地形係數 K<sub>zt</sub></button>
@@ -601,12 +605,12 @@ function setTerrain(t) {
   updateCalcBtn();
 
   // Lock / unlock 輸入參數
-  const inputIds = ['inp-H', 'inp-Lh', 'inp-x', 'inp-z'];
+  const inputIds = ['inp-H', 'inp-Lh', 'inp-x', 'inp-z-min', 'inp-z-max'];
   inputIds.forEach(id => {
     const el = document.getElementById(id);
+    if (!el) return;
     el.disabled = isFlat;
     el.style.opacity = isFlat ? '0.4' : '';
-    if (isFlat) el.value = '';
   });
 
   // Clear result area when switching to flat
@@ -677,23 +681,26 @@ function calculate() {
         </div>
       </div>`;
     document.getElementById('result-area').innerHTML = html;
+    const z_min_flat = parseFloat(document.getElementById('inp-z-min').value) || 0;
+    const z_max_flat = parseFloat(document.getElementById('inp-z-max').value) || 0;
     if (window.parent !== window) {
       window.parent.postMessage({
         source: 'kzt_calculator',
         terrain: '平地',
         exposure: '—',
-        inputs: { H: null, Lh: null, x: null, z: null },
-        results: { K1: 0, K2: 0, K3: 0, Kzt: 1.0, HLh: 0, xLh: 0, zLh: 0 },
+        inputs: { H: null, Lh: null, x: null, z_min: z_min_flat, z_max: z_max_flat },
+        results: { K1: 0, K2: 0, K3: 0, Kzt: 1.0, HLh: 0, xLh: 0, zLh: 0, kztTable: [] },
         timestamp: new Date().toISOString()
       }, '*');
     }
     return;
   }
 
-  const H  = parseFloat(document.getElementById('inp-H').value);
-  const Lh = parseFloat(document.getElementById('inp-Lh').value);
-  const x  = parseFloat(document.getElementById('inp-x').value);
-  const z  = parseFloat(document.getElementById('inp-z').value);
+  const H    = parseFloat(document.getElementById('inp-H').value);
+  const Lh   = parseFloat(document.getElementById('inp-Lh').value);
+  const x    = parseFloat(document.getElementById('inp-x').value);
+  const z_min = parseFloat(document.getElementById('inp-z-min').value);
+  const z_max = parseFloat(document.getElementById('inp-z-max').value);
 
   const steps = [];
   let errors = [];
@@ -702,7 +709,9 @@ function calculate() {
   if (isNaN(H) || H <= 0)  errors.push('H 必須為正數');
   if (isNaN(Lh) || Lh <= 0) errors.push('Lh 必須為正數');
   if (isNaN(x))  errors.push('x 數值無效');
-  if (isNaN(z) || z < 0) errors.push('z 必須 ≥ 0');
+  if (isNaN(z_min) || z_min < 0) errors.push('z_min 必須 ≥ 0');
+  if (isNaN(z_max) || z_max < 0) errors.push('z_max 必須 ≥ 0');
+  if (!isNaN(z_min) && !isNaN(z_max) && z_max < z_min) errors.push('z_max 必須 ≥ z_min');
 
   if (errors.length > 0) {
     document.getElementById('result-area').innerHTML =
@@ -763,28 +772,38 @@ function calculate() {
   }
   steps.push(`K₂：x/L<sub>h</sub> = ${x} / ${Lh_K2K3.toFixed(2)} = <span class="hi">${xLh.toFixed(4)}</span>，查表（${k2Key}）得 K₂ = <span class="hi">${K2.toFixed(4)}</span>`);
 
-  // ---- K3 ----
-  const zLh = z / Lh_K2K3;
+  // ---- K3 / Kzt：逐高度計算 ----
   const k3Table = DB.k3[terrain];
-  const K3 = interp(k3Table, zLh);
-  let k3lo = k3Table[0], k3hi = k3Table[k3Table.length-1];
-  for (let i=0; i<k3Table.length-1; i++) {
-    if (zLh >= k3Table[i][0] && zLh <= k3Table[i+1][0]) {
-      k3lo = k3Table[i]; k3hi = k3Table[i+1]; break;
-    }
+  const kztTable = [];
+  for (let zi = Math.floor(z_min); zi <= Math.ceil(z_max); zi++) {
+    const zLh_i = zi / Lh_K2K3;
+    const K3_i  = interp(k3Table, zLh_i);
+    const Kzt_i = Math.pow(1 + K1 * K2 * K3_i, 2);
+    kztTable.push({
+      z:   zi,
+      zLh: parseFloat(zLh_i.toFixed(4)),
+      K3:  parseFloat(K3_i.toFixed(4)),
+      Kzt: parseFloat(Kzt_i.toFixed(4))
+    });
   }
-  steps.push(`K₃：z/L<sub>h</sub> = ${z} / ${Lh_K2K3.toFixed(2)} = <span class="hi">${zLh.toFixed(4)}</span>，查表（${terrain}）得 K₃ = <span class="hi">${K3.toFixed(4)}</span>`);
-
-  // ---- Kzt ----
-  const Kzt = Math.pow(1 + K1 * K2 * K3, 2);
-  steps.push(`<span class="ok">✔ K<sub>zt</sub> = (1 + ${K1.toFixed(4)} × ${K2.toFixed(4)} × ${K3.toFixed(4)})² = <span class="hi">${Kzt.toFixed(4)}</span></span>`);
+  // 向後相容：取 z_max 對應的最末筆
+  const lastEntry = kztTable.length > 0 ? kztTable[kztTable.length - 1] : { zLh: 0, K3: 0, Kzt: 1 };
+  const zLh = lastEntry.zLh;
+  const K3  = lastEntry.K3;
+  const Kzt = lastEntry.Kzt;
+  steps.push(`K₃ / K<sub>zt</sub>：逐公尺計算 z = ${Math.floor(z_min)}~${Math.ceil(z_max)} m，共 ${kztTable.length} 筆`);
+  if (kztTable.length > 0) {
+    const first = kztTable[0], last = kztTable[kztTable.length-1];
+    steps.push(`K<sub>zt</sub> 範圍：z=${first.z}m → K<sub>zt</sub>=<span class="hi">${first.Kzt}</span>　z=${last.z}m → K<sub>zt</sub>=<span class="hi">${last.Kzt}</span>`);
+  }
+  steps.push(`<span class="ok">✔ K<sub>zt</sub>(z_max=${Math.ceil(z_max)}m) = <span class="hi">${Kzt.toFixed(4)}</span></span>`);
 
   // Render results
   const html = `
     <div class="result-panel">
       <div class="result-header">
         <h2>計算結果 — ${terrain} / 地況 ${exposure}</h2>
-        <span style="font-size:11px;color:rgba(245,240,232,0.6)">H=${H}m, Lh=${Lh}m, x=${x}m, z=${z}m</span>
+        <span style="font-size:11px;color:rgba(245,240,232,0.6)">H=${H}m, Lh=${Lh}m, x=${x}m, z:${z_min}~${z_max}m</span>
       </div>
       <div class="result-body">
         <div class="result-grid">
@@ -816,6 +835,26 @@ function calculate() {
       </div>
     </div>
 
+    ${kztTable.length > 1 ? `
+    <div class="section-title" style="margin-top:18px">逐高度 Kzt 計算表（z = ${Math.floor(z_min)}~${Math.ceil(z_max)} m）</div>
+    <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="background:var(--sidebar-bg,#3d2d16);color:var(--paper);position:sticky;top:0">
+        <th style="padding:6px 10px;text-align:left">z (m)</th>
+        <th style="padding:6px 10px;text-align:right">z/Lh</th>
+        <th style="padding:6px 10px;text-align:right">K₃</th>
+        <th style="padding:6px 10px;text-align:right;color:#ffd080">Kzt</th>
+      </tr></thead>
+      <tbody>
+        ${kztTable.map((row,i)=>`<tr style="${i%2===0?'background:var(--paper)':'background:rgba(107,76,17,.04)'}">
+          <td style="padding:4px 10px;font-family:'DM Mono',monospace">${row.z}</td>
+          <td style="padding:4px 10px;font-family:'DM Mono',monospace;text-align:right;color:var(--muted)">${row.zLh.toFixed(4)}</td>
+          <td style="padding:4px 10px;font-family:'DM Mono',monospace;text-align:right">${row.K3.toFixed(4)}</td>
+          <td style="padding:4px 10px;font-family:'DM Mono',monospace;text-align:right;font-weight:700;color:var(--accent5)">${row.Kzt.toFixed(4)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>` : ''}
+
     <div class="section-title">查表資料（含插值位置標示）</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
       ${renderK1Table(terrain, expGroup, HLh_K1)}
@@ -831,7 +870,7 @@ function calculate() {
       source: 'kzt_calculator',
       terrain: terrain,
       exposure: exposure,
-      inputs: { H, Lh, x, z },
+      inputs: { H, Lh, x, z_min, z_max },
       results: {
         K1: parseFloat(K1.toFixed(4)),
         K2: parseFloat(K2.toFixed(4)),
@@ -839,7 +878,8 @@ function calculate() {
         Kzt: parseFloat(Kzt.toFixed(4)),
         HLh: parseFloat(HLh.toFixed(4)),
         xLh: parseFloat(xLh.toFixed(4)),
-        zLh: parseFloat(zLh.toFixed(4))
+        zLh: parseFloat(zLh.toFixed(4)),
+        kztTable: kztTable
       },
       timestamp: new Date().toISOString()
     }, '*');
@@ -1172,6 +1212,13 @@ window.addEventListener('message', function(ev) {
   if (!d || typeof d !== 'object') return;
   if (d.source === 'hub_to_kzt_exposure' && d.terrainId) {
     applyExposureFromHub(d.terrainId);
+  }
+  if (d.source === 'hub_to_d_zone0') {
+    // 從 0 區自動帶入 z_min / z_max
+    const zMinEl = document.getElementById('inp-z-min');
+    const zMaxEl = document.getElementById('inp-z-max');
+    if (zMinEl && d.z_min !== undefined && d.z_min !== '') zMinEl.value = d.z_min;
+    if (zMaxEl && d.z_max !== undefined && d.z_max !== '') zMaxEl.value = d.z_max;
   }
 });
 

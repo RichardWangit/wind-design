@@ -195,6 +195,7 @@ function buildParamGrid() {
 
   const vals = {};
   const wg = getResultByType('gust');
+  const w0 = getResultByType('zone0');
 
   if (wa) vals.V10C = wa.speed;
   if (wb) vals.I    = wb.importanceFactor;
@@ -206,6 +207,15 @@ function buildParamGrid() {
   }
   if (wd) vals.Kzt = wd.results.Kzt;
   if (wg) vals.G = wg.value;   // G 或 Gf，統一存 vals.G
+
+  // 0 區全域設定自動帶入
+  if (w0) {
+    if (w0.z_max !== undefined && w0.z_max !== '') vals.z     = w0.z_max;
+    if (w0.z_min !== undefined && w0.z_min !== '') vals.z_min = w0.z_min;
+    if (w0.L     !== undefined && w0.L     !== '') vals.L     = w0.L;
+    if (w0.B     !== undefined && w0.B     !== '') vals.B     = w0.B;
+    if (w0.h     !== undefined && w0.h     !== '') vals.h     = w0.h;
+  }
   if (we && we.coefficients) {
     we.coefficients.forEach(c => {
       if (c.coef === '+GCpi' && vals.GCpi_pos === undefined) vals.GCpi_pos = c.value;
@@ -226,12 +236,15 @@ function buildParamGrid() {
 
   // ── Define which param cells to show depending on formula ──
   const BASE = [
-    {key:'V10C', label:'V₁₀(C)  基本設計風速',   unit:'m/s', src:'A區', val:vals.V10C},
-    {key:'I',    label:'I  用途係數',             unit:'—',   src:'B區', val:vals.I},
-    {key:'alpha',label:'α  風速垂直分布指數',      unit:'—',   src:'C區', val:vals.alpha},
-    {key:'zg',   label:'zg  梯度高度',            unit:'m',   src:'C區', val:vals.zg},
-    {key:'Kzt',  label:'Kzt  地形係數',           unit:'—',   src:'D區', val:vals.Kzt},
-    {key:'z',    label:'z  建物計算高度',          unit:'m',   src:'手動', val:null},
+    {key:'V10C',  label:'V₁₀(C)  基本設計風速',   unit:'m/s', src:'A區',  val:vals.V10C},
+    {key:'I',     label:'I  用途係數',             unit:'—',   src:'B區',  val:vals.I},
+    {key:'alpha', label:'α  風速垂直分布指數',      unit:'—',   src:'C區',  val:vals.alpha},
+    {key:'zg',    label:'zg  梯度高度',            unit:'m',   src:'C區',  val:vals.zg},
+    {key:'Kzt',   label:'Kzt  地形係數',           unit:'—',   src:'D區',  val:vals.Kzt},
+    {key:'z',     label:'z  最高計算高度 (z_max)',  unit:'m',   src: vals.z != null ? '0區' : '手動', val:vals.z != null ? vals.z : null},
+    {key:'z_min', label:'z_min  最低計算高度',      unit:'m',   src: vals.z_min != null ? '0區' : '手動', val:vals.z_min != null ? vals.z_min : null},
+    {key:'L',     label:'L  順風向建物尺寸',        unit:'m',   src: vals.L != null ? '0區' : '手動', val:vals.L != null ? vals.L : null},
+    {key:'B',     label:'B  垂直風向建物尺寸',      unit:'m',   src: vals.B != null ? '0區' : '手動', val:vals.B != null ? vals.B : null},
   ];
 
   if (!cfg) {
@@ -391,6 +404,9 @@ function runCalc() {
   const zg  = getInputVal('zg');
   const Kzt = getInputVal('Kzt');
   const z   = getInputVal('z');
+  const z_min = getInputVal('z_min');
+  const L   = getInputVal('L');
+  const B   = getInputVal('B');
   const G   = cfg.gLabel ? getInputVal('G') : NaN;
   const GCpi_pos = cfg.hasGCpi ? getInputVal('GCpi_pos') : 0;
   const GCpi_neg = cfg.hasGCpi ? getInputVal('GCpi_neg') : 0;
@@ -404,7 +420,7 @@ function runCalc() {
   if (isNaN(alp)) missing.push('α');
   if (isNaN(zg))  missing.push('zg');
   if (isNaN(Kzt)) missing.push('Kzt');
-  if (isNaN(z) || z < 0) missing.push('z');
+  if (isNaN(z) || z < 0) missing.push('z（最高計算高度）');
   if (cfg.gLabel && isNaN(G)) missing.push(cfg.useGf ? 'Gf' : 'G');
   if (cfg.hasGCpi && isNaN(GCpi_pos)) missing.push('(GCpi)₊');
   if (cfg.hasGCpi && isNaN(GCpi_neg)) missing.push('(GCpi)₋');
@@ -422,14 +438,14 @@ function runCalc() {
   const Gval = cfg.gLabel ? G : null;
   const GLabel = cfg.useGf ? 'Gf' : 'G';
 
-  // ── Step 1: K(z) ──
+  // ── Step 1: K(z) at z_max = h（迎風面最高點）──
   const zCalc = Math.max(z, 5);
   const Kz = 2.774 * Math.pow(zCalc / zg, 2 * alp);
   const Kz_note = z < 5 ? `（z=${z}m<5m，取5m）` : '';
 
-  // ── Step 2: q(z) and q(h) ──
+  // ── Step 2: q(z_max) = q(h)，用於背風/側牆及 qi ──
   const qz = 0.06 * Kz * Kzt * I * V * I * V;
-  const qi = qz; // assume z ≈ h
+  const qi = qz; // qi = q(h) = q(z_max)，規範規定
 
   // ── Formula-specific step label ──
   const stepRow = (num, label, formula_expr, result, unit='') => `
@@ -452,16 +468,27 @@ function runCalc() {
     </tr>`;
 
   // ── Per-formula calculation ──────────────────────────────────────
-  let commonSteps = `
-    ${stepRow(1,'風速壓地況係數 K(z)',`2.774 × (${zCalc}/${f2(zg)})^(2×${alp}) ${Kz_note}`,f4(Kz),'—')}
-    ${stepRow(2,'風速壓 q(z) = q(h)',`0.06 × ${f4(Kz)} × ${f4(Kzt)} × [${f4(I)} × ${f2(V)}]²`,f2(qz),'kgf/m²')}`;
+  const formulaBanner = `
+    <div style="background:rgba(90,45,130,.08);border:1px solid rgba(90,45,130,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px">
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.15em;color:var(--muted);margin-bottom:3px">使用公式（符號式）</div>
+        <div style="font-size:14px;font-weight:700;font-family:'Noto Serif TC',serif;color:var(--ink)">${cfg.display}</div>
+      </div>
+      <div style="margin-left:auto;font-family:'DM Mono',monospace;font-size:9px;background:var(--accent8,#5a2d82);color:white;border-radius:4px;padding:3px 8px;white-space:nowrap">公式 ${formula.code}</div>
+    </div>`;
+
+  let commonSteps = formulaBanner + `
+    ${stepRow(1,'風速壓地況係數 K(z_max)',`2.774 × (${zCalc}/${f2(zg)})^(2×${alp}) ${Kz_note}`,f4(Kz),'—')}
+    ${stepRow(2,'風速壓 q(h) = q(z_max)（qi 及背風面基準）',`0.06 × ${f4(Kz)} × ${f4(Kzt)} × [${f4(I)} × ${f2(V)}]²`,f2(qz),'kgf/m²')}`;
 
   let faceResultsHTML = '';
   let finalHTML = '';
 
   // ── 2.1 / 2.2 ────────────────────────────────────────────────────
   if (formula.code === '2.1' || formula.code === '2.2') {
+    // 各風面設計風壓（以 z_max 為代表高度）
     const faceResults = faces.map(f => {
+      // 迎風面(Cp>0)用q(z)=q(z_max)；背風/側牆(Cp<0)用q(h)=q(z_max)；此處均用qz=q(z_max)
       const p_pos = qz * G * f.value - qi * GCpi_pos;
       const p_neg = qz * G * f.value - qi * GCpi_neg;
       const p_ctrl = Math.abs(p_pos) >= Math.abs(p_neg) ? p_pos : p_neg;
@@ -478,6 +505,59 @@ function runCalc() {
     finalHTML = buildEnvelope(hasPos, hasNeg, maxPos, minNeg,
       maxPosFace.face+'（'+((maxPosFace.p_pos>=maxPosFace.p_neg)?'正':'負')+'內壓控制）',
       minNegFace.face+'（'+((minNegFace.p_pos<=minNegFace.p_neg)?'正':'負')+'內壓控制）');
+
+    // ── 逐高度 q(z) 計算（規範：迎風面用q(z)，背風/側/屋頂用q(h)）──
+    const hasZ_min = !isNaN(z_min) && z_min >= 0;
+    const hasL     = !isNaN(L) && L > 0;
+    const hasB     = !isNaN(B) && B > 0;
+    if (hasZ_min && hasL && hasB && faces.length > 0) {
+      // 取得 kztTable 從 D 區結果
+      const kztData = _hubResults['kzt'];
+      const kztTable = (kztData && kztData.results && kztData.results.kztTable) ? kztData.results.kztTable : [];
+      // 查表：在 kztTable 找 zi 對應的 Kzt（線性內插）
+      function getKztAtZ(zi) {
+        if (kztTable.length === 0) return Kzt; // fallback 到代表值
+        if (zi <= kztTable[0].z)   return kztTable[0].Kzt;
+        if (zi >= kztTable[kztTable.length-1].z) return kztTable[kztTable.length-1].Kzt;
+        for (let k = 0; k < kztTable.length-1; k++) {
+          const a = kztTable[k], b = kztTable[k+1];
+          if (zi >= a.z && zi <= b.z) {
+            const t = (zi - a.z) / (b.z - a.z);
+            return a.Kzt + t * (b.Kzt - a.Kzt);
+          }
+        }
+        return Kzt;
+      }
+      // 找最大正 Cp（迎風面）及最小負 Cp（背風/側面）
+      const cpVals = faces.map(f => f.value);
+      const max_Cp_pos = Math.max(...cpVals);  // 迎風面 Cp
+      const min_Cp_neg = Math.min(...cpVals);  // 背風/側面 Cp（最負值）
+      const faceWidth = Math.max(!isNaN(L)?L:0, !isNaN(B)?B:0);
+
+      // q(h) 固定 = qz（已於 Step 2 計算）
+      const q_h = qz;
+      // p_neg 為常數（背風/側面使用 q(h)）
+      const p_neg_const = q_h * G * min_Cp_neg - q_h * GCpi_pos;
+
+      const perHeightRows = [];
+      for (let zi = Math.floor(z_min); zi <= Math.ceil(z); zi++) {
+        const zCalcI = Math.max(zi, 5);
+        const KztI   = getKztAtZ(zi);
+        const KzI    = 2.774 * Math.pow(zCalcI / zg, 2 * alp);
+        const qzI    = 0.06 * KzI * KztI * I * V * I * V;
+        // 迎風面用 q(zi)
+        const p_pos_i = qzI * G * max_Cp_pos - q_h * GCpi_neg;
+        // 背風/側面用 q(h)
+        const p_neg_i = p_neg_const;
+        const F_pos_i = faceWidth * p_pos_i;
+        const F_neg_i = faceWidth * p_neg_i;
+        perHeightRows.push({ z: zi, Kz: KzI, Kzt: KztI, qz: qzI, p_pos: p_pos_i, p_neg: p_neg_i, F_pos: F_pos_i, F_neg: F_neg_i });
+      }
+      const totalFPos = perHeightRows.reduce((s, r) => s + r.F_pos, 0);
+      const totalFNeg = perHeightRows.reduce((s, r) => s + r.F_neg, 0);
+      faceResultsHTML += buildPerHeightTable(perHeightRows, totalFPos, totalFNeg, faceWidth,
+        max_Cp_pos, min_Cp_neg, z_min, z, GLabel);
+    }
 
   // ── 2.3 ────────────────────────────────────────────────────────
   } else if (formula.code === '2.3') {
@@ -619,7 +699,10 @@ function runCalc() {
     paramRow('α', '風速垂直分布指數', f4(alp), '—', 'C區'),
     paramRow('zg', '梯度高度', f2(zg), 'm', 'C區'),
     paramRow('Kzt', '地形係數', f4(Kzt), '—', 'D區'),
-    paramRow('z', '建物計算高度', f2(z), 'm', '手動'),
+    paramRow('z_max', '最高計算高度', f2(z), 'm', _hubResults['zone0'] ? '0區' : '手動'),
+    ...(!isNaN(z_min) ? [paramRow('z_min', '最低計算高度', f2(z_min), 'm', _hubResults['zone0'] ? '0區' : '手動')] : []),
+    ...(!isNaN(L) ? [paramRow('L', '順風向建物尺寸', f2(L), 'm', _hubResults['zone0'] ? '0區' : '手動')] : []),
+    ...(!isNaN(B) ? [paramRow('B', '垂直風向建物尺寸', f2(B), 'm', _hubResults['zone0'] ? '0區' : '手動')] : []),
     ...(cfg.gLabel ? [paramRow(GLabel, cfg.gLabel.replace(/^[GGf]+\s+/, ''), f4(G), '—', '手動')] : []),
     ...(cfg.hasGCpi ? [
       paramRow('(GCpi)₊', '正內風壓係數', '+'+f4(GCpi_pos), '—', 'E區'),
@@ -673,9 +756,13 @@ function buildFaceTable(faceResults, code, GLabel, Gval, qz, gp, gn) {
       <td style="padding:8px 10px;font-size:9px;color:var(--muted)">${r.p_pos>=r.p_neg?'正內壓':'負內壓'}控制${tag}</td>
     </tr>`;
   }).join('');
+  const formulaRow = code === '2.1' ? 'p = q(z)·G·Cp − qi·(GCpi)'
+    : code === '2.2' ? 'p = q(z)·Gf·Cp − qi·(GCpi)'
+    : 'p = q·(GCp) − qi·(GCpi)';
   return `<div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
     <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">各風面設計風壓</div>
-    <div style="padding:10px 16px 4px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">q(z)=q(h)=${qz} kgf/m²　${GLabel}=${Gval}　(GCpi)₊=+${gp}　(GCpi)₋=${gn}</div>
+    <div style="padding:6px 16px;font-size:10px;font-family:'DM Mono',monospace;color:rgba(245,240,232,.55);background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.08);font-style:italic">${formulaRow}</div>
+    <div style="padding:10px 16px 4px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">q(h)=${qz} kgf/m²（代表高度 z_max）　${GLabel}=${Gval}　(GCpi)₊=+${gp}　(GCpi)₋=${gn}</div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <tr style="background:var(--paper)">
         <th style="padding:7px 10px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">風面</th>
@@ -687,7 +774,7 @@ function buildFaceTable(faceResults, code, GLabel, Gval, qz, gp, gn) {
         <th style="padding:7px 10px;font-size:9px;color:var(--muted);border-bottom:1px solid var(--border)">備註</th>
       </tr>${rows}
     </table></div>
-    <div style="padding:8px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--border)">▲最大正設計值　▼最小負設計值</div>
+    <div style="padding:8px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--border)">▲最大正設計值　▼最小負設計值　注：各風面以 q(h)=q(z_max) 計算</div>
   </div>`;
 }
 
@@ -711,6 +798,7 @@ function buildFaceTable31(faceResults, qz, gp, gn) {
   }).join('');
   return `<div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
     <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">各風面設計風壓</div>
+    <div style="padding:6px 16px;font-size:10px;font-family:'DM Mono',monospace;color:rgba(245,240,232,.55);background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.08);font-style:italic">p = q(h)·[(GCp) − (GCpi)]</div>
     <div style="padding:10px 16px 4px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">q(h)=${qz} kgf/m²　(GCpi)₊=+${gp}　(GCpi)₋=${gn}</div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <tr style="background:var(--paper)">
@@ -748,7 +836,7 @@ function buildEnvelope(hasPos, hasNeg, maxPos, minNeg, maxPosFace, minNegFace) {
           </div>
         </div>
       </div>
-      <div style="margin-top:8px;text-align:center;font-size:10px;color:rgba(245,240,232,.3)">qi 採用 q(z)＝q(h)，假設計算高度即為平均屋頂高度</div>
+      <div style="margin-top:8px;text-align:center;font-size:10px;color:rgba(245,240,232,.3)">qi = q(h) = q(z_max)；各風面以代表高度 z_max 計算</div>
     </div>`;
   } else if (hasPos) {
     return `<div style="background:var(--ink);border-radius:10px;padding:20px 24px;text-align:center">
@@ -786,6 +874,54 @@ function buildEnvelopeCustom(maxVal, minVal, label, unit) {
         <div style="font-family:'Noto Serif TC',serif;font-size:32px;font-weight:900;color:#f87171">${signed(minVal)}</div>
         <div style="font-size:10px;color:rgba(245,240,232,.4)">${unit}</div>
       </div>
+    </div>
+  </div>`;
+}
+
+function buildPerHeightTable(rows, totalFPos, totalFNeg, faceWidth, maxCpPos, minCpNeg, z_min, z_max, GLabel) {
+  const f2 = n => parseFloat(n).toFixed(2);
+  const f4 = n => parseFloat(n).toFixed(4);
+  const signed = n => (n >= 0 ? '+' : '') + parseFloat(n).toFixed(2);
+  const rowHtml = rows.map((r, i) => `
+    <tr style="${i%2===0?'':'background:rgba(90,45,130,.04)'}">
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;font-weight:700">${r.z}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;color:var(--muted)">${f4(r.Kz)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;color:var(--muted)">${f4(r.Kzt)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;text-align:right">${f2(r.qz)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;color:#16a34a">${signed(r.p_pos)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;color:#dc2626">${signed(r.p_neg)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;text-align:right;color:#16a34a">${signed(r.F_pos)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;text-align:right;color:#dc2626">${signed(r.F_neg)}</td>
+    </tr>`).join('');
+  return `
+  <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+    <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">
+      逐高度設計風壓與受力　z = ${Math.floor(z_min)}~${Math.ceil(z_max)} m
+    </div>
+    <div style="padding:8px 16px;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;border-bottom:1px solid var(--border)">
+      迎風面 Cp = ${f4(maxCpPos)}（使用 q(z) 逐高度）　背風/側面 Cp = ${f4(minCpNeg)}（使用 q(h) 固定）　受風寬 = ${f2(faceWidth)} m
+    </div>
+    <div style="max-height:360px;overflow-y:auto">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:rgba(90,45,130,.08);position:sticky;top:0">
+        <th style="padding:6px 8px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">z(m)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">K(z)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">Kzt(z)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">q(z)(kgf/m²)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:#16a34a;border-bottom:1px solid var(--border)">p₊(kgf/m²)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:#dc2626;border-bottom:1px solid var(--border)">p₋(kgf/m²)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:#16a34a;border-bottom:1px solid var(--border)">F₊(kgf)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:#dc2626;border-bottom:1px solid var(--border)">F₋(kgf)</th>
+      </tr></thead>
+      <tbody>${rowHtml}</tbody>
+      <tfoot><tr style="background:rgba(90,45,130,.15);font-weight:700">
+        <td colspan="6" style="padding:6px 8px;font-size:11px;color:var(--ink)">合計受力（Σ F per 1m 帶）</td>
+        <td style="padding:6px 8px;font-family:'DM Mono',monospace;font-size:13px;text-align:right;color:#16a34a">${signed(totalFPos)}</td>
+        <td style="padding:6px 8px;font-family:'DM Mono',monospace;font-size:13px;text-align:right;color:#dc2626">${signed(totalFNeg)}</td>
+      </tr></tfoot>
+    </table></div>
+    <div style="padding:6px 14px;font-size:9px;color:var(--muted);border-top:1px solid var(--border)">
+      p₊ = q(z)·${GLabel}·Cp₊ − q(h)·(GCpi)₋　p₋ = q(h)·${GLabel}·Cp₋ − q(h)·(GCpi)₊　F = 受風寬 × p（每公尺高度）
     </div>
   </div>`;
 }
