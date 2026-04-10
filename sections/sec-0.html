@@ -311,7 +311,7 @@
     <div class="header-text">
       <div class="header-badge">Zone 0 · Global Settings</div>
       <h1>建築物基本設定</h1>
-      <p>建築物類型、開口形式、設計系統及屋頂尺寸 — 設定後自動同步至 E、F、G 區</p>
+      <p>建築物類型、開口形式、設計系統及建物尺寸 — 設定後自動同步至 E、F、G 區</p>
     </div>
   </div>
   <div class="header-deco">0</div>
@@ -328,6 +328,8 @@
         <span class="sync-tag">E 區 · 風壓係數</span>
         <span class="sync-tag">F 區 · 設計風壓計算式</span>
         <span class="sync-tag">G 區 · 陣風反應因子</span>
+        <span class="sync-tag">D 區 · 地形係數</span>
+        <span class="sync-tag">S 區 · 設計風壓</span>
       </div>
     </div>
   </div>
@@ -376,9 +378,9 @@
 
   </div>
 
-  <!-- 卡片二：屋頂尺寸輸入 -->
+  <!-- 卡片二：建物尺寸輸入 -->
   <div class="card">
-    <div class="card-title">屋頂尺寸輸入</div>
+    <div class="card-title">建物尺寸輸入</div>
 
     <div class="dim-desc">
       <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#6b4c11" stroke-width="1.5">
@@ -392,32 +394,46 @@
       </svg>
       <div>
         <strong style="color:var(--ink-mid)">尺寸定義（依風向）</strong><br>
-        <strong>L</strong>：順風向屋頂尺寸（平行於風向的水平長度）<br>
-        <strong>B</strong>：垂直風向屋頂尺寸（垂直於風向的水平寬度）<br>
-        <strong>h</strong>：平均屋頂高度（不含屋頂突出物）
+        <strong>L</strong>：順風向建物尺寸（平行於風向的水平長度）<br>
+        <strong>B</strong>：垂直風向建物尺寸（垂直於風向的水平寬度）<br>
+        <strong>h</strong>：平均建物高度（不含屋頂突出物）
       </div>
     </div>
 
     <div class="form-grid-3">
 
       <div class="field">
-        <label><span class="sym">L</span>順風向屋頂尺寸</label>
+        <label><span class="sym">L</span>順風向建物尺寸</label>
         <input type="number" id="inp-L" min="0.1" step="0.1" placeholder="例：30.0" oninput="sendZone0()">
         <div class="hint">單位：m　平行風向</div>
       </div>
 
       <div class="field">
-        <label><span class="sym">B</span>垂直風向屋頂尺寸</label>
+        <label><span class="sym">B</span>垂直風向建物尺寸</label>
         <input type="number" id="inp-B" min="0.1" step="0.1" placeholder="例：20.0" oninput="sendZone0()">
         <div class="hint">單位：m　垂直風向</div>
       </div>
 
       <div class="field">
-        <label><span class="sym">h</span>平均屋頂高度</label>
+        <label><span class="sym">h</span>平均建物高度</label>
         <input type="number" id="inp-h" min="0.1" step="0.1" placeholder="例：40.0" oninput="sendZone0()">
         <div class="hint">單位：m　不含突出物</div>
       </div>
 
+    </div>
+
+    <div class="section-sep" style="margin-top:16px;padding:6px 0;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.05em;border-top:1px solid var(--border)">計算高度範圍</div>
+    <div class="form-grid">
+      <div class="field">
+        <label><span class="sym">z<sub>min</sub></span>最低計算高度</label>
+        <input type="number" id="inp-z-min" min="0" step="0.1" value="0" oninput="sendZone0()">
+        <div class="hint">單位：m　通常取地面 = 0</div>
+      </div>
+      <div class="field">
+        <label><span class="sym">z<sub>max</sub></span>最高計算高度</label>
+        <input type="number" id="inp-z-max" min="0" step="0.1" placeholder="例：40.0" oninput="sendZone0()">
+        <div class="hint">單位：m　通常等於平均建物高度 h</div>
+      </div>
     </div>
   </div>
 
@@ -450,6 +466,8 @@ function sendZone0() {
   const L = getNum('inp-L');
   const B = getNum('inp-B');
   const h = getNum('inp-h');
+  const z_min = getNum('inp-z-min');
+  const z_max = getNum('inp-z-max');
 
   // 只要有選擇/輸入就傳送（允許部分填寫）
   const hasAny = buildingType || buildingForm || designSystem || L !== '' || B !== '' || h !== '';
@@ -463,6 +481,8 @@ function sendZone0() {
     L,
     B,
     h,
+    z_min,
+    z_max,
     timestamp: new Date().toISOString()
   };
   lastData = data;
@@ -484,6 +504,7 @@ function updateStatus(d) {
   if (d.h !== '')      parts.push('h=' + d.h + 'm');
   if (d.L !== '')      parts.push('L=' + d.L + 'm');
   if (d.B !== '')      parts.push('B=' + d.B + 'm');
+  if (d.z_min !== '' && d.z_max !== '') parts.push('z:' + d.z_min + '~' + d.z_max + 'm');
 
   const allFilled = d.buildingType && d.buildingForm && d.designSystem
                  && d.h !== '' && d.L !== '' && d.B !== '';
