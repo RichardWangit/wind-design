@@ -281,9 +281,7 @@ const COMPONENTS = {
   ]
 };
 
-// Add internal pressure for enclosed/partial
-COMPONENTS.enclosed.push({value:'internal',label:'內風壓係數',table:'2.17',desc:'封閉式建築物內風壓係數 GCpi'});
-COMPONENTS.partial.push({value:'internal',label:'內風壓係數',table:'2.17',desc:'部分封閉式建築物內風壓係數 GCpi'});
+// (表2.17 內風壓係數不作為獨立構件選項；GCpi 仍自動附加至各 MWFRS 構件查詢結果)
 
 let currentBuilding='', currentComponent='';
 
