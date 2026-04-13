@@ -542,6 +542,10 @@ function runCalc() {
 
   let faceResultsHTML = '';
   let finalHTML = '';
+  let roofForceHTML = '';
+
+  // 取得 E 區構件資訊（供後續條件判斷使用）
+  const weCalc = getResultByType('wind-press');
 
   // ── 2.1 / 2.2 ────────────────────────────────────────────────────
   if (formula.code === '2.1' || formula.code === '2.2') {
@@ -566,10 +570,12 @@ function runCalc() {
       minNegFace.face+'（'+((minNegFace.p_pos<=minNegFace.p_neg)?'正':'負')+'內壓控制）');
 
     // ── 逐高度 q(z) 計算（規範：迎風面用q(z)，背風/側/屋頂用q(h)）──
+    // 僅在 E 區選擇表2.4（牆）時才計算並顯示
     const hasZ_min = !isNaN(z_min) && z_min >= 0;
     const hasL     = !isNaN(L) && L > 0;
     const hasB     = !isNaN(B) && B > 0;
-    if (hasZ_min && hasL && hasB && faces.length > 0) {
+    const isWallComp = weCalc && weCalc.component === 'wall';
+    if (hasZ_min && hasL && hasB && faces.length > 0 && isWallComp) {
       // 取得 kztTable 從 D 區結果
       const kztData = _hubResults['kzt'];
       const kztTable = (kztData && kztData.results && kztData.results.kztTable) ? kztData.results.kztTable : [];
@@ -626,6 +632,82 @@ function runCalc() {
       const totalFNeg = perHeightRows.reduce((s, r) => s + (r.F_neg !== null ? r.F_neg : 0), 0);
       faceResultsHTML += buildPerHeightTable(perHeightRows, totalFPos, totalFNeg, faceWidth,
         max_Cp_pos, min_Cp_neg, z_min, z, GLabel);
+    }
+
+    // ── 表2.5 屋頂總受力（F = p × L × B / cosθ）────────────────────
+    if (weCalc && weCalc.component === 'flat_roof' && !isNaN(L) && L > 0 && !isNaN(B) && B > 0) {
+      const thetaInp = (weCalc.inputs || []).find(i => i.label === 'θ（屋面傾角）');
+      const roofTheta = thetaInp ? parseFloat(thetaInp.value) : 0;
+      const cosTheta = Math.cos(roofTheta * Math.PI / 180);
+      const F_max = maxPos * L * B / cosTheta;
+      const F_min = minNeg * L * B / cosTheta;
+      roofForceHTML = `
+      <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+        <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">屋頂總受力（表2.5）　F = p × L × B / cosθ</div>
+        <div style="padding:8px 16px 4px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted)">L = ${f2(L)} m　B = ${f2(B)} m　θ = ${roofTheta}°　cosθ = ${cosTheta.toFixed(4)}</div>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+          <tr style="background:var(--paper)">
+            <th style="padding:7px 10px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">計算工況</th>
+            <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">p (kgf/m²)</th>
+            <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">L × B / cosθ (m²)</th>
+            <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--accent8,#5a2d82);border-bottom:1px solid var(--border)">F (kgf)</th>
+          </tr>
+          <tr>
+            <td style="padding:8px 10px;font-size:11px">最大正設計值</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right;color:#16a34a">${signed(maxPos)}</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right">${f2(L * B / cosTheta)}</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;text-align:right;color:${F_max>=0?'#16a34a':'#dc2626'}">${signed(F_max)}</td>
+          </tr>
+          <tr style="background:rgba(90,45,130,.04)">
+            <td style="padding:8px 10px;font-size:11px">最小負設計值</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right;color:#dc2626">${signed(minNeg)}</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right">${f2(L * B / cosTheta)}</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;text-align:right;color:${F_min>=0?'#16a34a':'#dc2626'}">${signed(F_min)}</td>
+          </tr>
+        </table></div>
+      </div>`;
+    }
+
+    // ── 表2.6 屋頂總受力 ────────────────────────────────────────────
+    // 迎風/背風面：F = (p × L × B / 4) × √(1+4r²)；中央部分：F = p × L × B / 2
+    if (weCalc && weCalc.component === 'arch_roof' && !isNaN(L) && L > 0 && !isNaN(B) && B > 0) {
+      const rInp = (weCalc.inputs || []).find(i => i.label === 'r（拱高/跨度）');
+      const archR = rInp ? parseFloat(rInp.value) : NaN;
+      if (!isNaN(archR) && archR > 0) {
+        const archFactor = Math.sqrt(1 + 4 * archR * archR);
+        const fWind = faceResults.find(f => f.face.startsWith('迎風面 P'));
+        const fCent = faceResults.find(f => f.face.startsWith('中央部分 Q'));
+        const fLee  = faceResults.find(f => f.face.startsWith('背風面 P'));
+        const makeArchRow = (label, faceData, area, factor) => {
+          if (!faceData) return '';
+          const p = faceData.p_ctrl;
+          const F = p * area * (factor !== undefined ? factor : 1);
+          return `<tr>
+            <td style="padding:8px 10px;font-size:11px">${label}</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right;color:${p>=0?'#16a34a':'#dc2626'}">${signed(p)}</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;text-align:right">${f2(area)}</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;color:var(--muted)">${factor!==undefined?'× '+f4(factor):'—'}</td>
+            <td style="padding:8px 10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:700;text-align:right;color:${F>=0?'#16a34a':'#dc2626'}">${signed(F)}</td>
+          </tr>`;
+        };
+        roofForceHTML = `
+        <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+          <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">屋頂總受力（表2.6）　迎/背風面：F=(p×L×B/4)×√(1+4r²)　中央：F=p×L×B/2</div>
+          <div style="padding:8px 16px 4px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted)">L = ${f2(L)} m　B = ${f2(B)} m　r = ${archR}　√(1+4r²) = ${f4(archFactor)}</div>
+          <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+            <tr style="background:var(--paper)">
+              <th style="padding:7px 10px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">部位</th>
+              <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">p (kgf/m²)</th>
+              <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">受壓面積 (m²)</th>
+              <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">面積係數</th>
+              <th style="padding:7px 10px;font-size:9px;text-align:right;color:var(--accent8,#5a2d82);border-bottom:1px solid var(--border)">F (kgf)</th>
+            </tr>
+            ${makeArchRow('迎風面 P（各1/4跨）', fWind, L * B / 4, archFactor)}
+            ${makeArchRow('背風面 P（各1/4跨）', fLee,  L * B / 4, archFactor)}
+            ${makeArchRow('中央部分 Q（1/2跨）',  fCent, L * B / 2, undefined)}
+          </table></div>
+        </div>`;
+      }
     }
 
   // ── 2.3 ────────────────────────────────────────────────────────
@@ -800,6 +882,7 @@ function runCalc() {
     <div style="padding:4px 16px 8px">${commonSteps}</div>
   </div>
   ${faceResultsHTML}
+  ${roofForceHTML}
   ${finalHTML}`;
 
   out.scrollIntoView({behavior:'smooth', block:'nearest'});
