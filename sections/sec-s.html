@@ -6,8 +6,7 @@
 <title>設計風壓計算</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Sans+TC:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../shared/theme.css">
-<script src="https://cdn.jsdelivr.net/npm/docx@8/build/index.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/file-saver@2/dist/FileSaver.min.js"></script>
+<script src="../shared/docx-lite.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
@@ -1236,118 +1235,33 @@ function resetCalc() {
 }
 
 // ── 匯出 DOCX 計算書 ──────────────────────────────────────────────
-async function exportDocx() {
+function exportDocx() {
   if (!_calcSnapshot) { alert('請先完成設計風壓計算'); return; }
-  if (!window.docx)   { alert('文件產生套件尚未載入，請確認網路連線後重新整理頁面'); return; }
-
-  const {
-    Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-    HeadingLevel, AlignmentType, WidthType, BorderStyle, ShadingType
-  } = window.docx;
 
   const f2 = n => typeof n === 'number' ? n.toFixed(2) : String(n ?? '—');
   const f4 = n => typeof n === 'number' ? n.toFixed(4) : String(n ?? '—');
   const sv = v => (v !== undefined && v !== null && v !== '') ? String(v) : '—';
   const sg = n => typeof n === 'number' ? (n >= 0 ? '+' : '') + n.toFixed(2) : '—';
 
-  const BORDER_DEF = { style: BorderStyle.SINGLE, size: 6, color: 'AAAAAA' };
-  const TABLE_BORDERS = {
-    top: BORDER_DEF, bottom: BORDER_DEF,
-    left: BORDER_DEF, right: BORDER_DEF,
-    insideHorizontal: BORDER_DEF, insideVertical: BORDER_DEF
-  };
-  const HDR_SHADE = { type: ShadingType.SOLID, fill: 'EDE8D0' };
-
-  // 標題段落
-  const h1 = text => new Paragraph({
-    children: [new TextRun({ text, bold: true, size: 28, color: '3A1A6E' })],
-    spacing: { before: 320, after: 140 }
-  });
-  const h2 = text => new Paragraph({
-    children: [new TextRun({ text, bold: true, size: 24, color: '5A2D82' })],
-    spacing: { before: 200, after: 100 }
-  });
-  const para = (text, opts = {}) => new Paragraph({
-    children: [new TextRun({ text: sv(text), size: 20, ...opts })],
-    spacing: { after: 80 }
-  });
-  const spacer = () => new Paragraph({ text: '', spacing: { after: 80 } });
-
-  // 建立儲存格
-  const cell = (text, bold = false, shade = false) => new TableCell({
-    shading: shade ? HDR_SHADE : undefined,
-    margins: { top: 60, bottom: 60, left: 80, right: 80 },
-    children: [new Paragraph({
-      children: [new TextRun({ text: sv(text), bold, size: 18 })]
-    })]
-  });
-
-  // 兩欄 key-value 表
-  const kvTable = rows => new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: TABLE_BORDERS,
-    rows: rows.map(([label, value]) => new TableRow({ children: [
-      new TableCell({
-        width: { size: 36, type: WidthType.PERCENTAGE },
-        shading: HDR_SHADE,
-        margins: { top: 60, bottom: 60, left: 80, right: 80 },
-        children: [new Paragraph({ children: [new TextRun({ text: sv(label), bold: true, size: 18 })] })]
-      }),
-      new TableCell({
-        width: { size: 64, type: WidthType.PERCENTAGE },
-        margins: { top: 60, bottom: 60, left: 80, right: 80 },
-        children: [new Paragraph({ children: [new TextRun({ text: sv(value), size: 18 })] })]
-      })
-    ]}))
-  });
-
-  // 多欄表格（含表頭列）
-  const multiTable = (headers, dataRows) => {
-    const colPct = Math.floor(100 / headers.length);
-    const mkCell = (txt, isHdr) => new TableCell({
-      width: { size: colPct, type: WidthType.PERCENTAGE },
-      shading: isHdr ? HDR_SHADE : undefined,
-      margins: { top: 50, bottom: 50, left: 70, right: 70 },
-      children: [new Paragraph({ children: [new TextRun({ text: sv(txt), bold: isHdr, size: isHdr ? 17 : 18 })] })]
-    });
-    return new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      borders: TABLE_BORDERS,
-      rows: [
-        new TableRow({ tableHeader: true, children: headers.map(h => mkCell(h, true)) }),
-        ...dataRows.map(row => new TableRow({ children: row.map(c => mkCell(c, false)) }))
-      ]
-    });
-  };
-
-  const children = [];
+  const bld = new DocxLite.DocxBuilder();
   const hub = _calcSnapshot.hub;
   const inp = _calcSnapshot.inputs;
   const comp = _calcSnapshot.computed;
 
   // ── 封面 ──────────────────────────────────────────────────────
-  children.push(new Paragraph({
-    children: [new TextRun({ text: '建築風力設計計算書', bold: true, size: 52, color: '1C1410' })],
-    alignment: AlignmentType.CENTER,
-    spacing: { before: 200, after: 200 }
-  }));
-  children.push(new Paragraph({
-    children: [new TextRun({ text: '計算日期：' + new Date(_calcSnapshot.generatedAt).toLocaleString('zh-TW'), size: 20, color: '555555' })],
-    alignment: AlignmentType.CENTER, spacing: { after: 80 }
-  }));
-  children.push(new Paragraph({
-    children: [new TextRun({ text: '適用公式：' + _calcSnapshot.formulaCode + '　' + _calcSnapshot.formulaDisplay, size: 20 })],
-    alignment: AlignmentType.CENTER, spacing: { after: 240 }
-  }));
+  bld.addTitle('建築風力設計計算書');
+  bld.addPara('計算日期：' + new Date(_calcSnapshot.generatedAt).toLocaleString('zh-TW'), false, true);
+  bld.addPara('適用公式：' + _calcSnapshot.formulaCode + '　' + _calcSnapshot.formulaDisplay, false, true);
+  bld.addSpacer();
 
   // ── 一、建築物基本參數 ─────────────────────────────────────────
-  children.push(h1('一、建築物基本參數'));
+  bld.addH1('一、建築物基本參數');
   const z0 = hub['zone0'];
   if (z0) {
     const btL = { ordinary: '普通建築物', flexible: '柔性建築物' };
     const bfL = { enclosed: '封閉式', partial: '部分封閉式', open: '開放式' };
     const dsL = { mwfrs: 'MWFRS（主要抗風系統）', cc: 'C&C（局部構材）' };
-    children.push(kvTable([
+    bld.addKvTable([
       ['建築物類型',      btL[z0.buildingType]  || z0.buildingType  || '—'],
       ['封閉狀態',        bfL[z0.buildingForm]  || z0.buildingForm  || '—'],
       ['設計系統',        dsL[z0.designSystem]  || z0.designSystem  || '—'],
@@ -1356,24 +1270,24 @@ async function exportDocx() {
       ['垂直風向尺寸 B',  z0.B    !== '' && z0.B    !== undefined ? z0.B    + ' m' : '—'],
       ['最低計算高度 z_min', z0.z_min !== '' && z0.z_min !== undefined ? z0.z_min + ' m' : '—'],
       ['最高計算高度 z_max', z0.z_max !== '' && z0.z_max !== undefined ? z0.z_max + ' m' : '—'],
-    ]));
-  } else { children.push(para('（未輸入 0 區基本參數）')); }
-  children.push(spacer());
+    ]);
+  } else { bld.addPara('（未輸入 0 區基本參數）'); }
+  bld.addSpacer();
 
   // ── 二、基本設計風速 ───────────────────────────────────────────
-  children.push(h1('二、基本設計風速'));
+  bld.addH1('二、基本設計風速');
   const wa = hub['wind'];
   if (wa) {
-    children.push(kvTable([
+    bld.addKvTable([
       ['地區', [wa.island, wa.county, wa.township].filter(Boolean).join(' / ')],
       ['風區', wa.zone],
       ['基本設計風速 V\u2081\u2080(C)', wa.speed + ' m/s'],
-    ]));
-  } else { children.push(para('（未查詢 A 區基本設計風速）')); }
-  children.push(spacer());
+    ]);
+  } else { bld.addPara('（未查詢 A 區基本設計風速）'); }
+  bld.addSpacer();
 
   // ── 三、建築物用途係數 ─────────────────────────────────────────
-  children.push(h1('三、建築物用途係數'));
+  bld.addH1('三、建築物用途係數');
   const wo = hub['occ'];
   if (wo) {
     const occRows = [
@@ -1383,33 +1297,33 @@ async function exportDocx() {
       ['用途係數 I', wo.importanceFactor],
     ];
     if (wo.notes) occRows.push(['備註', wo.notes]);
-    children.push(kvTable(occRows));
-  } else { children.push(para('（未查詢 B 區用途係數）')); }
-  children.push(spacer());
+    bld.addKvTable(occRows);
+  } else { bld.addPara('（未查詢 B 區用途係數）'); }
+  bld.addSpacer();
 
   // ── 四、地況種類及參數 ─────────────────────────────────────────
-  children.push(h1('四、地況種類及參數'));
+  bld.addH1('四、地況種類及參數');
   const wt = hub['terr'];
   if (wt) {
-    children.push(kvTable([
+    bld.addKvTable([
       ['地況種類',   wt.terrainId],
       ['名稱',       wt.terrainName],
       ['說明',       wt.description],
       ['適用條件',   wt.applicationCondition],
-    ]));
+    ]);
     if (wt.parameters && wt.parameters.length > 0) {
-      children.push(spacer());
-      children.push(para('地況參數：', { bold: true }));
-      children.push(multiTable(
+      bld.addSpacer();
+      bld.addPara('地況參數：', true);
+      bld.addMultiTable(
         ['符號', '名稱', '數值', '單位'],
         wt.parameters.map(p => [p.symbol, p.name, sv(p.value), p.unit])
-      ));
+      );
     }
-  } else { children.push(para('（未查詢 C 區地況種類）')); }
-  children.push(spacer());
+  } else { bld.addPara('（未查詢 C 區地況種類）'); }
+  bld.addSpacer();
 
   // ── 五、地形係數 Kzt ────────────────────────────────────────────
-  children.push(h1('五、地形係數 Kzt'));
+  bld.addH1('五、地形係數 Kzt');
   const wk = hub['kzt'];
   if (wk) {
     const kztRows = [['地形類型', wk.terrain || '—']];
@@ -1424,44 +1338,44 @@ async function exportDocx() {
       if (wk.results.K3) kztRows.push(['K3 (z_max)', f4(wk.results.K3)]);
       kztRows.push(['Kzt (z_max)', f4(wk.results.Kzt)]);
     }
-    children.push(kvTable(kztRows));
+    bld.addKvTable(kztRows);
     if (wk.results && wk.results.kztTable && wk.results.kztTable.length > 1) {
-      children.push(spacer());
-      children.push(para('逐高度 Kzt 計算表：', { bold: true }));
-      children.push(multiTable(
+      bld.addSpacer();
+      bld.addPara('逐高度 Kzt 計算表：', true);
+      bld.addMultiTable(
         ['高度 z (m)', 'Kzt'],
         wk.results.kztTable.map(r => [r.z, f4(r.Kzt)])
-      ));
+      );
     }
-  } else { children.push(para('（未計算 D 區地形係數）')); }
-  children.push(spacer());
+  } else { bld.addPara('（未計算 D 區地形係數）'); }
+  bld.addSpacer();
 
   // ── 六、建築物外風壓係數與內風壓係數 ──────────────────────────
-  children.push(h1('六、建築物外風壓係數與內風壓係數'));
+  bld.addH1('六、建築物外風壓係數與內風壓係數');
   const we = hub['wind-press'];
   if (we) {
-    children.push(kvTable([
+    bld.addKvTable([
       ['構件類型', we.componentLabel || we.component || '—'],
       ['查詢表格', we.tableRef || we.tableName || '—'],
-    ]));
+    ]);
     if (we.inputs && we.inputs.length > 0) {
-      children.push(spacer());
-      children.push(para('查詢輸入：', { bold: true }));
-      children.push(kvTable(we.inputs.map(i => [i.label, sv(i.value)])));
+      bld.addSpacer();
+      bld.addPara('查詢輸入：', true);
+      bld.addKvTable(we.inputs.map(i => [i.label, sv(i.value)]));
     }
     if (we.coefficients && we.coefficients.length > 0) {
-      children.push(spacer());
-      children.push(para('風壓係數：', { bold: true }));
-      children.push(multiTable(
+      bld.addSpacer();
+      bld.addPara('風壓係數：', true);
+      bld.addMultiTable(
         ['風面', '係數', '數值'],
         we.coefficients.map(c => [c.face, c.coef, f4(c.value)])
-      ));
+      );
     }
-  } else { children.push(para('（未查詢 E 區風壓係數）')); }
-  children.push(spacer());
+  } else { bld.addPara('（未查詢 E 區風壓係數）'); }
+  bld.addSpacer();
 
   // ── 七、設計風壓計算式 ─────────────────────────────────────────
-  children.push(h1('七、設計風壓計算式'));
+  bld.addH1('七、設計風壓計算式');
   const wf = hub['formula'];
   if (wf) {
     const fmRows = [
@@ -1478,34 +1392,34 @@ async function exportDocx() {
     }
     fmRows.push(['公式',   _calcSnapshot.formulaDisplay]);
     fmRows.push(['說明',   _calcSnapshot.formulaNote]);
-    children.push(kvTable(fmRows));
-  } else { children.push(para('（未選擇 F 區設計公式）')); }
-  children.push(spacer());
+    bld.addKvTable(fmRows);
+  } else { bld.addPara('（未選擇 F 區設計公式）'); }
+  bld.addSpacer();
 
   // ── 八、陣風反應因子 ───────────────────────────────────────────
-  children.push(h1('八、陣風反應因子'));
+  bld.addH1('八、陣風反應因子');
   const wg = hub['gust'];
   if (wg) {
-    children.push(kvTable([
+    bld.addKvTable([
       ['建築物類型', wg.buildingType === 'flexible' ? '柔性建築物' : '普通建築物'],
       [wg.label || '陣風反應因子', String(wg.value)],
       ['說明', wg.desc],
-    ]));
+    ]);
   } else if (inp.G !== null && inp.G !== undefined) {
-    children.push(kvTable([
+    bld.addKvTable([
       [_calcSnapshot.GLabel || '陣風反應因子', f4(inp.G)],
       ['來源', '手動輸入'],
-    ]));
+    ]);
   } else {
-    children.push(para('（本公式不使用陣風反應因子，或尚未查詢 G 區）'));
+    bld.addPara('（本公式不使用陣風反應因子，或尚未查詢 G 區）');
   }
-  children.push(spacer());
+  bld.addSpacer();
 
   // ── 九、設計風壓計算 ───────────────────────────────────────────
-  children.push(h1('九、設計風壓計算'));
+  bld.addH1('九、設計風壓計算');
 
   // 9.1 使用參數彙整
-  children.push(h2('9.1　使用參數彙整'));
+  bld.addH2('9.1　使用參數彙整');
   const pRows = [
     ['V\u2081\u2080(C)  基本設計風速', f2(inp.V)  + ' m/s'],
     ['I  用途係數',          f4(inp.I)],
@@ -1528,79 +1442,79 @@ async function exportDocx() {
   }
   if (inp.Ac !== null && inp.Ac !== undefined)
     pRows.push(['Ac  受風特徵面積', f2(inp.Ac) + ' m\u00b2']);
-  children.push(kvTable(pRows));
-  children.push(spacer());
+  bld.addKvTable(pRows);
+  bld.addSpacer();
 
   // 9.2 計算步驟
-  children.push(h2('9.2　計算步驟'));
+  bld.addH2('9.2　計算步驟');
   const zCS = Math.max(inp.z, 5);
   const kzNote = inp.z < 5 ? '（z=' + inp.z + 'm < 5m，取5m）' : '';
-  children.push(kvTable([
+  bld.addKvTable([
     ['步驟 1',   '風速壓地況係數 K(z_max)'],
     ['計算式',   'K(z) = 2.774 \u00d7 (z / zg)^(2\u03b1) = 2.774 \u00d7 (' + zCS + ' / ' + f2(inp.zg) + ')^(2\u00d7' + inp.alp + ') ' + kzNote],
     ['結果',     'K(z_max) = ' + f4(comp.Kz)],
     ['步驟 2',   '風速壓 q(h) = q(z_max)（qi 及背風面基準值）'],
     ['計算式',   'q(h) = 0.06 \u00d7 K(z) \u00d7 Kzt \u00d7 (I\u00b7V)\u00b2 = 0.06 \u00d7 ' + f4(comp.Kz) + ' \u00d7 ' + f4(inp.Kzt) + ' \u00d7 [' + f4(inp.I) + ' \u00d7 ' + f2(inp.V) + ']\u00b2'],
     ['結果',     'q(h) = ' + f2(comp.qz) + ' kgf/m\u00b2'],
-  ]));
-  children.push(spacer());
+  ]);
+  bld.addSpacer();
 
   // 9.3 各風面設計風壓
   const fr = _calcSnapshot.formulaResults;
   const code = _calcSnapshot.formulaCode;
   if (fr && fr.length > 0) {
-    children.push(h2('9.3　各風面設計風壓'));
+    bld.addH2('9.3　各風面設計風壓');
     if (code === '2.1' || code === '2.2' || code === '3.2') {
-      children.push(multiTable(
+      bld.addMultiTable(
         ['風面', '係數', '係數值', 'p\u208a (kgf/m\u00b2)', 'p\u208b (kgf/m\u00b2)', '設計值 (kgf/m\u00b2)', '控制工況'],
         fr.map(r => [r.face, r.coef, f4(r.value), sg(r.p_pos), sg(r.p_neg), sg(r.p_ctrl),
           r.p_pos >= r.p_neg ? '正內壓控制' : '負內壓控制'])
-      ));
+      );
     } else if (code === '3.1' || code === '3.3') {
-      children.push(multiTable(
+      bld.addMultiTable(
         ['風面', '(GCp)', 'p\u208a (kgf/m\u00b2)', 'p\u208b (kgf/m\u00b2)', '設計值 (kgf/m\u00b2)', '控制工況'],
         fr.map(r => [r.face, f4(r.value), sg(r.p_pos), sg(r.p_neg), sg(r.p_ctrl),
           r.p_pos >= r.p_neg ? '正內壓控制' : '負內壓控制'])
-      ));
+      );
     } else if (code === '2.3') {
-      children.push(multiTable(
+      bld.addMultiTable(
         ['風面', '(GCpn)', 'pp (kgf/m\u00b2)'],
         fr.map(r => [r.face, f4(r.value), sg(r.pp)])
-      ));
+      );
     } else if (code === '2.4') {
-      children.push(multiTable(
+      bld.addMultiTable(
         ['風面', 'Cf', 'F (kgf)'],
         fr.map(r => [r.face, f4(r.value), sg(r.F)])
-      ));
+      );
     } else if (code === '3.4') {
-      children.push(multiTable(
+      bld.addMultiTable(
         ['風面', 'Cpn', 'p (kgf/m\u00b2)'],
         fr.map(r => [r.face, f4(r.value), sg(r.p)])
-      ));
+      );
     }
-    children.push(spacer());
+    bld.addSpacer();
   }
 
   // 9.4 逐高度設計風壓
   if (_calcSnapshot.perHeightRows && _calcSnapshot.perHeightRows.length > 0) {
-    children.push(h2('9.4　逐高度設計風壓'));
-    children.push(para('迎風面使用 q(z) 逐高度；背風/側面使用 q(h) 固定；F 以梯形積分計算（首列不計）'));
-    children.push(multiTable(
+    bld.addH2('9.4　逐高度設計風壓');
+    bld.addPara('迎風面使用 q(z) 逐高度；背風/側面使用 q(h) 固定；F 以梯形積分計算（首列不計）');
+    bld.addMultiTable(
       ['z (m)', 'K(z)', 'Kzt', 'q(z) (kgf/m\u00b2)', 'p\u208a (kgf/m\u00b2)', 'p\u208b (kgf/m\u00b2)', 'F\u208a (kgf)', 'F\u208b (kgf)'],
       _calcSnapshot.perHeightRows.map(r => [
         r.z, f4(r.Kz), f4(r.Kzt), f2(r.qz), sg(r.p_pos), sg(r.p_neg),
         r.F_pos !== null ? sg(r.F_pos) : '—',
         r.F_neg !== null ? sg(r.F_neg) : '—'
       ])
-    ));
-    children.push(spacer());
+    );
+    bld.addSpacer();
   }
 
   // 9.5 台電修正風壓
   if (_calcSnapshot.tpcRows && _calcSnapshot.tpcRows.length > 0) {
-    children.push(h2('9.5　台電修正風壓'));
-    children.push(para('z < 30 m：風壓不得小於 240 kgf/m²；z ≥ 30 m：風壓不得小於 360 kgf/m²　★ 已依規定修正'));
-    children.push(multiTable(
+    bld.addH2('9.5　台電修正風壓');
+    bld.addPara('z < 30 m：風壓不得小於 240 kgf/m²；z ≥ 30 m：風壓不得小於 360 kgf/m²　★ 已依規定修正');
+    bld.addMultiTable(
       ['z (m)', '門檻 (kgf/m\u00b2)', '原p\u208a', '原p\u208b', '修正p\u208a', '修正p\u208b', 'F\u208a (kgf)', 'F\u208b (kgf)'],
       _calcSnapshot.tpcRows.map(r => [
         r.z, r.threshold, f2(r.p_pos_orig), f2(r.p_neg_orig),
@@ -1609,12 +1523,12 @@ async function exportDocx() {
         r.F_pos !== null ? sg(r.F_pos) : '—',
         r.F_neg !== null ? sg(r.F_neg) : '—'
       ])
-    ));
-    children.push(spacer());
+    );
+    bld.addSpacer();
   }
 
   // 9.6 設計包絡值
-  children.push(h2('9.6　設計包絡值'));
+  bld.addH2('9.6　設計包絡值');
   if (fr && fr.length > 0) {
     let envRows = [];
     if (['2.1','2.2','3.1','3.2','3.3'].includes(code)) {
@@ -1639,14 +1553,13 @@ async function exportDocx() {
       const maxP = Math.max(...fr.map(r => r.p)), minP = Math.min(...fr.map(r => r.p));
       envRows = [['最大正設計風壓 p', sg(maxP) + ' kgf/m\u00b2'], ['最小負設計風壓 p', sg(minP) + ' kgf/m\u00b2']];
     }
-    if (envRows.length > 0) children.push(kvTable(envRows));
+    if (envRows.length > 0) bld.addKvTable(envRows);
   }
 
   // ── 產生並下載 ────────────────────────────────────────────────
   try {
-    const doc = new Document({ sections: [{ children }] });
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, '\u98a8\u58d3\u8a08\u7b97\u66f8_' + new Date().toISOString().slice(0, 10) + '.docx');
+    const blob = bld.toBlob();
+    DocxLite.downloadBlob(blob, '\u98a8\u58d3\u8a08\u7b97\u66f8_' + new Date().toISOString().slice(0, 10) + '.docx');
   } catch (err) {
     alert('匯出失敗：' + err.message);
     console.error('[exportDocx]', err);
