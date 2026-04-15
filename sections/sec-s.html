@@ -632,6 +632,39 @@ function runCalc() {
       const totalFNeg = perHeightRows.reduce((s, r) => s + (r.F_neg !== null ? r.F_neg : 0), 0);
       faceResultsHTML += buildPerHeightTable(perHeightRows, totalFPos, totalFNeg, faceWidth,
         max_Cp_pos, min_Cp_neg, z_min, z, GLabel);
+
+      // ── 台電核能火力發電工程處修正風壓 ────────────────────────────────
+      // z < 30m：風壓不得小於 240 kgf/m²；z ≥ 30m：風壓不得小於 360 kgf/m²
+      const TPC_LOW = 240;
+      const TPC_HIGH = 360;
+      const tpcRows = perHeightRows.map(r => {
+        const threshold = r.z < 30 ? TPC_LOW : TPC_HIGH;
+        const p_pos_c = r.p_pos < threshold ? threshold : r.p_pos;
+        const p_neg_c = Math.abs(r.p_neg) < threshold ? -threshold : r.p_neg;
+        return {
+          z: r.z, Kz: r.Kz, Kzt: r.Kzt, qz: r.qz,
+          p_pos: p_pos_c, p_neg: p_neg_c,
+          p_pos_orig: r.p_pos, p_neg_orig: r.p_neg,
+          corrected_pos: r.p_pos < threshold,
+          corrected_neg: Math.abs(r.p_neg) < threshold,
+          threshold,
+          F_pos: null, F_neg: null
+        };
+      });
+      if (tpcRows.length === 1) {
+        tpcRows[0].F_pos = faceWidth * tpcRows[0].p_pos;
+        tpcRows[0].F_neg = faceWidth * tpcRows[0].p_neg;
+      } else {
+        for (let i = 1; i < tpcRows.length; i++) {
+          const prev = tpcRows[i - 1];
+          const curr = tpcRows[i];
+          curr.F_pos = faceWidth * (prev.p_pos + curr.p_pos) / 2;
+          curr.F_neg = faceWidth * (prev.p_neg + curr.p_neg) / 2;
+        }
+      }
+      const tpcTotalFPos = tpcRows.reduce((s, r) => s + (r.F_pos !== null ? r.F_pos : 0), 0);
+      const tpcTotalFNeg = tpcRows.reduce((s, r) => s + (r.F_neg !== null ? r.F_neg : 0), 0);
+      faceResultsHTML += buildTpcCorrectedTable(tpcRows, tpcTotalFPos, tpcTotalFNeg, faceWidth, z_min, z);
     }
 
     // ── 表2.5 屋頂總受力（F = p × L × B / cosθ）────────────────────
@@ -1075,6 +1108,62 @@ function buildPerHeightTable(rows, totalFPos, totalFNeg, faceWidth, maxCpPos, mi
     </table></div>
     <div style="padding:6px 14px;font-size:9px;color:var(--muted);border-top:1px solid var(--border)">
       p₊ = q(z)·${GLabel}·Cp₊ − q(h)·(GCpi)₋　p₋ = q(h)·${GLabel}·Cp₋ − q(h)·(GCpi)₊　F = 受風寬 × (p_i + p_{i-1}) / 2（梯形積分；首列不計，僅1列時 F = 受風寬 × p）
+    </div>
+  </div>`;
+}
+
+function buildTpcCorrectedTable(rows, totalFPos, totalFNeg, faceWidth, z_min, z_max) {
+  const f2 = n => parseFloat(n).toFixed(2);
+  const signed = n => (n >= 0 ? '+' : '') + parseFloat(n).toFixed(2);
+  const rowHtml = rows.map((r, i) => {
+    const bgBase = i % 2 === 0 ? '' : 'background:rgba(90,45,130,.04)';
+    const posCellStyle = r.corrected_pos
+      ? 'background:rgba(234,179,8,.18);color:#16a34a'
+      : 'color:#16a34a';
+    const negCellStyle = r.corrected_neg
+      ? 'background:rgba(234,179,8,.18);color:#dc2626'
+      : 'color:#dc2626';
+    return `
+    <tr style="${bgBase}">
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;font-weight:700">${r.z}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:10px;text-align:right;color:var(--muted)">${r.threshold}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;color:var(--muted)">${f2(r.p_pos_orig)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;color:var(--muted)">${f2(r.p_neg_orig)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;${posCellStyle}">${r.corrected_pos ? '★ ' : ''}${signed(r.p_pos)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:11px;text-align:right;${negCellStyle}">${r.corrected_neg ? '★ ' : ''}${signed(r.p_neg)}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;text-align:right;color:#16a34a">${r.F_pos !== null ? signed(r.F_pos) : '—'}</td>
+      <td style="padding:4px 8px;font-family:'DM Mono',monospace;font-size:12px;font-weight:700;text-align:right;color:#dc2626">${r.F_neg !== null ? signed(r.F_neg) : '—'}</td>
+    </tr>`;
+  }).join('');
+  return `
+  <div style="background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:18px">
+    <div style="background:var(--ink);color:var(--paper);padding:10px 16px;font-size:11px;font-weight:700;font-family:'Noto Serif TC',serif">
+      台電核能火力發電工程處修正風壓　z = ${Math.floor(z_min)}~${Math.ceil(z_max)} m
+    </div>
+    <div style="padding:8px 16px;font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;border-bottom:1px solid var(--border)">
+      z &lt; 30 m：風壓不得小於 240 kgf/m²　z ≥ 30 m：風壓不得小於 360 kgf/m²　★ 表示已依規定修正　受風寬 = ${f2(faceWidth)} m
+    </div>
+    <div style="max-height:360px;overflow-y:auto">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:rgba(90,45,130,.08);position:sticky;top:0">
+        <th style="padding:6px 8px;font-size:9px;text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">z(m)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">門檻(kgf/m²)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">原p₊</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border)">原p₋</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:#16a34a;border-bottom:1px solid var(--border)">修正p₊(kgf/m²)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:#dc2626;border-bottom:1px solid var(--border)">修正p₋(kgf/m²)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:#16a34a;border-bottom:1px solid var(--border)">F₊(kgf)</th>
+        <th style="padding:6px 8px;font-size:9px;text-align:right;color:#dc2626;border-bottom:1px solid var(--border)">F₋(kgf)</th>
+      </tr></thead>
+      <tbody>${rowHtml}</tbody>
+      <tfoot><tr style="background:rgba(90,45,130,.15);font-weight:700">
+        <td colspan="6" style="padding:6px 8px;font-size:11px;color:var(--ink)">修正後合計受力（Σ F per 1m 帶）</td>
+        <td style="padding:6px 8px;font-family:'DM Mono',monospace;font-size:13px;text-align:right;color:#16a34a">${signed(totalFPos)}</td>
+        <td style="padding:6px 8px;font-family:'DM Mono',monospace;font-size:13px;text-align:right;color:#dc2626">${signed(totalFNeg)}</td>
+      </tr></tfoot>
+    </table></div>
+    <div style="padding:6px 14px;font-size:9px;color:var(--muted);border-top:1px solid var(--border)">
+      依台電核能火力發電工程處規定修正後，F = 受風寬 × (p_i + p_{i-1}) / 2（梯形積分；首列不計，僅1列時 F = 受風寬 × p）
     </div>
   </div>`;
 }
