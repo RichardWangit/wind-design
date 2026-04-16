@@ -173,7 +173,7 @@
       + '</w:tbl>';
   }
 
-  function multiTblXml(headers, dataRows) {
+  function multiTblXml(headers, dataRows, footerRows) {
     const n = headers.length;
     const cw = Math.floor(PAGE_W / n);
     const cws = headers.map((_, i) => i === n - 1 ? PAGE_W - cw * (n - 1) : cw);
@@ -181,7 +181,10 @@
     const bRows = dataRows.map(row =>
       `<w:tr>${row.map((c, i) => tcXml(c, false, false, cws[i])).join('')}</w:tr>`
     ).join('');
-    return `<w:tbl>${TBL_PR}${hRow}${bRows}</w:tbl>`;
+    const fRows = footerRows
+      ? footerRows.map(row => `<w:tr>${row.map((c, i) => tcXml(c, true, true, cws[i])).join('')}</w:tr>`).join('')
+      : '';
+    return `<w:tbl>${TBL_PR}${hRow}${bRows}${fRows}</w:tbl>`;
   }
 
   // ── DocxBuilder ─────────────────────────────────────────────────────
@@ -193,7 +196,7 @@
   DocxBuilder.prototype.addH2         = function (t)      { this._p.push(pXml(t, 'Heading2')); };
   DocxBuilder.prototype.addSpacer     = function ()       { this._p.push('<w:p/>'); };
   DocxBuilder.prototype.addKvTable    = function (rows)   { this._p.push(kvTblXml(rows)); };
-  DocxBuilder.prototype.addMultiTable = function (h, rows){ this._p.push(multiTblXml(h, rows)); };
+  DocxBuilder.prototype.addMultiTable = function (h, rows, footerRows){ this._p.push(multiTblXml(h, rows, footerRows)); };
 
   DocxBuilder.prototype.toBlob = function () {
     const WNS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';

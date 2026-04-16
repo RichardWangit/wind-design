@@ -39,8 +39,11 @@ body { background: var(--paper); color: var(--ink); font-family: 'Noto Sans TC',
     <button onclick="resetCalc()" style="padding:12px 18px;background:transparent;color:var(--muted);border:1.5px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'">↺ 重設</button>
   </div>
 
+  <!-- Result output -->
+  <div id="calc-result"></div>
+
   <!-- Export button (hidden until calc completes) -->
-  <div id="export-btn-container" style="display:none;margin-bottom:24px">
+  <div id="export-btn-container" style="display:none;margin-top:16px;margin-bottom:24px">
     <button onclick="exportDocx()"
       style="width:100%;padding:11px;background:transparent;color:var(--accent8,#5a2d82);
              border:1.5px solid var(--accent8,#5a2d82);border-radius:8px;font-size:13px;
@@ -49,9 +52,6 @@ body { background: var(--paper); color: var(--ink); font-family: 'Noto Sans TC',
       onmouseover="this.style.background='rgba(90,45,130,.09)'"
       onmouseout="this.style.background='transparent'">↓ 匯出計算書 (.docx)</button>
   </div>
-
-  <!-- Result output -->
-  <div id="calc-result"></div>
 </div>
 
 <script>
@@ -558,11 +558,13 @@ function runCalc() {
   let roofForceHTML = '';
 
   // 計算快照暫存（供匯出 DOCX 使用）
-  let _snapFormulaResults = null;
-  let _snapPerHeightRows  = null;
-  let _snapTpcRows        = null;
-  let _snapRoofForceType  = null;
-  let _snapRoofForceData  = null;
+  let _snapFormulaResults  = null;
+  let _snapPerHeightRows   = null;
+  let _snapPerHeightTotals = null;
+  let _snapTpcRows         = null;
+  let _snapTpcTotals       = null;
+  let _snapRoofForceType   = null;
+  let _snapRoofForceData   = null;
 
   // 取得 E 區構件資訊（供後續條件判斷使用）
   const weCalc = getResultByType('wind-press');
@@ -651,7 +653,8 @@ function runCalc() {
       }
       const totalFPos = perHeightRows.reduce((s, r) => s + (r.F_pos !== null ? r.F_pos : 0), 0);
       const totalFNeg = perHeightRows.reduce((s, r) => s + (r.F_neg !== null ? r.F_neg : 0), 0);
-      _snapPerHeightRows = perHeightRows;  // 快照
+      _snapPerHeightRows   = perHeightRows;  // 快照
+      _snapPerHeightTotals = { FPos: totalFPos, FNeg: totalFNeg };  // 快照
       faceResultsHTML += buildPerHeightTable(perHeightRows, totalFPos, totalFNeg, faceWidth,
         max_Cp_pos, min_Cp_neg, z_min, z, GLabel);
 
@@ -686,7 +689,8 @@ function runCalc() {
       }
       const tpcTotalFPos = tpcRows.reduce((s, r) => s + (r.F_pos !== null ? r.F_pos : 0), 0);
       const tpcTotalFNeg = tpcRows.reduce((s, r) => s + (r.F_neg !== null ? r.F_neg : 0), 0);
-      _snapTpcRows = tpcRows;  // 快照
+      _snapTpcRows   = tpcRows;  // 快照
+      _snapTpcTotals = { FPos: tpcTotalFPos, FNeg: tpcTotalFNeg };  // 快照
       faceResultsHTML += buildTpcCorrectedTable(tpcRows, tpcTotalFPos, tpcTotalFNeg, faceWidth, z_min, z);
     }
 
@@ -946,12 +950,14 @@ function runCalc() {
     },
     faces,
     computed:        { Kz, qz },
-    formulaResults:  _snapFormulaResults,
-    perHeightRows:   _snapPerHeightRows,
-    tpcRows:         _snapTpcRows,
-    roofForceType:   _snapRoofForceType,
-    roofForceData:   _snapRoofForceData,
-    hub:             Object.assign({}, _hubResults)
+    formulaResults:   _snapFormulaResults,
+    perHeightRows:    _snapPerHeightRows,
+    perHeightTotals:  _snapPerHeightTotals,
+    tpcRows:          _snapTpcRows,
+    tpcTotals:        _snapTpcTotals,
+    roofForceType:    _snapRoofForceType,
+    roofForceData:    _snapRoofForceData,
+    hub:              Object.assign({}, _hubResults)
   };
 
   out.innerHTML = `
@@ -1413,6 +1419,14 @@ function exportDocx() {
   } else {
     bld.addPara('（本公式不使用陣風反應因子，或尚未查詢 G 區）');
   }
+  if (wg && wg.calcSteps && wg.calcSteps.length > 0) {
+    bld.addSpacer();
+    bld.addPara('計算過程：', true);
+    bld.addMultiTable(
+      ['計算項目', '計算式', '結果'],
+      wg.calcSteps.map(s => [s.label, s.formula, s.result])
+    );
+  }
   bld.addSpacer();
 
   // ── 九、設計風壓計算 ───────────────────────────────────────────
@@ -1499,13 +1513,18 @@ function exportDocx() {
   if (_calcSnapshot.perHeightRows && _calcSnapshot.perHeightRows.length > 0) {
     bld.addH2('9.4　逐高度設計風壓');
     bld.addPara('迎風面使用 q(z) 逐高度；背風/側面使用 q(h) 固定；F 以梯形積分計算（首列不計）');
+    const ph = _calcSnapshot.perHeightTotals;
+    const phFooter = ph
+      ? [['合計受力（\u03a3 F per 1m 帶）', '', '', '', '', '', sg(ph.FPos), sg(ph.FNeg)]]
+      : null;
     bld.addMultiTable(
       ['z (m)', 'K(z)', 'Kzt', 'q(z) (kgf/m\u00b2)', 'p\u208a (kgf/m\u00b2)', 'p\u208b (kgf/m\u00b2)', 'F\u208a (kgf)', 'F\u208b (kgf)'],
       _calcSnapshot.perHeightRows.map(r => [
         r.z, f4(r.Kz), f4(r.Kzt), f2(r.qz), sg(r.p_pos), sg(r.p_neg),
         r.F_pos !== null ? sg(r.F_pos) : '—',
         r.F_neg !== null ? sg(r.F_neg) : '—'
-      ])
+      ]),
+      phFooter
     );
     bld.addSpacer();
   }
@@ -1514,6 +1533,10 @@ function exportDocx() {
   if (_calcSnapshot.tpcRows && _calcSnapshot.tpcRows.length > 0) {
     bld.addH2('9.5　台電修正風壓');
     bld.addPara('z < 30 m：風壓不得小於 240 kgf/m²；z ≥ 30 m：風壓不得小於 360 kgf/m²　★ 已依規定修正');
+    const tc = _calcSnapshot.tpcTotals;
+    const tcFooter = tc
+      ? [['修正後合計受力（\u03a3 F per 1m 帶）', '', '', '', '', '', sg(tc.FPos), sg(tc.FNeg)]]
+      : null;
     bld.addMultiTable(
       ['z (m)', '門檻 (kgf/m\u00b2)', '原p\u208a', '原p\u208b', '修正p\u208a', '修正p\u208b', 'F\u208a (kgf)', 'F\u208b (kgf)'],
       _calcSnapshot.tpcRows.map(r => [
@@ -1522,7 +1545,8 @@ function exportDocx() {
         (r.corrected_neg ? '\u2605 ' : '') + sg(r.p_neg),
         r.F_pos !== null ? sg(r.F_pos) : '—',
         r.F_neg !== null ? sg(r.F_neg) : '—'
-      ])
+      ]),
+      tcFooter
     );
     bld.addSpacer();
   }
