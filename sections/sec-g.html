@@ -726,6 +726,7 @@ const TERRAIN_PARAMS = {
 let C = null;           // 未選擇地況前為 null
 let terrainId = null;   // 'A' / 'B' / 'C'
 let V10_locked = null;  // 由 A 區帶入的風速值
+let _calcSteps = null;  // 計算步驟快照，供匯出 DOCX 使用
 
 function fmt(x, d=4) {
   if (Math.abs(x) >= 1000) return x.toFixed(1);
@@ -852,6 +853,14 @@ function calculate() {
     document.getElementById('final-value').textContent = fmt(G,4);
     document.getElementById('final-desc').textContent = `依式(2.9) | 地況${terrainId} | h=${h}m, B=${B}m, L=${L}m`;
 
+    _calcSteps = [
+      { label: '等效結構高度 z',              formula: `z = max(0.6h, z_min) = max(0.6×${h}, ${C.zmin})`,       result: `${fmt(z,2)} m` },
+      { label: '紊流強度 Iz（式2.10）',        formula: `Iz = c × (10/z)^(1/6) = ${C.c} × (10/${fmt(z,2)})^(1/6)`, result: fmt(Iz,4) },
+      { label: '紊流積分尺度 Lz（式2.12）',    formula: `Lz = ℓ × (z/10)^ε = ${C.l} × (${fmt(z,2)}/10)^${C.eps}`,  result: `${fmt(Lz,2)} m` },
+      { label: '背景反應因子 Q（式2.11）',     formula: `Q = 1/√[1 + 0.63×((B+h)/Lz)^0.63] = 1/√[1 + 0.63×(${fmt(BplusH/Lz,4)})^0.63]`, result: fmt(Q,4) },
+      { label: '陣風反應因子 G（式2.9）',      formula: `G = 1.927×(1 + 1.7×gQ×Iz×Q)/(1 + 1.7×gV×Iz)，gQ=gV=3.4`, result: fmt(G,4) },
+    ];
+
   } else {
     // Flexible building
     document.getElementById('step5-ordinary').style.display = 'none';
@@ -948,6 +957,21 @@ function calculate() {
     document.getElementById('final-label').textContent = '陣風反應因子 Gf（柔性建築物）';
     document.getElementById('final-value').textContent = fmt(Gf,4);
     document.getElementById('final-desc').textContent = `依式(2.13) | 地況${terrainId} | h=${h}m, B=${B}m, L=${L}m, fn=${fmt(fn,4)}Hz, β=${beta}`;
+
+    _calcSteps = [
+      { label: '等效結構高度 z',                  formula: `z = max(0.6h, z_min) = max(0.6×${h}, ${C.zmin})`,          result: `${fmt(z,2)} m` },
+      { label: '紊流強度 Iz（式2.10）',            formula: `Iz = c × (10/z)^(1/6) = ${C.c} × (10/${fmt(z,2)})^(1/6)`,  result: fmt(Iz,4) },
+      { label: '紊流積分尺度 Lz（式2.12）',        formula: `Lz = ℓ × (z/10)^ε = ${C.l} × (${fmt(z,2)}/10)^${C.eps}`,   result: `${fmt(Lz,2)} m` },
+      { label: '背景反應因子 Q（式2.11）',         formula: `Q = 1/√[1 + 0.63×((B+h)/Lz)^0.63] = 1/√[1 + 0.63×(${fmt(BplusH/Lz,4)})^0.63]`, result: fmt(Q,4) },
+      { label: '高度 z 平均風速 Vz（式2.19）',     formula: `Vz = b × (z/10)^α × V10 = ${C.b} × (${fmt(z,2)}/10)^${C.alpha} × ${V10}`,       result: `${fmt(Vz,2)} m/s` },
+      { label: '自然頻率 fn',                     formula: `fn = 22.86 / h = 22.86 / ${h}`,                              result: `${fmt(fn,4)} Hz` },
+      { label: '無因次頻率 N1（式2.17）',          formula: `N1 = fn × Lz / Vz = ${fmt(fn,4)} × ${fmt(Lz,2)} / ${fmt(Vz,2)}`, result: fmt(N1,4) },
+      { label: '頻譜因子 Rn（式2.16）',            formula: `Rn = 7.47N1 / (1+10.3N1)^(5/3) = ${fmt(Rn_num,4)} / ${fmt(Rn_den,4)}`, result: fmt(Rn,4) },
+      { label: '共振因子 Rh、RB、RL（式2.18）',    formula: `Rj = 1/(2η) − 1/(2η²)×(1−e^(−2η))，ηh=${fmt(eta_h,4)}, ηB=${fmt(eta_B,4)}, ηL=${fmt(eta_L,4)}`, result: `Rh=${fmt(Rh,4)}, RB=${fmt(RB,4)}, RL=${fmt(RL,4)}` },
+      { label: '共振反應因子 R²（式2.15）',         formula: `R² = (1/β)×Rn×Rh×RB×(0.53+0.47RL) = (1/${beta})×${fmt(Rn,4)}×${fmt(Rh,4)}×${fmt(RB,4)}×${fmt(0.53+0.47*RL,4)}`, result: fmt(R2,4) },
+      { label: '共振尖峰因子 gR（式2.14）',         formula: `gR = √(2ln(3600fn)) + 0.577/√(2ln(3600fn))，ln(3600fn)=${fmt(ln3600fn,4)}`,     result: fmt(gR,4) },
+      { label: '陣風反應因子 Gf（式2.13）',         formula: `Gf = 1.927×(1 + 1.7Iz√(gQ²Q²+gR²R²))/(1 + 1.7gV·Iz)，gQ=gV=3.4`,             result: fmt(Gf,4) },
+    ];
   }
 
   res.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1060,6 +1084,7 @@ function sendToHub() {
     valueStr: value,
     desc: desc,
     buildingType: buildingType,
+    calcSteps: _calcSteps,
     timestamp: new Date().toISOString()
   }, '*');
 }
